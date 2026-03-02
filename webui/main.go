@@ -14,6 +14,8 @@ import (
 )
 
 type Config struct {
+	Host        string `json:"host"`
+	Port        int    `json:"port"`
 	ProjectPath string `json:"project_path"`
 	ATDPath     string `json:"atd_path"`
 	ToolkitPath string `json:"toolkit_path"`
@@ -105,8 +107,9 @@ func main() {
 		})
 	}
 
-	fmt.Println("Server starting on http://localhost:8080")
-	if err := r.Run(":8080"); err != nil {
+	addr := fmt.Sprintf("%s:%d", AppConfig.Host, AppConfig.Port)
+	fmt.Printf("Server starting on http://%s\n", addr)
+	if err := r.Run(addr); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }

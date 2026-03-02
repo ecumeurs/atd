@@ -14,15 +14,18 @@ import (
 
 // Atom struct to represent the ATD Frontmatter
 type Atom struct {
-	ID         string   `json:"id" yaml:"id"`
-	HumanName  string   `json:"human_name" yaml:"human_name"`
-	Type       string   `json:"type" yaml:"type"`
-	Version    string   `json:"version" yaml:"version"`
-	Status     string   `json:"status" yaml:"status"`
-	Priority   string   `json:"priority" yaml:"priority"`
-	Tags       []string `json:"tags" yaml:"tags"`
-	Parents    []string `json:"parents" yaml:"parents"`
-	Dependents []string `json:"dependents" yaml:"dependents"`
+	ID            string        `json:"id" yaml:"id"`
+	HumanName     string        `json:"human_name" yaml:"human_name"`
+	Type          string        `json:"type" yaml:"type"`
+	Version       string        `json:"version" yaml:"version"`
+	Status        string        `json:"status" yaml:"status"`
+	Priority      string        `json:"priority" yaml:"priority"`
+	Tags          []string      `json:"tags" yaml:"tags"`
+	ParentsRaw    []interface{} `yaml:"parents"`
+	DependentsRaw []interface{} `yaml:"dependents"`
+
+	Parents    []string `json:"parents"`
+	Dependents []string `json:"dependents"`
 
 	// Enriched Data
 	FilePath    string   `json:"file_path"`
@@ -37,9 +40,26 @@ var (
 	specLinkRegex = regexp.MustCompile(`@spec-link\s+\[\[(.*?)\]\]`)
 )
 
-func cleanLinks(links []string) []string {
+func extractLinkStr(v interface{}) string {
+	switch val := v.(type) {
+	case string:
+		return val
+	case []interface{}:
+		if len(val) > 0 {
+			// recursively extract innermost string if it was a nested array `[[ ]]`
+			return extractLinkStr(val[0])
+		}
+	}
+	return ""
+}
+
+func cleanLinks(raw []interface{}) []string {
 	var cleaned []string
-	for _, l := range links {
+	for _, item := range raw {
+		l := extractLinkStr(item)
+		if l == "" {
+			continue
+		}
 		matches := linkRegex.FindStringSubmatch(l)
 		if len(matches) > 1 {
 			cleaned = append(cleaned, matches[1])
@@ -89,8 +109,8 @@ func parseAtomFile(path string) (*Atom, error) {
 		return nil, err
 	}
 
-	atom.Parents = cleanLinks(atom.Parents)
-	atom.Dependents = cleanLinks(atom.Dependents)
+	atom.Parents = cleanLinks(atom.ParentsRaw)
+	atom.Dependents = cleanLinks(atom.DependentsRaw)
 	atom.FilePath = path
 	atom.Content = string(parts[2])
 
