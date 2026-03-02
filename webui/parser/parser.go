@@ -24,8 +24,8 @@ type Atom struct {
 	ParentsRaw    []interface{} `yaml:"parents"`
 	DependentsRaw []interface{} `yaml:"dependents"`
 
-	Parents    []string `json:"parents"`
-	Dependents []string `json:"dependents"`
+	Parents    []string `json:"parents" yaml:"-"`
+	Dependents []string `json:"dependents" yaml:"-"`
 
 	// Enriched Data
 	FilePath    string   `json:"file_path"`

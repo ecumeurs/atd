@@ -61,6 +61,14 @@ func main() {
 
 	api := r.Group("/api")
 	{
+		api.GET("/info", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"project_path": AppConfig.ProjectPath,
+				"atd_path":     AppConfig.ATDPath,
+				"atd_count":    len(atoms),
+			})
+		})
+
 		api.GET("/tree", func(c *gin.Context) {
 			// Convert mapping to slice for easy JSON response
 			var slice []*parser.Atom

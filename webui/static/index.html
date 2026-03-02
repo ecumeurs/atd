@@ -1,41 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project Chimera - ATD State Machine</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
+
 <body>
     <div class="app-container">
         <header class="app-header">
             <div class="logo-area">
                 <div class="logo-icon">▲</div>
                 <h1>Project Chimera</h1>
+                <div class="header-info">
+                    <span class="info-badge" title="Project Document path">📁 <span id="info-docs"></span></span>
+                    <span class="info-badge" title="Project Target code path">⚙️ <span id="info-project"></span></span>
+                    <span class="info-badge" title="Number of parsed ATDs">🔍 <span id="info-count">0</span> ATDs
+                        Found</span>
+                </div>
             </div>
             <div class="header-tools">
                 <button class="btn btn-outline" id="refresh-btn">Refresh Data</button>
             </div>
         </header>
-        
+
         <main class="main-content">
             <section class="viz-section">
                 <div class="viz-header">
                     <h2>Project Documentation State Machine</h2>
                     <p>Summarized documentation and development status.</p>
                 </div>
-                
+
                 <div class="legend">
                     <span class="legend-item"><span class="color-box green"></span> Done (Tested & Spec'd)</span>
-                    <span class="legend-item"><span class="color-box yellow"></span> In Progress (Missing tests/Implementation)</span>
+                    <span class="legend-item"><span class="color-box yellow"></span> In Progress (Missing
+                        tests/Implementation)</span>
                     <span class="legend-item"><span class="color-box grey"></span> Draft / Macro Spec Only</span>
                 </div>
-                
+
                 <div id="treemap-container"></div>
             </section>
-            
+
             <aside class="details-panel" id="details-panel">
                 <div class="details-empty" id="details-empty">
                     <p>Select a block to view ATD details.</p>
@@ -46,20 +55,20 @@
                     <div class="badge-status" id="detail-status">STATUS</div>
                     <h2 id="detail-title">Block Title</h2>
                     <p class="detail-id" id="detail-id">@id</p>
-                    
+
                     <div class="detail-section">
                         <h3>Content</h3>
                         <div class="markdown-body" id="detail-markdown"></div>
                     </div>
-                    
+
                     <button class="btn btn-primary" id="btn-summarize">Generate Summary</button>
                     <div class="summary-box" id="summary-box" style="display: none;"></div>
-                    
+
                     <div class="detail-section">
                         <h3>Code Implementation</h3>
                         <ul class="code-list" id="detail-code"></ul>
                     </div>
-                    
+
                     <div class="detail-section">
                         <h3>Testing</h3>
                         <div class="test-status" id="detail-test-status"></div>
@@ -68,6 +77,7 @@
             </aside>
         </main>
     </div>
-    <script src="app.js"></script>
+    <script src="/static/app.js"></script>
 </body>
+
 </html>

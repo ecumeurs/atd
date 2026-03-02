@@ -17,6 +17,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const dCode = document.getElementById('detail-code');
     const dTestStatus = document.getElementById('detail-test-status');
 
+    // Info DOM Elements
+    const infoDocs = document.getElementById('info-docs');
+    const infoProject = document.getElementById('info-project');
+    const infoCount = document.getElementById('info-count');
+
     let currentTreeData = null;
 
     // Fetch initial data
@@ -33,8 +38,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchData() {
         try {
-            const resp = await fetch('/api/tree');
-            const data = await resp.json();
+            const [treeResp, infoResp] = await Promise.all([
+                fetch('/api/tree'),
+                fetch('/api/info')
+            ]);
+
+            if (infoResp.ok) {
+                const infoData = await infoResp.json();
+                infoDocs.textContent = infoData.atd_path || 'N/A';
+                infoProject.textContent = infoData.project_path || 'N/A';
+                infoCount.textContent = infoData.atd_count || '0';
+            }
+
+            const data = await treeResp.json();
             if (data && data.length > 0) {
                 renderTreemap(data);
             } else {
