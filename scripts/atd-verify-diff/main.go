@@ -1,0 +1,144 @@
+package main
+
+import (
+	"bytes"
+	"flag"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
+)
+
+func main() {
+	var docsDir string
+
+	var projectPath, binPath string
+	flag.StringVar(&projectPath, "project", ".", "Path to the root of the project")
+	flag.StringVar(&docsDir, "docs", "", "Path to the docs directory (default: projectPath/docs/)")
+	flag.StringVar(&binPath, "bin", "", "Path to the ATD tools bin directory (default: projectPath/.agent/skills/atd/tools/)")
+	flag.Parse()
+
+	if docsDir == "" {
+		docsDir = filepath.Join(projectPath, "docs")
+	}
+	if binPath == "" {
+		binPath = filepath.Join(projectPath, ".agent/skills/atd/tools/")
+	}
+
+	// 1. Get modified files from git
+	cmd := exec.Command("git", "diff", "--name-only")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		fmt.Println("Error running git diff. Ensure you are in a git repository.")
+		os.Exit(1)
+	}
+
+	modifiedFiles := strings.Split(strings.TrimSpace(out.String()), "\n")
+	if len(modifiedFiles) == 1 && modifiedFiles[0] == "" {
+		fmt.Println("No tracked modified files found. Try staging files or ensuring they are tracked.")
+		os.Exit(0)
+	}
+
+	// 2. Extract Atom Links and identify directories with changes
+	linkRegex := regexp.MustCompile(`@spec-link\s+\[\[(.*?)\]\]`)
+	atomIDs := make(map[string]bool)
+	changedDirs := make(map[string]bool)
+	fileContents := make(map[string]string)
+
+	for _, file := range modifiedFiles {
+		if file == "" {
+			continue
+		}
+
+		content, err := os.ReadFile(file)
+		if err != nil {
+			continue
+		}
+
+		fileContents[file] = string(content)
+		changedDirs[filepath.Dir(file)] = true
+
+		matches := linkRegex.FindAllStringSubmatch(string(content), -1)
+		for _, match := range matches {
+			if len(match) > 1 {
+				atomIDs[match[1]] = true
+			}
+		}
+	}
+
+	if len(atomIDs) == 0 {
+		fmt.Println("No @spec-link tags found in modified files. Nothing to audit.")
+		os.Exit(0)
+	}
+
+	// 3. Read the relevant Atoms
+	atomContents := make(map[string]string)
+	for atomID := range atomIDs {
+		atomPath := filepath.Join(docsDir, atomID+".atom.md")
+		content, err := os.ReadFile(atomPath)
+		if err == nil {
+			atomContents[atomID] = string(content)
+		} else {
+			atomContents[atomID] = fmt.Sprintf("[ERROR] Could not read ATD file for %s", atomID)
+		}
+	}
+
+	// 4. Run native tests for the changed directories
+	testResults := ""
+	testFilesContent := ""
+	for dir := range changedDirs {
+		// Attempt to run go test
+		cmdTest := exec.Command("go", "test", "-v", "./"+dir)
+		var testOut bytes.Buffer
+		cmdTest.Stdout = &testOut
+		cmdTest.Stderr = &testOut
+		err := cmdTest.Run()
+
+		status := "PASSED"
+		if err != nil {
+			status = "FAILED"
+		}
+		testResults += fmt.Sprintf("=== Test Execution for %s ===\nStatus: %s\nOutput:\n%s\n\n", dir, status, testOut.String())
+
+		// Also grab test files contents to feed to LLM to check ATD coverage
+		files, _ := os.ReadDir(dir)
+		for _, f := range files {
+			if strings.HasSuffix(f.Name(), "_test.go") {
+				testPath := filepath.Join(dir, f.Name())
+				tc, _ := os.ReadFile(testPath)
+				testFilesContent += fmt.Sprintf("--- Test File: %s ---\n%s\n\n", testPath, string(tc))
+			}
+		}
+	}
+
+	// 5. Generate LLM Prompt
+	fmt.Println("<System Objective>")
+	fmt.Println("You are the ATD Lead Auditor. A developer is submitting a patch. You must evaluate the modified code and its test coverage against the strict rules defined in the Atomic Traceable Documentation (ATD).")
+	fmt.Println("Output a markdown report including a CLEAR TABLE summarizing:")
+	fmt.Println("| Atom ID | Rule Compliant? | Test Coverage Compliant? | Notes |")
+	fmt.Println("Ensure you explicitly check if the test files cover all constraints mentioned in the ATD expectations.")
+	fmt.Println("</System Objective>\n")
+
+	fmt.Println("<ATD Specifications (The Rules)>")
+	for id, content := range atomContents {
+		fmt.Printf("--- ATOM: %s ---\n%s\n\n", id, content)
+	}
+	fmt.Println("</ATD Specifications>\n")
+
+	fmt.Println("<Modified Source Code (The Implementation)>")
+	for file, content := range fileContents {
+		fmt.Printf("--- File: %s ---\n%s\n\n", file, content)
+	}
+	fmt.Println("</Modified Source Code>\n")
+
+	fmt.Println("<Test Files (The Verification Specs)>")
+	fmt.Println(testFilesContent)
+	fmt.Println("</Test Files>\n")
+
+	fmt.Println("<Native Test Execution Results (The Proof)>")
+	fmt.Println(testResults)
+	fmt.Println("</Native Test Execution Results>\n")
+}
