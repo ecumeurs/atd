@@ -67,6 +67,8 @@ dependents:
 
 
 ## Toolset Ingestion List
+**General Parameter Note:** All tools within the ATD toolkit natively support optional `-project` (path to project root), `-docs` (path to the ATD documentation folder), and `-bin` (path to the ATD toolkit binaries folder) flags to explicitly declare operating context.
+
 When utilizing this skill, the Agent has access to the following operational tools:
 
 ### Read/Crawl Tools
@@ -94,7 +96,7 @@ When operating on undocumented legacy projects, the Architect should run the fol
 4. **Phase 6 (Weaving):** The pipeline auto-runs `atd-link-weaver` to connect the parents mathematically.
 5. **Phase 7 (Search-Then-Recon):** The pipeline auto-tags the codebase in the background by searching the Nomic index for the Atom's intent, and then passing the matched file to the local LLM.
 6. **`atd-reconcile(new_text_block)`**: Match new inbound spec requirements against the populated library.
-7. **`atd-audit(atom_logic, code_snippet)`**: **LLM-Powered.** The core "Auditor". Compares documentation logic against hard source code.
+7. **`atd-audit`**: **LLM-Powered.** The structural "Auditor". Analyzes ATDs for documentation bloat (Minimum Atomic Scale violations) and cross-references their vector embeddings for missing abstractions. 
 
 ### Legacy Bridging Tools
 7. **`atd-discover-links(source_file, docs_path)`**: Recommends which ATD tags to apply by cross-referencing file logic against the known ATD registry.
