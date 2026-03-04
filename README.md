@@ -14,5 +14,34 @@ Because an ATD is atomic, it describes only one primary rule or concept. This st
 3. **The Link (@spec-link)**: Code objects (functions, classes) are annotated with `@spec-link [[ATOM_ID]]`. The ATD agents and tools trace these links to verify that code implementations align with current architecture definitions. If a developer or an AI agent attempts to violate an ATD rule, the discrepancy is flagged.
 4. **Agent Integration**: The AI assistant (having the ATD skill) operates under specific modes (Architect, Developer, Analyst) to either create/manage Atoms, write compliant code, or audit the system respectively.
 
+## Setup & Tooling
+The ATD system relies on a suite of tools that must be compiled and configured to function correctly.
+
+### Compiling the Toolchain
+To build and install all ATD CLI tools and scripts into the skill's utility directory, run the compilation script from the root of the project:
+```bash
+./compile_tools.sh
+```
+This script will:
+1. Compile all Go tools located in the `scripts/` directory.
+2. Copy necessary shell scripts to the toolchain destination.
+3. Set the required execution permissions.
+
+### Ollama LLM Setup
+Many ATD tools (e.g., `atd-ollama-audit`, `atd-dissect`) use a local Ollama instance for LLM processing.
+
+#### 1. Start the Ollama Container
+Ensure you have Docker installed and run the following command to start the Ollama service:
+```bash
+docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
+```
+
+#### 2. Install Required Models
+The system requires specific models for text generation and embeddings. Pull them using these commands:
+```bash
+docker exec -it ollama ollama pull llama3.2
+docker exec -it ollama ollama pull nomic-embed-text
+```
+
 ## Reference Project
 **`upsilonbattle`** serves as the primary reference project used to test and validate this skill. It demonstrates how ATD mechanics, API routes, and domain elements interact in a real-world scenario, acting as the testbed for the ATD toolchain's extraction, auditing, and generation capabilities.
