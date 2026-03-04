@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"atd-tools/config"
 )
 
 func main() {
@@ -17,6 +19,8 @@ func main() {
 	flag.StringVar(&docsPath, "docs", "", "Path to the docs directory (default: projectPath/docs/)")
 	flag.StringVar(&binPath, "bin", "", "Path to the ATD tools bin directory (default: projectPath/.agent/skills/atd/tools/)")
 	flag.Parse()
+	config.Load()
+	config.Log("atd-dissect", "Started process")
 
 	if docsPath == "" {
 		docsPath = filepath.Join(projectPath, "docs")

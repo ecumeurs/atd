@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"atd-tools/config"
 )
 
 // atd-reconcile: Matches new inbound doc logic against the existing library, finding redundancies, overlaps, and conflicts.
@@ -20,6 +22,8 @@ func main() {
 	flag.StringVar(&docsPath, "docs", "", "Path to the docs directory (default: projectPath/docs/)")
 	flag.StringVar(&binPath, "bin", "", "Path to the ATD tools bin directory (default: projectPath/.agent/skills/atd/tools/)")
 	flag.Parse()
+	config.Load()
+	config.Log("atd-reconcile", "Started process")
 
 	if docsPath == "" {
 		docsPath = filepath.Join(projectPath, "docs")

@@ -41,6 +41,10 @@ After creating an issue file, **add a row to `/workspace/issues/README.md`** in 
 | [Ref_YYYYMMDD_slug.md](Ref_YYYYMMDD_slug.md) | Severity | Status | One-line summary |
 ```
 
+
+Update the root README.md with an active issues table
+python3 .agent/skills/issue_management/scripts/list_issues.py --update-readme
+
 ### Template: Issue File
 
 ```markdown

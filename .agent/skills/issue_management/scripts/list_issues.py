@@ -13,6 +13,7 @@ Usage:
   python3 list_issues.py --status open --search "queue"
   python3 list_issues.py --full                   # print full file content for matches
   python3 list_issues.py --next-ref               # print the next available ISS-NNN
+  python3 list_issues.py --update-readme          # update the root README.md with a table of active issues
 
 Status values:  open | in progress | resolved | wont fix
 Severity values: critical | high | medium | low

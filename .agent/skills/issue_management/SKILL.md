@@ -91,7 +91,7 @@ If the `README.md` does not yet have the index table, create it with this header
 ```
 
 
-# Update the root README.md with an active issues table
+## Update the root README.md with an active issues table
 python3 .agent/skills/issue_management/scripts/list_issues.py --update-readme
 
 

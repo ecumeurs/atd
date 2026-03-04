@@ -51,7 +51,6 @@ docker exec -it ollama ollama pull nomic-embed-text
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
 | [Lack of Project Documentation and ATD](issues/ISS-013_20260304_lack_of_atd_documentation.md) | 2026-03-04 | Open | High | This project lacks comprehensive documentation, including the Atomic Technica... |
-| [Tool Usage Traceability and Logging](issues/ISS-012_20260304_tool_traceability.md) | 2026-03-04 | Open | Medium | We need to be able to prove that our tool skills have been used correctly and... |
 | [ATD Generation Orchestration and Local Dissection](issues/ISS-011_20260304_atd_generation_orchestration.md) | 2026-03-04 | Open | Medium | There is a lack of orchestration between the IDE agent and the local ATD gene... |
 | [ATD Status Management and Workflow](issues/ISS-010_20260304_atd_status_management.md) | 2026-03-04 | Open | Medium | The `status` attribute is currently ignored. Implementing status-based logic ... |
 | [ATD Version Management Implementation](issues/ISS-009_20260304_atd_version_management.md) | 2026-03-04 | Open | Medium | The `version` attribute in ATD YAML frontmatter is currently ignored. The sys... |
@@ -60,7 +59,6 @@ docker exec -it ollama ollama pull nomic-embed-text
 | [WebUI ATD Editing and ID Propagation](issues/ISS-006_20260304_webui_edit_propagation.md) | 2026-03-04 | Open | High | The WebUI needs to allow altering ATDs (all fields). Crucially, changing an A... |
 | [WebUI ATD Preview HTML Rendering](issues/ISS-005_20260304_webui_html_rendering.md) | 2026-03-04 | Open | Low | The ATD preview in the WebUI is not rendered as HTML. It shows plain, trimmed... |
 | [WebUI Navigation and Exploration Improvements](issues/ISS-004_20260304_webui_navigation.md) | 2026-03-04 | Open | High | The WebUI currently fails to allow full exploration of all ATDs. It only show... |
-| [Unified ATD Configuration File](issues/ISS-003_20260304_audit_config_move.md) | 2026-03-04 | Open | Medium | Move audit configuration to a general `.atd` configuration file at the root o... |
 | [ATD Dissection Granularity Enforcement](issues/ISS-002_20260304_atd_granularity.md) | 2026-03-04 | Open | Medium | Ensure that the dissection of documents and general ATD creation strictly fol... |
 | [Audit Performance Optimization](issues/ISS-001_20260304_audit_performance.md) | 2026-03-04 | Open | Medium | The current auditing process is too slow. It requires access to a more perfor... |
 

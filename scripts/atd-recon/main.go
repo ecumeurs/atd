@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"atd-tools/config"
 )
 
 // atd-recon: The Semantic Archaeology Engine. Helps developers validate if existing unmapped source code is an implementation of a specific Atom constraint.
@@ -20,6 +22,8 @@ func main() {
 	flag.StringVar(&docsPath, "docs", "", "Path to the docs directory (default: projectPath/docs/)")
 	flag.StringVar(&binPath, "bin", "", "Path to the ATD tools bin directory (default: projectPath/.agent/skills/atd/tools/)")
 	flag.Parse()
+	config.Load()
+	config.Log("atd-recon", "Started process")
 
 	if docsPath == "" {
 		docsPath = filepath.Join(projectPath, "docs")

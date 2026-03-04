@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"atd-tools/config"
 )
 
 func main() {
@@ -19,6 +21,8 @@ func main() {
 	flag.StringVar(&docsDir, "docs", "", "Path to the docs directory (default: projectPath/docs/)")
 	flag.StringVar(&binPath, "bin", "", "Path to the ATD tools bin directory (default: projectPath/.agent/skills/atd/tools/)")
 	flag.Parse()
+	config.Load()
+	config.Log("atd-verify-diff", "Started process")
 
 	if docsDir == "" {
 		docsDir = filepath.Join(projectPath, "docs")

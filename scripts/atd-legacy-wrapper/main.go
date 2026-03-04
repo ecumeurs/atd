@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"atd-tools/config"
 )
 
 // atd-legacy-wrapper: Shuttles massive orphaned blocks under a single monolithic tag until a Dev refactors it.
@@ -20,6 +22,8 @@ func main() {
 	flag.StringVar(&docsPath, "docs", "", "Path to the docs directory (default: projectPath/docs/)")
 	flag.StringVar(&binPath, "bin", "", "Path to the ATD tools bin directory (default: projectPath/.agent/skills/atd/tools/)")
 	flag.Parse()
+	config.Load()
+	config.Log("atd-legacy-wrapper", "Started process")
 
 	if docsPath == "" {
 		docsPath = filepath.Join(projectPath, "docs")

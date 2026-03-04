@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"atd-tools/config"
 )
 
 // ─── Ollama ───────────────────────────────────────────────────────────────────
@@ -275,6 +277,9 @@ func main() {
 	bPath := flag.String("b", "", "Path to second atom file")
 	outPath := flag.String("out", "", "Output path for the markdown report (default: stdout)")
 	flag.Parse()
+	config.Load()
+	config.Log("atd-compare", "Started process")
+
 
 	if *aPath == "" || *bPath == "" {
 		fmt.Println("Usage: atd-compare -a <atom_a.atom.md> -b <atom_b.atom.md> [-out <report.md>]")

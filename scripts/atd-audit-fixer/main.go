@@ -14,6 +14,8 @@ import (
 	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
+
+	"atd-tools/config"
 )
 
 // ─── Ollama ───────────────────────────────────────────────────────────────────
@@ -187,6 +189,9 @@ func main() {
 	dbPath := flag.String("db", "", "Path to the SQLite cache DB (default: docs/.atd_docs_index.db)")
 	dryRun := flag.Bool("dry-run", false, "Print proposed changes without writing files")
 	flag.Parse()
+	config.Load()
+	config.Log("atd-audit-fixer", "Started process")
+
 
 	if *auditReport == "" || *docsDir == "" {
 		fmt.Println("Usage: atd-audit-fixer -audit <report.txt> -docs <docs_dir> [-db <db>] [-dry-run]")

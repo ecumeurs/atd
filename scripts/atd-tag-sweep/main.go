@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"atd-tools/config"
 )
 
 // atd-tag-sweep: Proposes tags for orphaned logic by searching for specific matched contexts.
@@ -24,6 +26,8 @@ func main() {
 	flag.StringVar(&docsPath, "docs", "", "Path to the docs directory (default: projectPath/docs/)")
 	flag.StringVar(&binPath, "bin", "", "Path to the ATD tools bin directory (default: projectPath/.agent/skills/atd/tools/)")
 	flag.Parse()
+	config.Load()
+	config.Log("atd-tag-sweep", "Started process")
 
 	if docsPath == "" {
 		docsPath = filepath.Join(projectPath, "docs")

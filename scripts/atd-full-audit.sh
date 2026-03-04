@@ -13,6 +13,12 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$SCRIPT_DIR/lib/logging.sh" ]]; then
+    source "$SCRIPT_DIR/lib/logging.sh"
+else
+    atd_log() { :; }
+fi
 # --- Defaults -----------------------------------------------------------------
 DOCS=""
 BIN_DIR="$(cd "$(dirname "$0")/bin" && pwd)"
@@ -57,6 +63,8 @@ echo "Docs:  $DOCS"
 echo "Bin:   $BIN_DIR"
 echo "Tmp:   $TMP_DIR"
 echo ""
+
+atd_log "atd-full-audit.sh" "Started full audit pipeline for docs at DOCS"
 
 # --- Phase 1+2: Audit ---------------------------------------------------------
 echo "[1/5] Running atd-audit..."
@@ -162,3 +170,4 @@ echo ""
 echo "============================================"
 echo "  Pipeline complete."
 echo "============================================"
+atd_log "atd-full-audit.sh" "Completed full audit pipeline"

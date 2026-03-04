@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"atd-tools/config"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -40,12 +42,6 @@ type FileMetadata struct {
 	Type    string
 	Parents []string
 	Vector  []float64
-}
-
-type Config struct {
-	DefaultStrictness  float64            `json:"default_strictness"`
-	CollisionThreshold float64            `json:"collision_threshold"`
-	TypeOverrides      map[string]float64 `json:"type_overrides"`
 }
 
 func getEmbedding(text string) ([]float64, error) {
@@ -242,34 +238,25 @@ func main() {
 	}
 	docsDir := &docsStrVal
 
-	// Load Config
-	configPath := filepath.Join(binPath, ".atd_audit_config.json")
-	var config Config
-	configBytes, err := os.ReadFile(configPath)
-	if err == nil {
-		json.Unmarshal(configBytes, &config)
-	} else {
-		// Fallback defaults
-		config = Config{
-			DefaultStrictness:  0.8,
-			CollisionThreshold: 0.85,
-			TypeOverrides: map[string]float64{
-				"REQUIREMENT":   0.3,
-				"SPECIFICATION": 0.3,
-				"MODULE":        0.3,
-				"DOMAIN":        0.5,
-				"ENTITY":        0.5,
-			},
-		}
-	}
+	// Load global ATD configuration
+	config.Load()
+	config.Log("atd-audit", fmt.Sprintf("Starting audit on docsDir: %s", *docsDir))
 
 	// CLI flag overrides config; -1 means "not set, use config"
-	collisionThreshold := config.CollisionThreshold
-	if config.CollisionThreshold == 0 {
-		collisionThreshold = 0.85 // absolute fallback if config file exists but field is missing
+	collisionThreshold := config.ActiveConfig.DiffSimilarityThreshold
+	if collisionThreshold == 0 {
+		collisionThreshold = 0.85 // absolute fallback if missing
 	}
 	if *threshold >= 0 {
 		collisionThreshold = *threshold
+	}
+
+	modelToUse := config.ActiveConfig.Model
+	if modelToUse == "" {
+		modelToUse = "llama3.2"
+	}
+	if *model != "llama3.2" && *model != "" {
+		modelToUse = *model
 	}
 
 	files, err := filepath.Glob(filepath.Join(*docsDir, "*.atom.md"))
@@ -380,18 +367,15 @@ A RULE section is 'bloated' if it contains more than one completely distinct sta
 
 		fmt.Printf("Auditing: %s [Type: %s] ... ", filename, atomType)
 
-		strictness := config.DefaultStrictness
-		if val, ok := config.TypeOverrides[atomType]; ok {
-			strictness = val
-		}
+		strictness := config.GetBloatingStrictness(atomType)
 
 		var intentResult, logicResult string
 		if strictness <= 0.0 {
 			intentResult = "NO"
 			logicResult = "NO"
 		} else {
-			intentResult = queryBloatIndicator(*model, intentRoleBase, intentStr, strictness)
-			logicResult = queryBloatIndicator(*model, logicRoleBase, logicStr, strictness)
+			intentResult = queryBloatIndicator(modelToUse, intentRoleBase, intentStr, strictness)
+			logicResult = queryBloatIndicator(modelToUse, logicRoleBase, logicStr, strictness)
 		}
 
 		var bloatResult string
@@ -585,4 +569,5 @@ A RULE section is 'bloated' if it contains more than one completely distinct sta
 	}
 
 	fmt.Println("\n=== AUDIT COMPLETE ===")
+	config.Log("atd-audit", "Audit complete")
 }

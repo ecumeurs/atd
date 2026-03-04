@@ -4,7 +4,7 @@
 **Ref:** `ISS-003`
 **Date:** 2026-03-04
 **Severity:** Medium
-**Status:** Open
+**Status:** Resolved
 **Component:** `root`
 **Affects:** `scripts/atd-audit`, `scripts/atd-ollama-generate`
 

@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"atd-tools/config"
 )
 
 type GenerateRequest struct {
@@ -24,9 +26,9 @@ type GenerateResponse struct {
 	EvalCount       int    `json:"eval_count"`
 }
 
-func queryLlama(prompt string, useJsonFormat bool) (string, error) {
+func queryLlama(prompt string, useJsonFormat bool, model string) (string, error) {
 	reqBody := GenerateRequest{
-		Model:  "llama3.2",
+		Model:  model,
 		Prompt: prompt,
 		Stream: false,
 	}
@@ -79,6 +81,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	config.Load()
+	config.Log("atd-ollama-generate", "Starting atom generation bounds extraction")
+
 	promptData, err := os.ReadFile(dissectFile)
 	if err != nil {
 		fmt.Printf("Failed to read %s\n", dissectFile)
@@ -87,7 +92,12 @@ func main() {
 
 	fmt.Println("--- Asking llama3.2 to extract atom boundaries ---")
 
-	response, err := queryLlama(string(promptData), true) // Force JSON format
+	modelToUse := config.ActiveConfig.Model
+	if modelToUse == "" {
+		modelToUse = "llama3.2" // fallback
+	}
+
+	response, err := queryLlama(string(promptData), true, modelToUse) // Force JSON format
 	if err != nil {
 		fmt.Printf("Error querying local LLM: %v\n", err)
 		os.Exit(1)
@@ -95,4 +105,5 @@ func main() {
 
 	fmt.Println("\n--- Local Llama Boundary Result ---")
 	fmt.Println(response)
+	config.Log("atd-ollama-generate", "Completed generation successfully")
 }

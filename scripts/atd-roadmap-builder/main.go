@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"atd-tools/config"
 )
 
 type ElementType string
@@ -57,6 +59,9 @@ func main() {
 	flag.StringVar(&docsPath, "docs", "", "Path to the docs directory (default: projectPath/docs/)")
 	flag.StringVar(&binPath, "bin", "", "Path to the ATD tools bin directory (default: projectPath/.agent/skills/atd/tools/)")
 	flag.Parse()
+	config.Load()
+	config.Log("atd-roadmap-builder", "Started process")
+
 
 	if docsPath == "" {
 		docsPath = filepath.Join(projectPath, "docs")

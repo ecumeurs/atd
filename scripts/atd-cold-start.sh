@@ -9,6 +9,12 @@ PROJECT_ROOT=$1
 TARGET_PACKAGE=${2:-""}
 SCRIPTS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+if [[ -f "$SCRIPTS_ROOT/lib/logging.sh" ]]; then
+    source "$SCRIPTS_ROOT/lib/logging.sh"
+else
+    atd_log() { :; }
+fi
+
 if [ -z "$PROJECT_ROOT" ]; then
     echo "Usage: ./atd-cold-start.sh <project_dir> [target_package_filter]"
     exit 1
@@ -25,6 +31,7 @@ if [ -n "$TARGET_PACKAGE" ]; then
     echo "Target Package Filter: $TARGET_PACKAGE"
 fi
 echo "------------------------------------------"
+atd_log "atd-cold-start.sh" "Started cold start pipeline for $PROJECT_ROOT"
 
 # Phase 1: Top-Down Primer (Iteration 14)
 echo -e "\n[Phase 1] Discovery: Extracting Top-Down Primer (READMEs)..."
@@ -130,3 +137,4 @@ else
 fi
 
 echo -e "\n[Pipeline Finished] Streamlined Protocol Complete."
+atd_log "atd-cold-start.sh" "Completed cold start pipeline"
