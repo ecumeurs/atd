@@ -4,6 +4,7 @@
 
 | Ref | File | Severity | Status | Summary |
 |---|---|---|---|---|
+| ISS-016 | [ISS-016_20260304_usecase_userstory_tracking.md](ISS-016_20260304_usecase_userstory_tracking.md) | Medium | Open | Tracking Use Cases and User Stories for Proper Testing. |
 | ISS-015 | [ISS-015_20260304_atd_status_update_bin.md](ISS-015_20260304_atd_status_update_bin.md) | Medium | Open | ATD Status Update Uses Token-Heavy LLM Rewrites. |
 | ISS-014 | [ISS-014_20260304_issue_atd_integration.md](ISS-014_20260304_issue_atd_integration.md) | Medium | Open | Integrate Issue Management with ATD Management. |
 | ISS-013 | [ISS-013_20260304_lack_of_atd_documentation.md](ISS-013_20260304_lack_of_atd_documentation.md) | High | Open | Lack of documentation and ATD for the project itself. |

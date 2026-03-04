@@ -9,4 +9,5 @@ use (
 	./atd-ollama-indexer
 	./atd-ollama-search
 	./atd-roadmap-builder
+	./atd-update
 )

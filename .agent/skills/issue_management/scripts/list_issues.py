@@ -27,7 +27,26 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 
-ISSUES_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "issues")
+def _find_issues_dir() -> str:
+    """Walk up from cwd until we find an 'issues/' directory, then return it."""
+    # First, try relative to this script (4 levels up: scripts -> issue_management -> skills -> .agent -> root)
+    candidate = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "issues"))
+    if os.path.isdir(candidate):
+        return candidate
+    # Fallback: walk up from cwd
+    cwd = os.getcwd()
+    while True:
+        candidate = os.path.join(cwd, "issues")
+        if os.path.isdir(candidate):
+            return candidate
+        parent = os.path.dirname(cwd)
+        if parent == cwd:
+            break
+        cwd = parent
+    # Last resort: original path (will fail gracefully in load_issues)
+    return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "issues"))
+
+ISSUES_DIR = _find_issues_dir()
 
 
 @dataclass

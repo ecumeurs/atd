@@ -17,7 +17,7 @@ Every "Atom" is a Markdown file. To minimize LLM search costs, we use a **Strict
 ---
 id: [UNIQUE_SLUG]
 human_name: [Human Readable Name]
-type: [MECHANIC | API | UI | DATA | DOMAIN | RULE | USAGE | BUILD | SERVICE | ENTITY | MODULE | REQUIREMENT | SPECIFICATION]
+type: [MECHANIC | API | UI | DATA | DOMAIN | RULE | USAGE | BUILD | SERVICE | ENTITY | MODULE | REQUIREMENT | SPECIFICATION | USECASE | USER_STORY]
 version: [1.0]
 status: [DRAFT | REVIEW | STABLE]
 priority: [CORE | SECONDARY | EXPERIMENTAL | FLAVOR]
@@ -62,8 +62,10 @@ dependents:
 | **Operations** | `DATA` | Static data, configuration, or database schemas. |
 | | `USAGE` | Examples, tutorials, and "How-to-use" snippets. |
 | | `BUILD` | CI/CD, environment setup, and deployment logic. |
-| **Requirements** | `REQUIREMENT` | Requirements for the system. Either hard, external constraint or a soft imposition.| 
+| **Requirements** | `REQUIREMENT` | Requirements for the system. Either hard, external constraint or a soft imposition. |
 | | `SPECIFICATION` | Specifications for the system. |
+| | `USECASE` | End-to-end workflow narrative (multi-step). Links to child `MECHANIC`/`RULE` atoms via `dependents`. Bloat-check auto-passed. |
+| | `USER_STORY` | Agile story: *"As a [role], I want [X] so that [Y]"*. Links to parent `USECASE` and tests via `TECHNICAL INTERFACE`. Bloat-check auto-passed. |
 
 
 ## Toolset Ingestion List
@@ -111,3 +113,14 @@ When operating on undocumented legacy projects, the Architect should run the fol
 ### Generation Tools
 11. **`atd-assemble(start_ids, purpose)`**: Combines fragments sequentially into a temporary readable document. Follows dependency links.
 12. **`atd-generate-snapshot(theme, text_file)`**: Utilizes the aggregated assembly text alongside an LLM to generate narrative flowing documents, ignoring raw metadata.
+
+### Write / Edit Tools
+
+> [!IMPORTANT]
+> **MANDATORY USAGE:** When modifying any field of an existing `.atom.md` file, you MUST use `atd-update` instead of rewriting the file. Rewriting the whole file via LLM is forbidden — it wastes tokens, risks data loss, and can corrupt the rest of the atom body.
+
+13. **`atd-update -file <path> [-set key=value ...] [-intent <text>] [-logic <text>] [-interface <text>]`**: Surgically modifies an ATD file in-place.
+    - **Frontmatter edits** (any YAML key): `-set status=STABLE`, `-set priority=SECONDARY`.
+    - **Body section edits**: `-intent "..."`, `-logic "..."`, `-interface "..."`. Pass `-` to read from stdin: `echo "..." | atd-update -file foo.atom.md -intent -`.
+    - **ID / type rename**: When `-set id=new_id` is provided, the file is **automatically renamed** to `new_id.atom.md` and all `[[old_id]]` references across the `docs_path` are updated.
+    - Logs the action via the unified `config.Log` mechanism.

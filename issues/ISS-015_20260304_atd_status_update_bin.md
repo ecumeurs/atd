@@ -4,7 +4,7 @@
 **Ref:** `ISS-015`
 **Date:** 2026-03-04
 **Severity:** Medium
-**Status:** Open
+**Status:** Resolved
 **Component:** `scripts/atd-update` or equivalent
 **Affects:** LLM Context / Token Usage
 

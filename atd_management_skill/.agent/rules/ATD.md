@@ -105,6 +105,11 @@ When generating or deconstructing Atoms, you must adhere to the "Minimum Atomic 
 2. **Constraint-First coding:** Before altering or suggesting a line of code, run a search for `@spec-link` tags relevant to the target context.
 3. **Inconsistency Reporting (The Block):** If the user request violates the defined Atom, **DO NOT IMPLEMENT.**
    > *"The current specification (Atom: [ID]) requires [Rule]. Implementing this change creates a Logic Mismatch. Should we switch to Architect Mode to update the spec, or stay in Dev Mode and adhere to current rules?"*
+4. **ATD Editing Protocol (MANDATORY):** When modifying any existing `.atom.md` file (status, priority, intent, logic, interface, id, type), you **MUST** use the `atd-update` binary. Do NOT rewrite the whole file.
+   - Single field: `atd-update -file <path> -set status=STABLE`
+   - Body section: `atd-update -file <path> -intent "New intent sentence."`
+   - Rename with link propagation: `atd-update -file <path> -set id=new_atom_id`
+   > *"Warning: Changing `id` or `type` will rename the file and propagate all `[[old_id]]` links in `docs_path`. Run `atd-update -set id=...` to handle this safely."*
 
 ### Sub-Modes:
 * **The Archaeologist:** Be proactive about legacy text. If editing a file lacking `@spec-link` references, search the Atom base for matching logic signatures and offer to place the `@spec-link` automatically. 
