@@ -23,7 +23,7 @@ for tool_dir in atd-*/; do
     # Check if a main.go exists in the directory
     if [ -f "$tool_name/main.go" ]; then
         echo "[Build] Compiling $tool_name..."
-        (cd "$tool_name" && go build -o "$DEST_DIR/$tool_name" .)
+        (cd "$tool_name" && go build -o "$DEST_DIR/$tool_name" . && go build -o "../bin/$tool_name" .)
     fi
 done
 
@@ -35,7 +35,8 @@ for script in *.sh; do
     fi
 done
 
-cp atd-cold-start.sh "$DEST_DIR/atd-cold-start"
+cp atd-cold-start.sh bin/atd-cold-start.sh
+cp atd-full-audit.sh bin/atd-full-audit.sh
 
 echo "======================================"
 echo "[Permissions] Adding execute permissions to all tools..."
