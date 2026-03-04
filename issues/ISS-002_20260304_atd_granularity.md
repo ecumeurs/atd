@@ -1,6 +1,6 @@
 # Issue: ATD Dissection Granularity Enforcement
 
-**ID:** `20260304_atd_granularity`
+**ID:** `ISS-002_20260304_atd_granularity`
 **Ref:** `ISS-002`
 **Date:** 2026-03-04
 **Severity:** Medium

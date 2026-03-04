@@ -1,6 +1,6 @@
 # Issue: WebUI Navigation and Exploration Improvements
 
-**ID:** `20260304_webui_navigation`
+**ID:** `ISS-004_20260304_webui_navigation`
 **Ref:** `ISS-004`
 **Date:** 2026-03-04
 **Severity:** High

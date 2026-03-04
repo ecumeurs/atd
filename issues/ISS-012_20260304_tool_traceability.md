@@ -1,6 +1,6 @@
 # Issue: Tool Usage Traceability and Logging
 
-**ID:** `20260304_tool_traceability`
+**ID:** `ISS-012_20260304_tool_traceability`
 **Ref:** `ISS-012`
 **Date:** 2026-03-04
 **Severity:** Medium

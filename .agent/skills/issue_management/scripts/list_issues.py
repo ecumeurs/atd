@@ -167,6 +167,86 @@ def print_summary_row(issue: Issue) -> None:
     print()
 
 
+def generate_markdown_table(issues: list[Issue], issues_dir_name: str = "issues") -> str:
+    """Generate a GFM table for the given issues."""
+    if not issues:
+        return "No open issues.\n"
+
+    lines = []
+    lines.append("| Name | Date | Status | Severity | Oneliner |")
+    lines.append("|---|---|---|---|---|")
+    
+    for issue in issues:
+        title = issue.title if issue.title else issue.filename
+        date = issue.date if issue.date else "N/A"
+        status = issue.status if issue.status else "Open"
+        severity = issue.severity if issue.severity else "Unknown"
+        summary = issue.summary if issue.summary else ""
+        
+        # Truncate summary for the table if it's too long
+        if len(summary) > 80:
+            summary = summary[:77] + "..."
+
+        # Format the name as a link to the issue file
+        name_link = f"[{title}]({issues_dir_name}/{issue.filename})"
+
+        lines.append(f"| {name_link} | {date} | {status} | {severity} | {summary} |")
+
+    return "\n".join(lines) + "\n"
+
+def update_readme(issues_dir: str, root_dir: str, all_issues: list[Issue]) -> None:
+    """Update the root README.md with a table of Open and In Progress issues."""
+    readme_path = os.path.join(root_dir, "README.md")
+    if not os.path.exists(readme_path):
+        print(f"[error] Root README.md not found at {readme_path}", file=sys.stderr)
+        sys.exit(1)
+
+    # Filter for Open and In Progress issues
+    active_issues = [
+        i for i in all_issues
+        if i.status.lower() in ("open", "in progress")
+    ]
+    
+    issues_dir_name = os.path.basename(os.path.normpath(issues_dir))
+    table_content = generate_markdown_table(active_issues, issues_dir_name)
+
+    with open(readme_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    header = "## Open Issues"
+    header_idx = content.find(header)
+
+    if header_idx != -1:
+        # Header exists, replace everything from the header onwards, or until the next header
+        
+        # Find the end of the Open Issues section (either next header '## ' or EOF)
+        start_search = header_idx + len(header)
+        next_header_idx = content.find("\n## ", start_search)
+        
+        if next_header_idx != -1:
+            # We have a next section
+            before_section = content[:header_idx]
+            after_section = content[next_header_idx:]
+            new_content = before_section + header + "\n\n" + table_content + "\n" + after_section
+        else:
+            # Open Issues is the last section
+            before_section = content[:header_idx]
+            new_content = before_section + header + "\n\n" + table_content + "\n"
+    else:
+        # Header doesn't exist, append it
+        if not content.endswith("\n\n"):
+            if content.endswith("\n"):
+                content += "\n"
+            else:
+                content += "\n\n"
+        new_content = content + header + "\n\n" + table_content + "\n"
+
+    with open(readme_path, "w", encoding="utf-8") as f:
+        f.write(new_content)
+        
+    print(f"Successfully updated root README.md with {len(active_issues)} active issues.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="List and search tracked issues in /workspace/issues/",
@@ -178,6 +258,7 @@ def main() -> None:
     parser.add_argument("--search",   metavar="KEYWORD",  help="Search in title, summary, component, affects, ref")
     parser.add_argument("--full",     action="store_true", help="Print full file content for matching issues")
     parser.add_argument("--next-ref", action="store_true", help="Print the next available ISS-NNN and exit")
+    parser.add_argument("--update-readme", action="store_true", help="Update the root README.md with a table of active issues")
     parser.add_argument("--dir",      metavar="PATH",     help="Override path to issues directory", default=None)
     args = parser.parse_args()
 
@@ -188,6 +269,12 @@ def main() -> None:
     if args.next_ref:
         highest = max((i.ref_number() for i in all_issues), default=0)
         print(f"ISS-{highest + 1:03d}")
+        return
+
+    # --update-readme: inject active issues table into README.md and exit
+    if args.update_readme:
+        root_dir = os.path.realpath(os.path.join(issues_dir, ".."))
+        update_readme(issues_dir, root_dir, all_issues)
         return
 
     filtered = [

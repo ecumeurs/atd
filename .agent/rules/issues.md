@@ -24,19 +24,21 @@ If the user asks you to track something, file it immediately.
 ### Filename Convention
 
 ```
-YYYYMMDD_short_slug.md
+Ref_YYYYMMDD_short_slug.md
 ```
 
-Example: `20260223_actor_deadlock_risk.md`
+Example: `ISS-012_20260223_actor_deadlock_risk.md`
 
 Use the current date. The slug must be lowercase with underscores, describing the component and the nature of the problem.
+**Ref:** Run the script to determine the next available `ISS-NNN`:
+
 
 ### Index Maintenance
 
 After creating an issue file, **add a row to `/workspace/issues/README.md`** in the index table:
 
 ```markdown
-| [YYYYMMDD_slug.md](YYYYMMDD_slug.md) | Severity | Status | One-line summary |
+| [Ref_YYYYMMDD_slug.md](Ref_YYYYMMDD_slug.md) | Severity | Status | One-line summary |
 ```
 
 ### Template: Issue File

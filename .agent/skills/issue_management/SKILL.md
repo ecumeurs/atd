@@ -35,7 +35,7 @@ If `/workspace/issues/` does not yet exist, create it along with `README.md`.
 
 ## Step 1 — Choose a Filename and Ref
 
-**Filename format:** `YYYYMMDD_short_slug.md`
+**Filename format:** `Ref_YYYYMMDD_short_slug.md`
 
 - `YYYYMMDD`: today's date in UTC (use the date you have been told in the conversation, do **not** try to call a system tool for the time).
 - `short_slug`: lowercase, underscores only, 3–6 words max, describing **component + nature of problem**.
@@ -90,6 +90,11 @@ If the `README.md` does not yet have the index table, create it with this header
 |---|---|---|---|---|
 ```
 
+
+# Update the root README.md with an active issues table
+python3 .agent/skills/issue_management/scripts/list_issues.py --update-readme
+
+
 ---
 
 ## Step 4 — Notify the User
@@ -138,6 +143,9 @@ python3 .agent/skills/issue_management/scripts/list_issues.py --status open --se
 # Print full file content for matching issues
 python3 .agent/skills/issue_management/scripts/list_issues.py --search "queue" --full
 
+# Update the root README.md with an active issues table
+python3 .agent/skills/issue_management/scripts/list_issues.py --update-readme
+
 # Override issues directory (useful in non-standard setups)
 python3 .agent/skills/issue_management/scripts/list_issues.py --dir /path/to/issues
 ```
@@ -148,6 +156,7 @@ python3 .agent/skills/issue_management/scripts/list_issues.py --dir /path/to/iss
 - **When the user asks "do we have an issue on X?"**: run `--search X` and report the results.
 - **When the user asks "what's left to do?"**: run `--status open` and summarise the output.
 - **At the start of a debugging session** on a known risky component: run `--search <component>` to surface any pre-existing caveats.
+- **After creating or modifying an issue**: run `--update-readme` to ensure the project's root `README.md` reflects the current active issues.
 
 ### Output Fields
 

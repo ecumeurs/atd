@@ -1,6 +1,6 @@
 # Issue: Link WebUI to Project Binaries
 
-**ID:** `20260304_webui_binary_link`
+**ID:** `ISS-007_20260304_webui_binary_link`
 **Ref:** `ISS-007`
 **Date:** 2026-03-04
 **Severity:** Medium

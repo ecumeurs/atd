@@ -1,6 +1,6 @@
 # Issue: WebUI LLM Integration for Content Iteration
 
-**ID:** `20260304_webui_llm_integration`
+**ID:** `ISS-008_20260304_webui_llm_integration`
 **Ref:** `ISS-008`
 **Date:** 2026-03-04
 **Severity:** Medium
