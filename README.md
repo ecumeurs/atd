@@ -50,6 +50,8 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
+| [ATD Status Update Uses Token-Heavy LLM Rewrites](issues/ISS-015_20260304_atd_status_update_bin.md) | 2026-03-04 | Open | Medium | When asking the LLM to update the status of an ATD file, the current process ... |
+| [Integrate Issue Management with ATD Management](issues/ISS-014_20260304_issue_atd_integration.md) | 2026-03-04 | Open | Medium | Integrate the `issue_management` skill as a side-skill for `atd_management`. ... |
 | [Lack of Project Documentation and ATD](issues/ISS-013_20260304_lack_of_atd_documentation.md) | 2026-03-04 | Open | High | This project lacks comprehensive documentation, including the Atomic Technica... |
 | [ATD Generation Orchestration and Local Dissection](issues/ISS-011_20260304_atd_generation_orchestration.md) | 2026-03-04 | Open | Medium | There is a lack of orchestration between the IDE agent and the local ATD gene... |
 | [ATD Status Management and Workflow](issues/ISS-010_20260304_atd_status_management.md) | 2026-03-04 | Open | Medium | The `status` attribute is currently ignored. Implementing status-based logic ... |

@@ -38,6 +38,15 @@ done
 cp atd-cold-start.sh bin/atd-cold-start.sh
 cp atd-full-audit.sh bin/atd-full-audit.sh
 
+echo "[Copy] Copying library scripts..."
+mkdir -p "$DEST_DIR/lib"
+cp lib/logging.sh "$DEST_DIR/lib/logging.sh"
+mkdir -p bin/lib
+cp lib/logging.sh bin/lib/logging.sh
+
+echo "[Copy] Copying .atd configuration to skill folder..."
+cp "$PROJECT_ROOT/.atd" "$PROJECT_ROOT/atd_management_skill/"
+
 echo "======================================"
 echo "[Permissions] Adding execute permissions to all tools..."
 chmod +x "$DEST_DIR"/atd-*

@@ -21,7 +21,11 @@ else
 fi
 # --- Defaults -----------------------------------------------------------------
 DOCS=""
-BIN_DIR="$(cd "$(dirname "$0")/bin" && pwd)"
+if [[ -d "$(dirname "$0")/bin" ]]; then
+    BIN_DIR="$(cd "$(dirname "$0")/bin" && pwd)"
+else
+    BIN_DIR="$(cd "$(dirname "$0")" && pwd)"
+fi
 TMP_DIR="/tmp/atd_run"
 
 # --- Argument parsing ---------------------------------------------------------

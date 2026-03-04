@@ -49,15 +49,20 @@ for md in $MD_FILES; do
     cp "$md" "$PROJECT_ROOT/pipeline_output/domain_${output_name}.md.txt"
 done
 
+# Determine binaries location
+if [[ -d "$SCRIPTS_ROOT/bin" ]]; then
+    BIN_DIR="$SCRIPTS_ROOT/bin"
+else
+    BIN_DIR="$SCRIPTS_ROOT"
+fi
+
 # Phase 2: Building Mechanical Map (Iteration 15)
 echo -e "\n[Phase 2] Building Mechanical Map (Roadmap)..."
-cd "$SCRIPTS_ROOT/atd-roadmap-builder"
-go run main.go -dir "$PROJECT_ROOT" -out "$PROJECT_ROOT/roadmap.json"
+"$BIN_DIR/atd-roadmap-builder" -dir "$PROJECT_ROOT" -out "$PROJECT_ROOT/roadmap.json"
 
 # Phase 3: Vectorizing Codebase (Iteration 15)
 echo -e "\n[Phase 3] Vectorizing Codebase (Ollama Indexer)..."
-cd "$SCRIPTS_ROOT/atd-ollama-indexer"
-go run main.go -dir "$PROJECT_ROOT" -db "$PROJECT_ROOT/.atd_index.db"
+"$BIN_DIR/atd-ollama-indexer" -dir "$PROJECT_ROOT" -db "$PROJECT_ROOT/.atd_index.db"
 
 # Phase 4: Priority Queuing
 echo -e "\n[Phase 4] Priority Queuing..."
@@ -80,9 +85,8 @@ while read line; do
     if [ -z "$file_path" ]; then continue; fi
 
     echo "-> Dissecting target: $file_path"
-    cd "$SCRIPTS_ROOT/atd-dissect"
     output_name=$(basename "$file_path" .go)
-    go run main.go -file "$file_path" > "$PROJECT_ROOT/pipeline_output/dissect_${output_name}.json"
+    "$BIN_DIR/atd-dissect" -file "$file_path" > "$PROJECT_ROOT/pipeline_output/dissect_${output_name}.json"
 done < "$PROJECT_ROOT/top_targets.txt"
 
 echo -e "\n[Pipeline Paused] Mechanical Extraction Complete."
@@ -94,8 +98,7 @@ echo " 2. Read 'pipeline_output/dissect_*.json' and generate MECHANIC atoms (rec
 echo -e "\n[Phase 6] Weaving Atom Dependencies..."
 echo "(Note: This step requires the Agent to have already written the .atom.md files in docs/)"
 if [ "$(ls -A $PROJECT_ROOT/docs/*.atom.md 2>/dev/null)" ]; then
-    cd "$SCRIPTS_ROOT/atd-link-weaver"
-    go run main.go -docs "$PROJECT_ROOT/docs"
+    "$BIN_DIR/atd-link-weaver" -docs "$PROJECT_ROOT/docs"
 else
     echo "No .atom.md files found in docs/. Skipping link weaving."
 fi
@@ -115,8 +118,7 @@ if [ "$(ls -A $PROJECT_ROOT/docs/*.atom.md 2>/dev/null)" ]; then
             
             # 2. Search for the best semantic match
             echo "-> Searching index for semantic match for $(basename $atom)..." >> "$PROJECT_ROOT/recon_audit.log"
-            cd "$SCRIPTS_ROOT/atd-ollama-search"
-            match_output=$(go run main.go -db "$PROJECT_ROOT/.atd_index.db" -query "$intent" -limit 1 2>> "$PROJECT_ROOT/recon_audit.log")
+            match_output=$("$BIN_DIR/atd-ollama-search" -db "$PROJECT_ROOT/.atd_index.db" -query "$intent" -limit 1 2>> "$PROJECT_ROOT/recon_audit.log")
             
             # Extract the raw file path from the output string using sed
             matched_file=$(echo "$match_output" | grep "\[Match 1\]" | sed -n 's/.*File: \([^ ]*\).*/\1/p')
@@ -124,8 +126,7 @@ if [ "$(ls -A $PROJECT_ROOT/docs/*.atom.md 2>/dev/null)" ]; then
             if [ -n "$matched_file" ] && [ -f "$matched_file" ]; then
                 # 3. Recon against the single match
                 echo "-> Semantic match found: $(basename $matched_file). Running Recon..." >> "$PROJECT_ROOT/recon_audit.log"
-                cd "$SCRIPTS_ROOT/atd-recon"
-                go run main.go -atom "$atom" -candidate "$matched_file" >> "$PROJECT_ROOT/recon_audit.log" 2>&1
+                "$BIN_DIR/atd-recon" -atom "$atom" -candidate "$matched_file" >> "$PROJECT_ROOT/recon_audit.log" 2>&1
             else
                 echo "-> No valid semantic match found for $(basename $atom)." >> "$PROJECT_ROOT/recon_audit.log"
             fi
