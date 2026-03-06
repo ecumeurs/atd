@@ -3,12 +3,15 @@
   "bin_path": ".agent/skills/atd/tools/",
   "diff_similarity_threshold": 0.85,
   "bloating_factor": {
-      "default": 0.8,
-      "type_overrides": {
-          "REQUIREMENT": 0.3,
-          "SPECIFICATION": 0.3,
-          "MODULE": 0.3
-      }
+    "default": 0.8,
+    "type_overrides": {
+      "REQUIREMENT": 0.3,
+      "SPECIFICATION": 0.3,
+      "MODULE": 0.3,
+      "USECASE": 0.1,
+      "USER_STORY": 0.1,
+      "API": 0.1
+    }
   },
   "model": "llama3.2",
   "logging": {

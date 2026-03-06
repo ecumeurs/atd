@@ -4,6 +4,8 @@
 
 | Ref | File | Severity | Status | Summary |
 |---|---|---|---|---|
+| ISS-020 | [ISS-020_20260306_api_logic_tracking_research.md](ISS-020_20260306_api_logic_tracking_research.md) | Medium | Open | Research efficient API logic tracking for ATD atoms. |
+| ISS-019 | [ISS-019_20260306_api_atd_payload_capture_shortcoming.md](ISS-019_20260306_api_atd_payload_capture_shortcoming.md) | Medium | Open | API typed atd aren't capturing full payload/contract details. |
 | ISS-016 | [ISS-016_20260304_usecase_userstory_tracking.md](ISS-016_20260304_usecase_userstory_tracking.md) | Medium | Open | Tracking Use Cases and User Stories for Proper Testing. |
 | ISS-015 | [ISS-015_20260304_atd_status_update_bin.md](ISS-015_20260304_atd_status_update_bin.md) | Medium | Open | ATD Status Update Uses Token-Heavy LLM Rewrites. |
 | ISS-014 | [ISS-014_20260304_issue_atd_integration.md](ISS-014_20260304_issue_atd_integration.md) | Medium | Open | Integrate Issue Management with ATD Management. |
