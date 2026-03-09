@@ -4,6 +4,7 @@
 
 | Ref | File | Severity | Status | Summary |
 |---|---|---|---|---|
+| ISS-021 | [ISS-021_20260309_tiered_llm_access.md](ISS-021_20260309_tiered_llm_access.md) | High | Open | Tiered LLM access with remote discovery and local fallback. |
 | ISS-020 | [ISS-020_20260306_api_logic_tracking_research.md](ISS-020_20260306_api_logic_tracking_research.md) | Medium | Open | Research efficient API logic tracking for ATD atoms. |
 | ISS-019 | [ISS-019_20260306_api_atd_payload_capture_shortcoming.md](ISS-019_20260306_api_atd_payload_capture_shortcoming.md) | Medium | Open | API typed atd aren't capturing full payload/contract details. |
 | ISS-016 | [ISS-016_20260304_usecase_userstory_tracking.md](ISS-016_20260304_usecase_userstory_tracking.md) | Medium | Open | Tracking Use Cases and User Stories for Proper Testing. |
