@@ -28,11 +28,13 @@ type Atom struct {
 	Dependents []string `json:"dependents" yaml:"-"`
 
 	// Enriched Data
-	FilePath    string   `json:"file_path"`
-	Content     string   `json:"content"`
-	LinkedCodes []string `json:"linked_codes"`
-	HasTests    bool     `json:"has_tests"`
-	IsGreen     bool     `json:"is_green"`
+	FilePath       string   `json:"file_path"`
+	Content        string   `json:"content"`
+	LinkedCodes    []string `json:"linked_codes"`
+	HasTests       bool     `json:"has_tests"`
+	IsGreen        bool     `json:"is_green"`
+	ComputedStatus string   `json:"computed_status"`
+	ComputedColor  string   `json:"computed_color"`
 }
 
 var (
@@ -128,7 +130,7 @@ func FindLinkedCode(projectPath string, atoms map[string]*Atom) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() && (info.Name() == ".git" || info.Name() == "docs" || info.Name() == "webui") {
+		if info.IsDir() && (info.Name() == ".git" || info.Name() == "webui") {
 			return filepath.SkipDir
 		}
 		if info.IsDir() {
@@ -136,10 +138,11 @@ func FindLinkedCode(projectPath string, atoms map[string]*Atom) error {
 		}
 
 		ext := filepath.Ext(info.Name())
-		if ext != ".go" && ext != ".py" && ext != ".js" && ext != ".ts" { // Only check source files
+		if ext != ".go" && ext != ".py" && ext != ".js" && ext != ".ts" {
 			return nil
 		}
 
+		fmt.Printf("Scanning file for @spec-link: %s\n", path)
 		file, err := os.Open(path)
 		if err != nil {
 			return nil
@@ -155,11 +158,14 @@ func FindLinkedCode(projectPath string, atoms map[string]*Atom) error {
 				if len(match) > 1 {
 					atomID := match[1]
 					if atom, exists := atoms[atomID]; exists {
+						fmt.Printf("  Found match for atom %s in %s\n", atomID, path)
 						snip := fmt.Sprintf("%s:%d", path, lineNum)
 						atom.LinkedCodes = append(atom.LinkedCodes, snip)
 						if strings.Contains(strings.ToLower(path), "test") {
 							atom.HasTests = true
 						}
+					} else {
+						fmt.Printf("  Found match for UNKNOWN atom %s in %s\n", atomID, path)
 					}
 				}
 			}
@@ -170,17 +176,81 @@ func FindLinkedCode(projectPath string, atoms map[string]*Atom) error {
 	return err
 }
 
-// CalculateGreenStatus determines if an ATD is fully implemented, following traceability rules
-func CalculateGreenStatus(atoms map[string]*Atom) {
+// CalculateStatuses determines the status and color of an ATD, following specific project rules
+func CalculateStatuses(atoms map[string]*Atom) {
+	// First pass: Calculate status for leaf nodes or nodes without considering children yet
 	for _, atom := range atoms {
-		// Rule: A block requires an upstream SPECIFICATION or REQUIREMENT atom to become fully "Green"
-		hasSpecParent := hasAncestorType(atom, atoms, "SPECIFICATION", "REQUIREMENT")
+		switch atom.Type {
+		case "MODULE", "SERVICE", "ENTITY", "RULE", "MECHANIC", "UI":
+			// Code-Adjacent
+			if len(atom.LinkedCodes) == 0 {
+				atom.ComputedStatus = "UNIMPLEMENTED"
+				atom.ComputedColor = "red"
+			} else {
+				// Initial state, will be refined in second pass if it has children
+				atom.ComputedStatus = "IMPLEMENTED"
+				atom.ComputedColor = "green"
+			}
+		case "REQUIREMENT", "SPECIFICATION", "USECASE", "USERSTORY":
+			// Test-Related
+			if !atom.HasTests {
+				atom.ComputedStatus = "UNTESTED"
+				atom.ComputedColor = "red"
+			} else {
+				// For now, if tests are bound but no execution report, it's yellow
+				atom.ComputedStatus = "TESTED"
+				atom.ComputedColor = "yellow"
+			}
+		default:
+			// Informational (DOMAIN, etc.)
+			atom.ComputedStatus = "MACRO SPEC"
+			atom.ComputedColor = "grey"
+		}
+	}
 
-		// Let's say green is when it has tests AND traces to a spec
-		if atom.HasTests && hasSpecParent {
-			atom.IsGreen = true
-		} else {
-			atom.IsGreen = false
+	// Second pass: Handle propagation (higher scope ATD becomes yellow if any dependent is red)
+	// We might need multiple passes or a dependency graph traversal to ensure full propagation
+	// For simplicity in this logic, we'll check children's status.
+	// Since ATDs can have deep trees, we'll iterate a few times or use a recursive check.
+
+	for i := 0; i < 5; i++ { // Maximum depth of 5 for propagation for now
+		changed := false
+		for _, atom := range atoms {
+			// Skip informational or already yellow atoms
+			if atom.ComputedColor == "grey" || atom.ComputedColor == "yellow" {
+				continue
+			}
+
+			// Propagation Rule: Higher scope (or any parent) becomes yellow if any child is red
+			hasRedChild := false
+			for _, other := range atoms {
+				for _, p := range other.Parents {
+					if p == atom.ID && other.ComputedColor == "red" {
+						hasRedChild = true
+						break
+					}
+				}
+				if hasRedChild {
+					break
+				}
+			}
+
+			if hasRedChild {
+				atom.ComputedStatus = "PARTIAL"
+				atom.ComputedColor = "yellow"
+				changed = true
+			}
+		}
+		if !changed {
+			break
+		}
+	}
+
+	// Final check log
+	fmt.Println("Status and Color check for key atoms:")
+	for _, id := range []string{"mechanic_delta_math_formula", "mechanic_event_resolution", "requirement_controlled_instability_core"} {
+		if a, ok := atoms[id]; ok {
+			fmt.Printf("  Atom %s: Codes=%d, HasTests=%v, Status=%s, Color=%s\n", id, len(a.LinkedCodes), a.HasTests, a.ComputedStatus, a.ComputedColor)
 		}
 	}
 }

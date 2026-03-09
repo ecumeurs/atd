@@ -7,6 +7,7 @@
     <title>Project Chimera - ATD State Machine</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 
@@ -24,25 +25,48 @@
                 </div>
             </div>
             <div class="header-tools">
+                <button class="btn btn-outline" id="toggle-layout" title="Toggle Display Ratio">⬌</button>
+                <button class="btn btn-outline" id="toggle-select-mode">Select Mode</button>
                 <button class="btn btn-outline" id="refresh-btn">Refresh Data</button>
             </div>
         </header>
 
+        <div class="bulk-bar" id="bulk-bar" style="display: none;">
+            <div class="bulk-info"><span id="selected-count">0</span> ATDs selected</div>
+            <div class="bulk-actions">
+                <select id="bulk-status-select" class="bulk-select">
+                    <option value="" disabled selected>Change Status to...</option>
+                    <option value="DRAFT">DRAFT</option>
+                    <option value="REVIEW">REVIEW</option>
+                    <option value="STABLE">STABLE</option>
+                </select>
+                <button class="btn btn-primary" id="btn-bulk-apply" disabled>Apply Change</button>
+                <button class="btn btn-outline btn-sm" id="btn-bulk-cancel">Cancel</button>
+            </div>
+        </div>
+
         <main class="main-content">
             <section class="viz-section">
                 <div class="viz-header">
-                    <h2>Project Documentation State Machine</h2>
+                    <div class="header-main">
+                        <h2>Project Documentation State</h2>
+                        <div class="view-switcher">
+                            <button class="view-btn active" id="view-treemap" title="Treemap View">⊞</button>
+                            <button class="view-btn" id="view-tree" title="Hierarchical Tree">≡</button>
+                        </div>
+                    </div>
                     <p>Summarized documentation and development status.</p>
                 </div>
 
                 <div class="legend">
-                    <span class="legend-item"><span class="color-box green"></span> Done (Tested & Spec'd)</span>
-                    <span class="legend-item"><span class="color-box yellow"></span> In Progress (Missing
-                        tests/Implementation)</span>
-                    <span class="legend-item"><span class="color-box grey"></span> Draft / Macro Spec Only</span>
+                    <span class="legend-item"><span class="color-box green"></span> Implemented</span>
+                    <span class="legend-item"><span class="color-box yellow"></span> Partial / Tested</span>
+                    <span class="legend-item"><span class="color-box red"></span> Unimplemented / Untested</span>
+                    <span class="legend-item"><span class="color-box grey"></span> Informational</span>
                 </div>
 
                 <div id="treemap-container"></div>
+                <div id="treeview-container" style="display: none;"></div>
             </section>
 
             <aside class="details-panel" id="details-panel">
@@ -61,8 +85,70 @@
                         <div class="markdown-body" id="detail-markdown"></div>
                     </div>
 
-                    <button class="btn btn-primary" id="btn-summarize">Generate Summary</button>
+                    <div class="detail-actions">
+                        <button class="btn btn-primary" id="btn-edit">Edit Atom</button>
+                        <button class="btn btn-outline" id="btn-summarize">Generate Summary</button>
+                    </div>
+
                     <div class="summary-box" id="summary-box" style="display: none;"></div>
+
+                    <div id="edit-form" style="display: none;">
+                        <div class="form-group">
+                            <label>Human Name</label>
+                            <input type="text" id="edit-human-name">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Type</label>
+                                <select id="edit-type">
+                                    <option value="MECHANIC">MECHANIC</option>
+                                    <option value="API">API</option>
+                                    <option value="UI">UI</option>
+                                    <option value="DATA">DATA</option>
+                                    <option value="DOMAIN">DOMAIN</option>
+                                    <option value="RULE">RULE</option>
+                                    <option value="USAGE">USAGE</option>
+                                    <option value="BUILD">BUILD</option>
+                                    <option value="SERVICE">SERVICE</option>
+                                    <option value="ENTITY">ENTITY</option>
+                                    <option value="MODULE">MODULE</option>
+                                    <option value="REQUIREMENT">REQUIREMENT</option>
+                                    <option value="SPECIFICATION">SPECIFICATION</option>
+                                    <option value="USECASE">USECASE</option>
+                                    <option value="USER_STORY">USER_STORY</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Status</label>
+                                <select id="edit-status">
+                                    <option value="DRAFT">DRAFT</option>
+                                    <option value="REVIEW">REVIEW</option>
+                                    <option value="STABLE">STABLE</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Priority</label>
+                                <select id="edit-priority">
+                                    <option value="CORE">CORE</option>
+                                    <option value="SECONDARY">SECONDARY</option>
+                                    <option value="EXPERIMENTAL">EXPERIMENTAL</option>
+                                    <option value="FLAVOR">FLAVOR</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Tags (comma separated)</label>
+                            <input type="text" id="edit-tags">
+                        </div>
+                        <div class="form-group">
+                            <label>Markdown Content</label>
+                            <textarea id="edit-content" rows="15"></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn btn-primary" id="btn-save">Save Changes</button>
+                            <button class="btn btn-outline" id="btn-cancel-edit">Cancel</button>
+                        </div>
+                    </div>
 
                     <div class="detail-section">
                         <h3>Code Implementation</h3>
