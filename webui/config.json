@@ -1,7 +1,7 @@
 {
     "host": "localhost",
     "port": 8081,
-    "project_path": "../upsilonbattle",
+    "project_path": "../upsilon",
     "atd_path": "docs",
     "toolkit_path": "../atd_management_skill/.agent/skills/atd/tool"
 }
