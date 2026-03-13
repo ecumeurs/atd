@@ -34,221 +34,227 @@ and prepending @spec-link tags to source files.`,
 		setArgs, _ := cmd.Flags().GetStringSlice("set")
 		specLinkArgs, _ := cmd.Flags().GetStringSlice("spec-link")
 
-		// Handle --spec-link <id> <file>
-		// Note: Cobra StringSlice captures ["id", "file", "id2", "file2"] if used multiple times
-		if len(specLinkArgs) > 0 {
-			if len(specLinkArgs)%2 != 0 {
-				return fmt.Errorf("--spec-link requires exactly two arguments: <id> <file>")
-			}
-			for i := 0; i < len(specLinkArgs); i += 2 {
-				id := specLinkArgs[i]
-				targetFile := specLinkArgs[i+1]
-				if err := applySpecLink(id, targetFile); err != nil {
-					return err
-				}
-			}
-			if filePath == "" {
-				return nil // Finished if only spec-link was requested
-			}
+		var specLinkID, specLinkFile string
+		if len(specLinkArgs) == 2 {
+			specLinkID = specLinkArgs[0]
+			specLinkFile = specLinkArgs[1]
+		} else if len(specLinkArgs) > 0 {
+			return fmt.Errorf("--spec-link requires exactly two arguments: <id> <file>")
 		}
 
-		if filePath == "" {
-			return fmt.Errorf("-file parameter is required for atom updates")
-		}
-
-		intentText := resolveArg(intentArg)
-		logicText := resolveArg(logicArg)
-		interfaceText := resolveArg(interfaceArg)
-
-		// Read original file
-		content, err := os.ReadFile(filePath)
+		text, err := runUpdate(filePath, setArgs, intentArg, logicArg, interfaceArg, specLinkID, specLinkFile)
 		if err != nil {
-			return fmt.Errorf("error reading file: %v", err)
+			return err
 		}
-
-		lines := strings.Split(string(content), "\n")
-
-		// 1. Process Frontmatter
-		inFrontmatter := false
-		frontmatterEnd := -1
-		var frontmatterLines []string
-
-		for i, line := range lines {
-			if line == "---" {
-				if !inFrontmatter && i == 0 {
-					inFrontmatter = true
-				} else if inFrontmatter {
-					inFrontmatter = false
-					frontmatterEnd = i
-					break
-				}
-			}
-			if inFrontmatter && i > 0 {
-				frontmatterLines = append(frontmatterLines, line)
-			}
-		}
-
-		if frontmatterEnd == -1 {
-			return fmt.Errorf("could not find valid YAML frontmatter in %s", filePath)
-		}
-
-		// Update frontmatter keys
-		updates := make(map[string]string)
-		var newID string
-
-		for _, setArg := range setArgs {
-			parts := strings.SplitN(setArg, "=", 2)
-			if len(parts) == 2 {
-				key, val := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
-				updates[key] = val
-				if key == "id" {
-					newID = val
-				}
-			}
-		}
-
-		var newFrontmatter []string
-		newFrontmatter = append(newFrontmatter, "---")
-
-		// Replace existing keys
-		matchedKeys := make(map[string]bool)
-		for _, line := range frontmatterLines {
-			updated := false
-			for k, v := range updates {
-				prefix := k + ":"
-				if strings.HasPrefix(line, prefix) {
-					newFrontmatter = append(newFrontmatter, fmt.Sprintf("%s: %s", k, v))
-					matchedKeys[k] = true
-					updated = true
-					break
-				}
-			}
-			if !updated {
-				newFrontmatter = append(newFrontmatter, line)
-			}
-		}
-
-		// Append new keys
-		for k, v := range updates {
-			if !matchedKeys[k] {
-				newFrontmatter = append(newFrontmatter, fmt.Sprintf("%s: %s", k, v))
-			}
-		}
-		newFrontmatter = append(newFrontmatter, "---")
-
-		// 2. Process Body Sections
-		var newBody []string
-		currentSection := SecNone
-
-		isTargetHeader := func(line string) int {
-			if strings.HasPrefix(line, "## INTENT") {
-				return SecIntent
-			}
-			if strings.HasPrefix(line, "## THE RULE / LOGIC") {
-				return SecLogic
-			}
-			if strings.HasPrefix(line, "## TECHNICAL INTERFACE") {
-				return SecInterface
-			}
-			return SecNone
-		}
-
-		isAnyHeader := func(line string) bool {
-			return strings.HasPrefix(line, "## ")
-		}
-
-		for i := frontmatterEnd + 1; i < len(lines); i++ {
-			line := lines[i]
-
-			if sec := isTargetHeader(line); sec != SecNone {
-				currentSection = sec
-				newBody = append(newBody, line)
-
-				if sec == SecIntent && intentText != "" {
-					newBody = append(newBody, strings.TrimSpace(intentText))
-					newBody = append(newBody, "")
-				} else if sec == SecLogic && logicText != "" {
-					newBody = append(newBody, strings.TrimSpace(logicText))
-					newBody = append(newBody, "")
-				} else if sec == SecInterface && interfaceText != "" {
-					newBody = append(newBody, strings.TrimSpace(interfaceText))
-					newBody = append(newBody, "")
-				}
-				continue
-			} else if isAnyHeader(line) {
-				currentSection = SecNone
-			}
-
-			skipLine := false
-			if currentSection == SecIntent && intentText != "" {
-				skipLine = true
-			}
-			if currentSection == SecLogic && logicText != "" {
-				skipLine = true
-			}
-			if currentSection == SecInterface && interfaceText != "" {
-				skipLine = true
-			}
-
-			if !skipLine {
-				if len(newBody) > 0 && newBody[len(newBody)-1] == "" && line == "" && currentSection != SecNone {
-					continue
-				}
-				newBody = append(newBody, line)
-			}
-		}
-
-		finalOutput := strings.Join(append(newFrontmatter, newBody...), "\n")
-		targetPath := filePath
-
-		if newID != "" {
-			dir := filepath.Dir(filePath)
-			targetPath = filepath.Join(dir, fmt.Sprintf("%s.atom.md", newID))
-		}
-
-		if err := os.WriteFile(targetPath, []byte(finalOutput), 0644); err != nil {
-			return fmt.Errorf("error writing file %s: %v", targetPath, err)
-		}
-
-		renamed := false
-		if targetPath != filePath {
-			os.Remove(filePath)
-			renamed = true
-			fmt.Printf("Renamed %s -> %s\n", filepath.Base(filePath), filepath.Base(targetPath))
-		}
-
-		logMsg := fmt.Sprintf("Updated %s", filepath.Base(targetPath))
-		if len(updates) > 0 {
-			logMsg += fmt.Sprintf(" | set: %d keys", len(updates))
-		}
-		if intentText != "" || logicText != "" || interfaceText != "" {
-			logMsg += " | updated body sections"
-		}
-		if renamed {
-			logMsg += fmt.Sprintf(" | renamed from %s", filepath.Base(filePath))
-		}
-		config.Log("atd-update", logMsg)
-		fmt.Println("Success:", logMsg)
-
-		// Propagate ID change if renamed
-		if renamed && newID != "" {
-			var oldID string
-			for _, line := range frontmatterLines {
-				if strings.HasPrefix(line, "id:") {
-					oldID = strings.TrimSpace(strings.TrimPrefix(line, "id:"))
-					break
-				}
-			}
-			if oldID != "" && oldID != newID {
-				docsPath := config.DocsDir()
-				numUpdates := updateLinks(docsPath, oldID, newID)
-				fmt.Printf("Propagated ID change [[%s]] -> [[%s]] across %d files\n", oldID, newID, numUpdates)
-				config.Log("atd-update", fmt.Sprintf("Propagated ID change across %d files", numUpdates))
-			}
-		}
-
+		fmt.Println(text)
 		return nil
 	},
+}
+
+func runUpdate(filePath string, setArgs []string, intentArg, logicArg, interfaceArg, specLinkID, specLinkFile string) (string, error) {
+	if specLinkID != "" && specLinkFile != "" {
+		if err := applySpecLink(specLinkID, specLinkFile); err != nil {
+			return "", err
+		}
+		if filePath == "" {
+			return fmt.Sprintf("Injected spec-link for %s into %s", specLinkID, specLinkFile), nil
+		}
+	}
+
+	if filePath == "" {
+		return "", fmt.Errorf("-file parameter is required for atom updates")
+	}
+
+	intentText := resolveArg(intentArg)
+	logicText := resolveArg(logicArg)
+	interfaceText := resolveArg(interfaceArg)
+
+	// Read original file
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", fmt.Errorf("error reading file: %v", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+
+	// 1. Process Frontmatter
+	inFrontmatter := false
+	frontmatterEnd := -1
+	var frontmatterLines []string
+
+	for i, line := range lines {
+		if line == "---" {
+			if !inFrontmatter && i == 0 {
+				inFrontmatter = true
+			} else if inFrontmatter {
+				inFrontmatter = false
+				frontmatterEnd = i
+				break
+			}
+		}
+		if inFrontmatter && i > 0 {
+			frontmatterLines = append(frontmatterLines, line)
+		}
+	}
+
+	if frontmatterEnd == -1 {
+		return "", fmt.Errorf("could not find valid YAML frontmatter in %s", filePath)
+	}
+
+	// Update frontmatter keys
+	updates := make(map[string]string)
+	var newID string
+
+	for _, setArg := range setArgs {
+		parts := strings.SplitN(setArg, "=", 2)
+		if len(parts) == 2 {
+			key, val := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+			updates[key] = val
+			if key == "id" {
+				newID = val
+			}
+		}
+	}
+
+	var newFrontmatter []string
+	newFrontmatter = append(newFrontmatter, "---")
+
+	// Replace existing keys
+	matchedKeys := make(map[string]bool)
+	for _, line := range frontmatterLines {
+		updated := false
+		for k, v := range updates {
+			prefix := k + ":"
+			if strings.HasPrefix(line, prefix) {
+				newFrontmatter = append(newFrontmatter, fmt.Sprintf("%s: %s", k, v))
+				matchedKeys[k] = true
+				updated = true
+				break
+			}
+		}
+		if !updated {
+			newFrontmatter = append(newFrontmatter, line)
+		}
+	}
+
+	// Append new keys
+	for k, v := range updates {
+		if !matchedKeys[k] {
+			newFrontmatter = append(newFrontmatter, fmt.Sprintf("%s: %s", k, v))
+		}
+	}
+	newFrontmatter = append(newFrontmatter, "---")
+
+	// 2. Process Body Sections
+	var newBody []string
+	currentSection := SecNone
+
+	isTargetHeader := func(line string) int {
+		if strings.HasPrefix(line, "## INTENT") {
+			return SecIntent
+		}
+		if strings.HasPrefix(line, "## THE RULE / LOGIC") {
+			return SecLogic
+		}
+		if strings.HasPrefix(line, "## TECHNICAL INTERFACE") {
+			return SecInterface
+		}
+		return SecNone
+	}
+
+	isAnyHeader := func(line string) bool {
+		return strings.HasPrefix(line, "## ")
+	}
+
+	for i := frontmatterEnd + 1; i < len(lines); i++ {
+		line := lines[i]
+
+		if sec := isTargetHeader(line); sec != SecNone {
+			currentSection = sec
+			newBody = append(newBody, line)
+
+			if sec == SecIntent && intentText != "" {
+				newBody = append(newBody, strings.TrimSpace(intentText))
+				newBody = append(newBody, "")
+			} else if sec == SecLogic && logicText != "" {
+				newBody = append(newBody, strings.TrimSpace(logicText))
+				newBody = append(newBody, "")
+			} else if sec == SecInterface && interfaceText != "" {
+				newBody = append(newBody, strings.TrimSpace(interfaceText))
+				newBody = append(newBody, "")
+			}
+			continue
+		} else if isAnyHeader(line) {
+			currentSection = SecNone
+		}
+
+		skipLine := false
+		if currentSection == SecIntent && intentText != "" {
+			skipLine = true
+		}
+		if currentSection == SecLogic && logicText != "" {
+			skipLine = true
+		}
+		if currentSection == SecInterface && interfaceText != "" {
+			skipLine = true
+		}
+
+		if !skipLine {
+			if len(newBody) > 0 && newBody[len(newBody)-1] == "" && line == "" && currentSection != SecNone {
+				continue
+			}
+			newBody = append(newBody, line)
+		}
+	}
+
+	finalOutput := strings.Join(append(newFrontmatter, newBody...), "\n")
+	targetPath := filePath
+
+	if newID != "" {
+		dir := filepath.Dir(filePath)
+		targetPath = filepath.Join(dir, fmt.Sprintf("%s.atom.md", newID))
+	}
+
+	if err := os.WriteFile(targetPath, []byte(finalOutput), 0644); err != nil {
+		return "", fmt.Errorf("error writing file %s: %v", targetPath, err)
+	}
+
+	renamed := false
+	if targetPath != filePath {
+		os.Remove(filePath)
+		renamed = true
+	}
+
+	logMsg := fmt.Sprintf("Updated %s", filepath.Base(targetPath))
+	if len(updates) > 0 {
+		logMsg += fmt.Sprintf(" | set: %d keys", len(updates))
+	}
+	if intentText != "" || logicText != "" || interfaceText != "" {
+		logMsg += " | updated body sections"
+	}
+	if renamed {
+		logMsg += fmt.Sprintf(" | renamed from %s", filepath.Base(filePath))
+	}
+	config.Log("atd-update", logMsg)
+
+	// Propagate ID change if renamed
+	if renamed && newID != "" {
+		var oldID string
+		for _, line := range frontmatterLines {
+			if strings.HasPrefix(line, "id:") {
+				oldID = strings.TrimSpace(strings.TrimPrefix(line, "id:"))
+				break
+			}
+		}
+		if oldID != "" && oldID != newID {
+			docsPath := config.DocsDir()
+			numUpdates := updateLinks(docsPath, oldID, newID)
+			logMsg += fmt.Sprintf(" | Propagated ID change [[%s]] -> [[%s]] across %d files", oldID, newID, numUpdates)
+			config.Log("atd-update", fmt.Sprintf("Propagated ID change across %d files", numUpdates))
+		}
+	}
+
+	return "Success: " + logMsg, nil
 }
 
 func applySpecLink(id, file string) error {

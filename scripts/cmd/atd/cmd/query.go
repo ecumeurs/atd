@@ -26,19 +26,27 @@ Outputs a JSON list of matching file paths.`,
 			docsDir = config.DocsDir()
 		}
 
-		if search == "" {
-			return fmt.Errorf("--search parameter is required")
-		}
-
-		matches, err := searchAtoms(docsDir, field, search)
+		text, err := runQuery(docsDir, field, search)
 		if err != nil {
 			return err
 		}
-
-		output, _ := json.MarshalIndent(matches, "", "  ")
-		fmt.Println(string(output))
+		fmt.Println(text)
 		return nil
 	},
+}
+
+func runQuery(docsDir, field, search string) (string, error) {
+	if search == "" {
+		return "", fmt.Errorf("--search parameter is required")
+	}
+
+	matches, err := searchAtoms(docsDir, field, search)
+	if err != nil {
+		return "", err
+	}
+
+	output, _ := json.MarshalIndent(matches, "", "  ")
+	return string(output), nil
 }
 
 func searchAtoms(dir string, field string, term string) ([]string, error) {

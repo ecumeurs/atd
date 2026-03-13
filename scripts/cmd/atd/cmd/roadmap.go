@@ -57,46 +57,53 @@ where ATD documentation is missing.`,
 		}
 		outPath, _ := cmd.Flags().GetString("out")
 
-		roadmap := Roadmap{
-			Items: []RoadmapItem{},
-		}
-
-		validExts := config.ActiveConfig.SupportedExtensions
-
-		gitCmd := exec.Command("git", "ls-files", "-c", "-o", "--exclude-standard")
-		gitCmd.Dir = scanDir
-		out, err := gitCmd.Output()
+		text, err := runRoadmap(scanDir, outPath)
 		if err != nil {
-			fmt.Printf("Warning: Failed to run git ls-files in %s. Error: %v\n", scanDir, err)
-			return nil
+			return err
 		}
-
-		fileList := strings.Split(strings.TrimSpace(string(out)), "\n")
-
-		for _, relPath := range fileList {
-			if relPath == "" {
-				continue
-			}
-
-			fullPath := filepath.Join(scanDir, relPath)
-			ext := filepath.Ext(fullPath)
-			if validExts[ext] {
-				processGenericFile(fullPath, &roadmap)
-			}
-		}
-
-		data, err := json.MarshalIndent(roadmap, "", "  ")
-		if err != nil {
-			return fmt.Errorf("error encoding roadmap: %v", err)
-		}
-
-		if err := os.WriteFile(outPath, data, 0644); err != nil {
-			return fmt.Errorf("error writing roadmap to %s: %v", outPath, err)
-		}
-
-		fmt.Printf("Roadmap generated at %s with %d elements tracked.\n", outPath, len(roadmap.Items))
+		fmt.Println(text)
 		return nil
 	},
+}
+
+func runRoadmap(scanDir, outPath string) (string, error) {
+	roadmap := Roadmap{
+		Items: []RoadmapItem{},
+	}
+
+	validExts := config.ActiveConfig.SupportedExtensions
+
+	gitCmd := exec.Command("git", "ls-files", "-c", "-o", "--exclude-standard")
+	gitCmd.Dir = scanDir
+	out, err := gitCmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to run git ls-files in %s: %v", scanDir, err)
+	}
+
+	fileList := strings.Split(strings.TrimSpace(string(out)), "\n")
+
+	for _, relPath := range fileList {
+		if relPath == "" {
+			continue
+		}
+
+		fullPath := filepath.Join(scanDir, relPath)
+		ext := filepath.Ext(fullPath)
+		if validExts[ext] {
+			processGenericFile(fullPath, &roadmap)
+		}
+	}
+
+	data, err := json.MarshalIndent(roadmap, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("error encoding roadmap: %v", err)
+	}
+
+	if err := os.WriteFile(outPath, data, 0644); err != nil {
+		return "", fmt.Errorf("error writing roadmap to %s: %v", outPath, err)
+	}
+
+	return fmt.Sprintf("Roadmap generated at %s with %d elements tracked.", outPath, len(roadmap.Items)), nil
 }
 
 func processGenericFile(path string, roadmap *Roadmap) {

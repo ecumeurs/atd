@@ -43,38 +43,46 @@ If --gaps is provided, identifies STABLE atoms with no implementation.`,
 			docsDir = config.DocsDir()
 		}
 
-		graph := &DependencyGraph{
-			Atoms: make(map[string]*AtomNode),
-		}
-
-		if err := crawlDocs(docsDir, graph); err != nil {
+		text, err := runCrawl(srcPath, docsDir, gaps)
+		if err != nil {
 			return err
 		}
-
-		if srcPath != "" {
-			if err := crawlSrc(srcPath, graph); err != nil {
-				return err
-			}
-		}
-
-		if gaps {
-			report := GapReport{
-				OrphanedAtoms: []string{},
-			}
-			for id, node := range graph.Atoms {
-				if node.Status == "STABLE" && len(node.Implementations) == 0 {
-					report.OrphanedAtoms = append(report.OrphanedAtoms, id)
-				}
-			}
-			output, _ := json.MarshalIndent(report, "", "  ")
-			fmt.Println(string(output))
-		} else {
-			output, _ := json.MarshalIndent(graph, "", "  ")
-			fmt.Println(string(output))
-		}
-
+		fmt.Println(text)
 		return nil
 	},
+}
+
+func runCrawl(srcPath, docsDir string, gaps bool) (string, error) {
+	graph := &DependencyGraph{
+		Atoms: make(map[string]*AtomNode),
+	}
+
+	if err := crawlDocs(docsDir, graph); err != nil {
+		return "", err
+	}
+
+	if srcPath != "" {
+		if err := crawlSrc(srcPath, graph); err != nil {
+			return "", err
+		}
+	}
+
+	var output []byte
+	if gaps {
+		report := GapReport{
+			OrphanedAtoms: []string{},
+		}
+		for id, node := range graph.Atoms {
+			if node.Status == "STABLE" && len(node.Implementations) == 0 {
+				report.OrphanedAtoms = append(report.OrphanedAtoms, id)
+			}
+		}
+		output, _ = json.MarshalIndent(report, "", "  ")
+	} else {
+		output, _ = json.MarshalIndent(graph, "", "  ")
+	}
+
+	return string(output), nil
 }
 
 func crawlDocs(dir string, graph *DependencyGraph) error {
