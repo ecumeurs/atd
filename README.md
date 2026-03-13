@@ -50,6 +50,9 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
+| [Add a tool to handle atds indexing and research through atds (nomic)](issues/ISS-024_20260313_atd_indexing_nomic.md) | 2026-03-13 | Open | Medium | While the project has `atd-ollama-indexer` and `atd-ollama-search` using Nomi... |
+| [Merge all tools into ONE atd go binary](issues/ISS-023_20260313_atd_binary_unification.md) | 2026-03-13 | Open | Medium | Currently, the project consists of dozens of small, independent Go binaries l... |
+| [Formalize Test Handling and Traceability in ATD System](issues/ISS-022_20260311_test_handling_shortcoming.md) | 2026-03-11 | Open | Medium | Currently, test files and test functions are not handled in a specific way by... |
 | [Tiered LLM Access for ATD Operations](issues/ISS-021_20260309_tiered_llm_access.md) | 2026-03-09 | Open | High | Implement a tiered LLM access system to optimize token usage and cost. The sy... |
 | [Research efficient API logic tracking for ATD atoms](issues/ISS-020_20260306_api_logic_tracking_research.md) | 2026-03-06 | Open | Medium | Current API-typed Atoms use free-form text or simplified summaries that often... |
 | [API typed atd aren't capturing full payload/contract details](issues/ISS-019_20260306_api_atd_payload_capture_shortcoming.md) | 2026-03-06 | Open | Medium | When working on projects to test ATDs, instructions for API expectations and ... |

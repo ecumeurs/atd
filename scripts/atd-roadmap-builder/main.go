@@ -62,7 +62,6 @@ func main() {
 	config.Load()
 	config.Log("atd-roadmap-builder", "Started process")
 
-
 	if docsPath == "" {
 		docsPath = filepath.Join(projectPath, "docs")
 	}
@@ -74,12 +73,7 @@ func main() {
 		Items: []RoadmapItem{},
 	}
 
-	validExts := map[string]bool{
-		".go": true, ".py": true, ".ts": true, ".js": true,
-		".rs": true, ".java": true, ".c": true, ".cpp": true,
-		".h": true, ".hpp": true, ".cs": true, ".php": true,
-		".rb": true, ".swift": true, ".kt": true, ".scala": true,
-	}
+	validExts := config.ActiveConfig.SupportedExtensions
 
 	cmd := exec.Command("git", "ls-files", "-c", "-o", "--exclude-standard")
 	cmd.Dir = scanDir

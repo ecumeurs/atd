@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"atd-tools/config"
 )
@@ -40,15 +41,28 @@ func main() {
 		os.Exit(1)
 	}
 
-	prompt := fmt.Sprintf(`
-<System Objective>
-You are an ATD Deconstructor mapping structural boundaries. Identify explicit conceptual shifts (Domain vs API vs Rules) and output a JSON array estimating proposed Atom boundaries: [{"proposed_id": string, "responsibility": string, "excerpt_range": string}]
-</System Objective>
+	lines := strings.Split(string(content), "\n")
+	var numberedContent strings.Builder
+	for i, line := range lines {
+		numberedContent.WriteString(fmt.Sprintf("%03d: %s\n", i+1, line))
+	}
 
-<Target Document>
+	prompt := fmt.Sprintf(`
+<System_Context>
+You are an ATD Architect. The target document below has line numbers prepended (e.g., 001:). 
+Identify atomic boundaries where a single architectural responsibility starts and ends.
+</System_Context>
+
+<Instruction>
+1. Map each Atom to its exact line_range [start, end].
+2. Identify the 'responsibility' as a deterministic skill definition.
+3. Response must strictly follow the JSON schema.
+</Instruction>
+
+<Document>
 %s
-</Target Document>
-`, string(content))
+</Document>
+`, numberedContent.String())
 
 	fmt.Println(prompt)
 }

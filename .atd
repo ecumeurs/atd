@@ -1,6 +1,5 @@
 {
   "docs_path": "docs/",
-  "bin_path": ".agent/skills/atd/tools/",
   "diff_similarity_threshold": 0.85,
   "bloating_factor": {
     "default": 0.8,
@@ -16,5 +15,19 @@
   "model": "llama3.2",
   "logging": {
     "log_path": ".agent/logs/atd_trace.log"
+  },
+  "llm": {
+    "providers": [
+      {"name": "remote", "base_url": "http://192.168.1.10:11434", "timeout_ms": 2000},
+      {"name": "local",  "base_url": "http://localhost:11434",    "timeout_ms": 500},
+      {"name": "ide_agent", "type": "passthrough"}
+    ],
+    "models": {
+      "llama3.2":           {"tasks": ["audit_bloat", "intent_extract", "snapshot"]},
+      "deepseek-r1:7b":     {"tasks": ["audit_code", "compare", "congruence", "reconcile", "fix_split"]},
+      "qwen2.5-coder:14b":  {"tasks": ["dissect", "recon"]},
+      "nomic-embed-text":   {"tasks": ["embed"]}
+    },
+    "fallback_model": "llama3.2"
   }
 }

@@ -4,6 +4,8 @@
 
 | Ref | File | Severity | Status | Summary |
 |---|---|---|---|---|
+| ISS-024 | [ISS-024_20260313_atd_indexing_nomic.md](ISS-024_20260313_atd_indexing_nomic.md) | Medium | Open | Add a tool to handle ATD indexing and research through Nomic. |
+| ISS-023 | [ISS-023_20260313_atd_binary_unification.md](ISS-023_20260313_atd_binary_unification.md) | Medium | Open | Merge all tools into ONE atd Go binary with subcommands. |
 | ISS-021 | [ISS-021_20260309_tiered_llm_access.md](ISS-021_20260309_tiered_llm_access.md) | High | Open | Tiered LLM access with remote discovery and local fallback. |
 | ISS-020 | [ISS-020_20260306_api_logic_tracking_research.md](ISS-020_20260306_api_logic_tracking_research.md) | Medium | Open | Research efficient API logic tracking for ATD atoms. |
 | ISS-019 | [ISS-019_20260306_api_atd_payload_capture_shortcoming.md](ISS-019_20260306_api_atd_payload_capture_shortcoming.md) | Medium | Open | API typed atd aren't capturing full payload/contract details. |

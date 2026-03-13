@@ -43,17 +43,14 @@ if [[ -z "$DOCS" ]]; then
   exit 1
 fi
 
-ATD_AUDIT="${BIN_DIR}/atd-audit"
-ATD_FIXER="${BIN_DIR}/atd-audit-fixer"
-ATD_COMPARE="${BIN_DIR}/atd-compare"
+# --- Verify binary ------------------------------------------------------------
+ATD_BIN="${BIN_DIR}/atd"
 
-for bin in "$ATD_AUDIT" "$ATD_FIXER" "$ATD_COMPARE"; do
-  if [[ ! -x "$bin" ]]; then
-    echo "Error: binary not found or not executable: $bin" >&2
-    echo "Run: cd scripts && go build -o bin/$(basename "$bin") ./$(basename "$bin")" >&2
-    exit 1
-  fi
-done
+if [[ ! -x "$ATD_BIN" ]]; then
+  echo "Error: binary not found or not executable: $ATD_BIN" >&2
+  echo "Run: cd scripts && go build -o bin/atd ./cmd/atd/main.go" >&2
+  exit 1
+fi
 
 mkdir -p "$TMP_DIR"
 AUDIT_REPORT="$TMP_DIR/audit_report.txt"
@@ -71,8 +68,8 @@ echo ""
 atd_log "atd-full-audit.sh" "Started full audit pipeline for docs at DOCS"
 
 # --- Phase 1+2: Audit ---------------------------------------------------------
-echo "[1/5] Running atd-audit..."
-"$ATD_AUDIT" -docs "$DOCS" | tee "$AUDIT_REPORT"
+echo "[1/5] Running atd audit..."
+"$ATD_BIN" audit -docs "$DOCS" | tee "$AUDIT_REPORT"
 echo ""
 echo "Audit report saved: $AUDIT_REPORT"
 echo ""
@@ -80,8 +77,8 @@ echo ""
 # --- Phase 3: Auto-fix bloated atoms ------------------------------------------
 BLOAT_COUNT=$(grep -c "\[BLOATED\]" "$AUDIT_REPORT" || true)
 if [[ "$BLOAT_COUNT" -gt 0 ]]; then
-  echo "[3/5] Fixing $BLOAT_COUNT bloated atom(s) via atd-audit-fixer..."
-  "$ATD_FIXER" -audit "$AUDIT_REPORT" -docs "$DOCS" | tee "$FIXER_LOG"
+  echo "[3/5] Fixing $BLOAT_COUNT bloated atom(s) via atd fix..."
+  "$ATD_BIN" fix -audit "$AUDIT_REPORT" -docs "$DOCS" | tee "$FIXER_LOG"
   echo ""
   echo "Fixer log saved: $FIXER_LOG"
 else
@@ -120,8 +117,8 @@ if [[ "$COLLISION_COUNT" -gt 0 ]]; then
       OUT_MD="$TMP_DIR/compare_${SAFE_A}__${SAFE_B}.md"
 
       echo "  Comparing $FILE_A  <-->  $FILE_B"
-      "$ATD_COMPARE" -a "$PATH_A" -b "$PATH_B" -out "$OUT_MD" 2>/dev/null || \
-        echo "  [WARN] atd-compare failed for this pair"
+      "$ATD_BIN" compare -a "$PATH_A" -b "$PATH_B" -out "$OUT_MD" 2>/dev/null || \
+        echo "  [WARN] atd compare failed for this pair"
     fi
   done < "$AUDIT_REPORT"
 

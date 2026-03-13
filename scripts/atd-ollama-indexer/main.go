@@ -90,7 +90,6 @@ func main() {
 	config.Load()
 	config.Log("atd-ollama-indexer", "Started process")
 
-
 	if docsPath == "" {
 		docsPath = filepath.Join(projectPath, "docs")
 	}
@@ -192,7 +191,7 @@ func main() {
 	}
 
 	for _, relPath := range filesToIndex {
-		if relPath == "" || !strings.HasSuffix(relPath, ".go") {
+		if relPath == "" || !config.ActiveConfig.SupportedExtensions[filepath.Ext(relPath)] {
 			continue
 		}
 

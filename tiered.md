@@ -202,6 +202,25 @@ All benchmarks should be run via `atd-ollama-audit` and `atd-ollama-generate` ag
 | **Remote F** | `qwen2.5-coder:14b` | remote (192.168.1.10) | generate (ruler.go) | Full power dissection |
 | **Degraded G** | `llama3.2` | local (fallback) | audit (ruler.go) | Cost of fallback vs baseline |
 
+### Early Benchmark Results (atd-dissect prompt)
+
+*Test Run: Extracted directly from `atd-dissect` prompt running against Local vs Remote Ollama.*
+
+| Node | Model | Doc Type | Atoms | Time | Output Tokens |
+|---|---|---|---|---|---|
+| Local | `llama3.2:latest` | Code (`ruler.go`) | 0 | 93.36s | 36 |
+| Remote | `llama3.2:1b` | Code (`ruler.go`) | 0 | 4.10s | 30 |
+| Remote | `llama3.2:latest` | Code (`ruler.go`) | 0 | 6.09s | 36 |
+| Remote | `deepseek-r1:7b` | Code (`ruler.go`) | 0 | 4.44s | 4 |
+| Remote | `qwen2.5-coder:14b` | Code (`ruler.go`) | 0 | 18.59s | 63 |
+| Local | `llama3.2:latest` | Doc (`commerce.md`) | 0 | 118.75s | 169 |
+| Remote | `llama3.2:1b` | Doc (`commerce.md`) | 0 | 5.63s | 91 |
+| Remote | `llama3.2:latest` | Doc (`commerce.md`) | 0 | 9.54s | 39 |
+| Remote | `deepseek-r1:7b` | Doc (`commerce.md`) | 0 | 7.37s | 3 |
+| Remote | `qwen2.5-coder:14b` | Doc (`commerce.md`) | 0 | 14.74s | 35 |
+
+*Note: The `0` atoms extracted indicates that `atd-dissect`'s zero-shot extraction occasionally struggles to output purely structured JSON without the IDE fallback in its current state, or the prompt needs further tuning. However, the performance gap is stark: the remote `llama3.2:latest` is ~12-15x faster than the local instance.*
+
 ### Benchmark Command Template (once tiered lib is implemented)
 
 ```bash

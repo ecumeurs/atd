@@ -16,14 +16,32 @@ type LoggingConfig struct {
 	LogPath string `json:"log_path"`
 }
 
+type LLMProvider struct {
+	Name      string `json:"name"`
+	BaseURL   string `json:"base_url"`
+	TimeoutMs int    `json:"timeout_ms"`
+	Type      string `json:"type,omitempty"` // "passthrough" for IDE agent
+}
+
+type ModelConfig struct {
+	Tasks []string `json:"tasks"`
+}
+
+type LLMConfig struct {
+	Providers     []LLMProvider          `json:"providers"`
+	Models        map[string]ModelConfig `json:"models"`
+	FallbackModel string                `json:"fallback_model"`
+}
+
 type ATDConfig struct {
 	DocsPath                string               `json:"docs_path"`
-	BinPath                 string               `json:"bin_path"`
 	DiffSimilarityThreshold float64              `json:"diff_similarity_threshold"`
 	BloatingFactor          BloatingFactorConfig `json:"bloating_factor"`
-	Model                   string               `json:"model"`
+	Model                   string               `json:"model"` // kept for backward compat
 	Logging                 LoggingConfig        `json:"logging"`
-	loadedFromDir           string               // internal tracking
+	SupportedExtensions     map[string]bool      `json:"supported_extensions"`
+	LLM                     LLMConfig            `json:"llm"`
+	loadedFromDir           string
 }
 
 type LogEntry struct {
@@ -42,6 +60,12 @@ func Load() error {
 		BloatingFactor: BloatingFactorConfig{
 			Default:       0.8,
 			TypeOverrides: make(map[string]float64),
+		},
+		SupportedExtensions: map[string]bool{
+			".go": true, ".py": true, ".ts": true, ".js": true,
+			".rs": true, ".java": true, ".c": true, ".cpp": true,
+			".h": true, ".hpp": true, ".cs": true, ".php": true,
+			".rb": true, ".swift": true, ".kt": true, ".scala": true,
 		},
 	}
 
@@ -124,4 +148,38 @@ func GetBloatingStrictness(atomType string) float64 {
 		return ActiveConfig.BloatingFactor.Default
 	}
 	return 0.8
+}
+
+func ProjectRoot() string {
+	return ActiveConfig.loadedFromDir
+}
+
+func DocsDir() string {
+	p := ActiveConfig.DocsPath
+	if p == "" {
+		p = "docs/"
+	}
+	if !filepath.IsAbs(p) {
+		return filepath.Join(ActiveConfig.loadedFromDir, p)
+	}
+	return p
+}
+
+// ModelForTask returns the model name assigned to a given task type.
+// Falls back to FallbackModel, then to the legacy "model" field, then "llama3.2".
+func ModelForTask(taskType string) string {
+	for modelName, mc := range ActiveConfig.LLM.Models {
+		for _, t := range mc.Tasks {
+			if t == taskType {
+				return modelName
+			}
+		}
+	}
+	if ActiveConfig.LLM.FallbackModel != "" {
+		return ActiveConfig.LLM.FallbackModel
+	}
+	if ActiveConfig.Model != "" {
+		return ActiveConfig.Model
+	}
+	return "llama3.2"
 }

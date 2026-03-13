@@ -2,12 +2,5 @@ go 1.24.4
 
 use (
 	.
-	./atd-audit-fixer
-	./atd-compare
-	./atd-ollama-audit
-	./atd-ollama-generate
-	./atd-ollama-indexer
-	./atd-ollama-search
-	./atd-roadmap-builder
-	./atd-update
+	./cmd/atd
 )
