@@ -43,17 +43,17 @@ Mark `[x]` when complete. Mark `[/]` when in progress.
 - [x] **10** — [Audit & Fix & Compare](10_audit_fix_compare.md)  
   Migrate: `audit` (bloat + collision + --code), `fix` (LLM split), `compare` (LLM resolution).
 
-- [ ] **11** — [Remaining LLM Commands](11_remaining_llm_commands.md)  
+- [x] **11** — [Remaining LLM Commands](11_remaining_llm_commands.md)  
   Migrate: `congruence`, `reconcile`, `recon`, `discover`.
 
 ### Phase 4 — Documentation & Verification
 
-- [ ] **12** — [Documentation & Verification](12_docs_and_verification.md)  
+- [x] **12** — [Documentation & Verification](12_docs_and_verification.md)  
   Create `docs/` ATD atoms per subcommand. Write help text. Run smoke + integration tests.
 
 ### Phase 5 — MCP HTTP Server (sequential)
 
-- [ ] **13** — [MCP HTTP Server Infrastructure](13_mcp_http_server.md)  
+- [x] **13** — [MCP HTTP Server Infrastructure](13_mcp_http_server.md)  
   Create `internal/mcp/server.go` (HTTP handler, protocol types), `internal/mcp/registry.go` (tool registry), and `cmd/serve.go` (`atd serve` subcommand on port 7474). Also scaffold empty `cmd/mcp_tools.go`. No new Go dependencies — stdlib only.
 
 - [ ] **14** — [MCP Tool Registrations](14_mcp_tool_registrations.md)  
