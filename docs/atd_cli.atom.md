@@ -8,7 +8,7 @@ priority: CORE
 tags: [atd, cli, unified]
 parents:
   - [[atd_philosophy]]
-dependents: [[[atd_assemble]], [[atd_audit]], [[atd_config]], [[atd_congruence]], [[atd_continue]], [[atd_crawl]], [[atd_discover]], [[atd_dissect]], [[atd_generate]], [[atd_index]], [[atd_query]], [[atd_recon]], [[atd_reconcile]], [[atd_roadmap]], [[atd_test_links]], [[atd_update]], [[atd_verify]], [[atd_weave]]]
+dependents: [[[atd_assemble]], [[atd_audit]], [[atd_config]], [[atd_congruence]], [[atd_continue]], [[atd_crawl]], [[atd_discover]], [[atd_dissect]], [[atd_generate]], [[atd_index]], [[atd_init]], [[atd_query]], [[atd_recon]], [[atd_reconcile]], [[atd_roadmap]], [[atd_serve]], [[atd_test_links]], [[atd_update]], [[atd_verify]], [[atd_weave]]]
 ---
 
 # ATD CLI Tool

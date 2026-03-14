@@ -1,9 +1,46 @@
 package cmd
 
 import (
+	"bytes"
+	"fmt"
+	"io"
+	"os"
+
 	"atd-tools/config"
 	"atd-tools/pkg/mcp"
 )
+
+// captureStdout runs fn() while redirecting os.Stdout to a buffer.
+// Returns the captured output as a string.
+// This is necessary because several run* functions print progress directly
+// to os.Stdout. In MCP stdio mode, os.Stdout is the JSON-RPC channel and
+// must not receive unstructured output.
+func captureStdout(fn func() error) (string, error) {
+	orig := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		return "", err
+	}
+	os.Stdout = w
+
+	copyDone := make(chan string, 1)
+	go func() {
+		var buf bytes.Buffer
+		io.Copy(&buf, r)
+		copyDone <- buf.String()
+	}()
+
+	runErr := fn()
+	w.Close()
+	os.Stdout = orig
+	captured := <-copyDone
+	r.Close()
+
+	if runErr != nil {
+		return captured, runErr
+	}
+	return captured, nil
+}
 
 func argString(args map[string]any, key, fallback string) string {
 	if v, ok := args[key]; ok {
@@ -176,5 +213,161 @@ func RegisterMCPTools(r *mcp.Registry) {
 		atomID := argString(args, "atom", "")
 		docs := argString(args, "docs", config.DocsDir())
 		return runTestLinks(src, atomID, docs)
+	})
+
+	// --- LLM tools added as part of MCP preamble ---
+
+	r.Register(mcp.Tool{
+		Name:        "atd_dissect",
+		Description: "Dissect a source code or documentation file into atomic boundaries. Set llm=true to route through Ollama; false returns the prompt for IDE Agent passthrough.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"file": map[string]any{"type": "string", "description": "Path to the file to dissect."},
+				"llm":  map[string]any{"type": "boolean", "description": "If true, route through tiered Ollama provider. Defaults to false (IDE Agent passthrough)."},
+			},
+			"required": []string{"file"},
+		},
+	}, func(args map[string]any) (string, error) {
+		file := argString(args, "file", "")
+		useLLM := argBool(args, "llm")
+		return runDissect(file, useLLM)
+	})
+
+	r.Register(mcp.Tool{
+		Name:        "atd_index",
+		Description: "Build a semantic vector index of source code and/or ATD documents using nomic-embed-text. Requires a local or remote Ollama provider.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"dir":  map[string]any{"type": "string", "description": "Directory to crawl and index. Defaults to current directory."},
+				"db":   map[string]any{"type": "string", "description": "Path to SQLite database. Defaults to <docs_path>/.atd_index.db."},
+				"mode": map[string]any{"type": "string", "description": "What to index: 'code', 'docs', or 'all'. Defaults to 'code'."},
+			},
+		},
+	}, func(args map[string]any) (string, error) {
+		dir := argString(args, "dir", ".")
+		db := argString(args, "db", "")
+		mode := argString(args, "mode", "code")
+		if db == "" {
+			db = config.DocsDir() + "/.atd_index.db"
+		}
+		return captureStdout(func() error {
+			return runIndex(dir, db, mode)
+		})
+	})
+
+	r.Register(mcp.Tool{
+		Name:        "atd_search",
+		Description: "Search the indexed codebase semantically (requires a built index) or via keyword grep.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"query":  map[string]any{"type": "string", "description": "Semantic search query (uses Nomic embeddings)."},
+				"grep":   map[string]any{"type": "string", "description": "Literal keyword search across project files."},
+				"db":     map[string]any{"type": "string", "description": "Path to SQLite index database."},
+				"limit":  map[string]any{"type": "integer", "description": "Number of semantic results to return. Defaults to 5."},
+				"scope":  map[string]any{"type": "string", "description": "Search scope: 'code', 'docs', or 'all'. Defaults to 'all'."},
+			},
+		},
+	}, func(args map[string]any) (string, error) {
+		query := argString(args, "query", "")
+		grep := argString(args, "grep", "")
+		db := argString(args, "db", "")
+		scope := argString(args, "scope", "all")
+		limitRaw, _ := args["limit"]
+		limit := 5
+		if f, ok := limitRaw.(float64); ok {
+			limit = int(f)
+		}
+		if db == "" {
+			db = config.DocsDir() + "/.atd_index.db"
+		}
+		if grep != "" {
+			return captureStdout(func() error {
+				return runGrepSearch(grep)
+			})
+		}
+		return captureStdout(func() error {
+			return runSemanticSearch(query, db, limit, scope)
+		})
+	})
+
+	r.Register(mcp.Tool{
+		Name:        "atd_audit",
+		Description: "Audit ATD atoms for documentation bloat and semantic collisions. Can also check code compliance against a specific atom.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"docs":      map[string]any{"type": "string", "description": "Override docs directory path."},
+				"threshold": map[string]any{"type": "number", "description": "Cosine similarity threshold for collision detection (0.0–1.0). Defaults to config value."},
+				"code":      map[string]any{"type": "string", "description": "Path to code file for compliance mode (requires 'atom')."},
+				"atom":      map[string]any{"type": "string", "description": "Path to atom file for compliance mode (requires 'code')."},
+			},
+		},
+	}, func(args map[string]any) (string, error) {
+		docs := argString(args, "docs", config.DocsDir())
+		code := argString(args, "code", "")
+		atom := argString(args, "atom", "")
+		thresholdRaw, _ := args["threshold"]
+		threshold := 0.0
+		if f, ok := thresholdRaw.(float64); ok {
+			threshold = f
+		}
+		if threshold <= 0 {
+			threshold = config.ActiveConfig.DiffSimilarityThreshold
+			if threshold <= 0 {
+				threshold = 0.85
+			}
+		}
+		if code != "" && atom != "" {
+			return captureStdout(func() error {
+				return runCodeAudit(code, atom)
+			})
+		}
+		return captureStdout(func() error {
+			return runFullAudit(docs, threshold)
+		})
+	})
+
+	r.Register(mcp.Tool{
+		Name:        "atd_recon",
+		Description: "Semantic archaeology: validate whether a candidate source file implements a specific ATD atom.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"atom":      map[string]any{"type": "string", "description": "Path to the target .atom.md file."},
+				"candidate": map[string]any{"type": "string", "description": "Path to the candidate source code file to validate."},
+			},
+			"required": []string{"atom", "candidate"},
+		},
+	}, func(args map[string]any) (string, error) {
+		atom := argString(args, "atom", "")
+		candidate := argString(args, "candidate", "")
+		return runRecon(atom, candidate)
+	})
+
+	r.Register(mcp.Tool{
+		Name:        "atd_discover",
+		Description: "Extract architectural intent from an undocumented source file, search the ATD index, and recommend @spec-link tags to apply.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"file": map[string]any{"type": "string", "description": "Path to the undocumented source file."},
+				"docs": map[string]any{"type": "string", "description": "Override docs directory path."},
+			},
+			"required": []string{"file"},
+		},
+	}, func(args map[string]any) (string, error) {
+		file := argString(args, "file", "")
+		docs := argString(args, "docs", config.DocsDir())
+		return captureStdout(func() error {
+			out, err := runDiscover(file, docs)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
+		})
 	})
 }

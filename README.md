@@ -10,25 +10,40 @@ Because an ATD is atomic, it describes only one primary rule or concept. This st
 
 ## How it Works
 1. **The ATD Framework**: Developers and architects write ATDs referencing systems, mechanics, and entities.
-2. **The Tools**: A suite of Go-based CLI tools (e.g., `atd-audit`, `atd-crawl`, `atd-dissect`, `atd-link-weaver`) processes these ATDs. The tools can validate formatting, extract legacy logic into new Atoms, weave dependency graphs, and verify congruence between the documentation and the codebase.
+2. **The Tools**: A unified `atd` CLI binary (built from `scripts/cmd/atd/`) provides all ATD operations as subcommands. The tools can validate formatting, extract legacy logic into new Atoms, weave dependency graphs, and verify congruence between the documentation and the codebase.
 3. **The Link (@spec-link)**: Code objects (functions, classes) are annotated with `@spec-link [[ATOM_ID]]`. The ATD agents and tools trace these links to verify that code implementations align with current architecture definitions. If a developer or an AI agent attempts to violate an ATD rule, the discrepancy is flagged.
 4. **Agent Integration**: The AI assistant (having the ATD skill) operates under specific modes (Architect, Developer, Analyst) to either create/manage Atoms, write compliant code, or audit the system respectively.
+5. **MCP Server**: `atd serve` exposes all 14 ATD operations as [MCP](https://modelcontextprotocol.io) tools over JSON-RPC 2.0, enabling IDE agents (VS Code, Claude Desktop) to invoke ATD commands directly without shell access.
 
 ## Setup & Tooling
-The ATD system relies on a suite of tools that must be compiled and configured to function correctly.
+The ATD system relies on the `atd` unified binary compiled from the Go source.
 
 ### Compiling the Toolchain
-To build and install all ATD CLI tools and scripts into the skill's utility directory, run the compilation script from the root of the project:
+Build and install the `atd` binary from the project root:
+```bash
+cd scripts/cmd/atd && go build -o /usr/local/bin/atd .
+```
+Or use the compilation script:
 ```bash
 ./compile_tools.sh
 ```
-This script will:
-1. Compile all Go tools located in the `scripts/` directory.
-2. Copy necessary shell scripts to the toolchain destination.
-3. Set the required execution permissions.
+
+### Initializing a Project
+Before using any `atd` subcommand on a new or legacy project, bootstrap the `.atd` config file:
+```bash
+# In your project root
+atd init
+
+# With custom paths or model
+atd init --docs specs/ --model deepseek-r1:7b
+
+# Force overwrite an existing config
+atd init --force
+```
+This creates `.atd` (full provider chain + model routing config) and the `docs/` directory.
 
 ### Ollama LLM Setup
-Many ATD tools (e.g., `atd-ollama-audit`, `atd-dissect`) use a local Ollama instance for LLM processing.
+Many ATD tools (e.g., `atd dissect`, `atd audit`, `atd index`) use a local Ollama instance for LLM processing.
 
 #### 1. Start the Ollama Container
 Ensure you have Docker installed and run the following command to start the Ollama service:
@@ -42,6 +57,24 @@ The system requires specific models for text generation and embeddings. Pull the
 docker exec -it ollama ollama pull llama3.2
 docker exec -it ollama ollama pull nomic-embed-text
 ```
+
+### MCP Integration (VS Code / Claude Desktop)
+`atd serve` starts a JSON-RPC 2.0 MCP server exposing **14 tools** — all ATD subcommands including LLM-backed operations.
+
+**stdio transport (recommended):** Add to `.mcp.json` in your project root:
+```json
+{
+  "servers": {
+    "atd": {
+      "type": "stdio",
+      "command": "/path/to/atd",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+**HTTP transport:** `atd serve --http --port 7474` then point your MCP client at `http://localhost:7474/mcp`.
 
 ## Reference Project
 **`upsilonbattle`** serves as the primary reference project used to test and validate this skill. It demonstrates how ATD mechanics, API routes, and domain elements interact in a real-world scenario, acting as the testbed for the ATD toolchain's extraction, auditing, and generation capabilities.
@@ -66,4 +99,3 @@ docker exec -it ollama ollama pull nomic-embed-text
 | [WebUI Navigation and Exploration Improvements](issues/ISS-004_20260304_webui_navigation.md) | 2026-03-04 | Open | High | The WebUI currently fails to allow full exploration of all ATDs. It only show... |
 | [ATD Dissection Granularity Enforcement](issues/ISS-002_20260304_atd_granularity.md) | 2026-03-04 | Open | Medium | Ensure that the dissection of documents and general ATD creation strictly fol... |
 | [Audit Performance Optimization](issues/ISS-001_20260304_audit_performance.md) | 2026-03-04 | Open | Medium | The current auditing process is too slow. It requires access to a more perfor... |
-

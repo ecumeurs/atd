@@ -74,6 +74,7 @@ dependents:
 When utilizing this skill, the Agent has access to the following operational tools:
 
 ### Read/Crawl Tools
+0. **`atd init([--dir], [--docs], [--model], [--force])`**: Bootstrap a `.atd` configuration file in a target directory. **Must be run once per project.** Creates the docs folder, writes full default config with provider chain and model-to-task routing. Deterministic, no LLM.
 1. **`atd-query(search_term)`**: Deterministic search through `@id` and `@links` headers. No LLM used.
 2. **`atd-crawl(docs_path, src_path)`**: Crawls the repo for `@spec-link [[atom_id]]` in code, and parent/dependent tags in other atoms. Generates the Dependency Graph JSON.
 3. **`atd-report-gaps(graph_json)`**: Scans the dependency graph to find `STABLE` Atoms containing zero source code implementations.
@@ -124,3 +125,44 @@ When operating on undocumented legacy projects, the Architect should run the fol
     - **Body section edits**: `-intent "..."`, `-logic "..."`, `-interface "..."`. Pass `-` to read from stdin: `echo "..." | atd-update -file foo.atom.md -intent -`.
     - **ID / type rename**: When `-set id=new_id` is provided, the file is **automatically renamed** to `new_id.atom.md` and all `[[old_id]]` references across the `docs_path` are updated.
     - Logs the action via the unified `config.Log` mechanism.
+
+## MCP Server Mode
+
+`atd serve` starts a JSON-RPC 2.0 / MCP 2025-11-25 server exposing all ATD tools to IDE agents (VS Code, Claude Desktop) and any MCP host.
+
+### Transport
+- **stdio** (default, recommended): `atd serve` — host launches as subprocess, communicates via stdin/stdout
+- **HTTP** (optional): `atd serve --http --port 7474` — single `/mcp` endpoint
+
+### Registered Tools (14)
+| Name | LLM | Description |
+|---|---|---|
+| `atd_query` | No | Atom frontmatter search |
+| `atd_crawl` | No | Dependency graph + gap report |
+| `atd_weave` | No | Bi-directional link weaving |
+| `atd_update` | No | Surgical field edits |
+| `atd_roadmap` | No | Source complexity map |
+| `atd_verify` | No | Git-diff audit prompt |
+| `atd_assemble` | No/Yes | Stitch atoms into document |
+| `atd_test_links` | No | @test-link audit |
+| `atd_dissect` | Yes | Dissect file into atom boundaries |
+| `atd_index` | Yes (embed) | Build semantic index |
+| `atd_search` | Yes (embed) | Semantic + grep search |
+| `atd_audit` | Yes | Bloat + collision audit |
+| `atd_recon` | Yes | Validate code implements atom |
+| `atd_discover` | Yes | Recommend @spec-link tags |
+
+> **Note:** `atd init` is **not** a MCP tool — it is a one-time filesystem bootstrap.
+
+### VS Code Configuration (`.mcp.json`)
+```json
+{
+  "servers": {
+    "atd": {
+      "type": "stdio",
+      "command": "/path/to/atd",
+      "args": ["serve"]
+    }
+  }
+}
+```
