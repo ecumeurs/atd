@@ -4,6 +4,7 @@
 
 | Ref | File | Severity | Status | Summary |
 |---|---|---|---|---|
+| ISS-025 | [ISS-025_20260314_atd_creation_deficiencies.md](ISS-025_20260314_atd_creation_deficiencies.md) | Medium | Open | ATD creation lacks critical metadata and produces sparse content. |
 | ISS-024 | [ISS-024_20260313_atd_indexing_nomic.md](ISS-024_20260313_atd_indexing_nomic.md) | Medium | Open | Add a tool to handle ATD indexing and research through Nomic. |
 | ISS-023 | [ISS-023_20260313_atd_binary_unification.md](ISS-023_20260313_atd_binary_unification.md) | Medium | Open | Merge all tools into ONE atd Go binary with subcommands. |
 | ISS-021 | [ISS-021_20260309_tiered_llm_access.md](ISS-021_20260309_tiered_llm_access.md) | High | Open | Tiered LLM access with remote discovery and local fallback. |

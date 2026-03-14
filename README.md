@@ -83,6 +83,7 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
+| [ATD Creation Deficiencies (Task 03)](issues/ISS-025_20260314_atd_creation_deficiencies.md) | 2026-03-14 | Open | Medium | The ATD creation process via `atd update` is currently insufficient. It produ... |
 | [Research efficient API logic tracking for ATD atoms](issues/ISS-020_20260306_api_logic_tracking_research.md) | 2026-03-06 | Open | Medium | Current API-typed Atoms use free-form text or simplified summaries that often... |
 | [API typed atd aren't capturing full payload/contract details](issues/ISS-019_20260306_api_atd_payload_capture_shortcoming.md) | 2026-03-06 | Open | Medium | When working on projects to test ATDs, instructions for API expectations and ... |
 | [Exclude User Stories and Use Cases from Bloat Checks](issues/ISS-018_20260305_exclude_usage_atoms_from_bloat.md) | 2026-03-05 | Open | Medium | Atoms that represent User Stories and Use Cases (typically typed as `USAGE` o... |
@@ -99,3 +100,4 @@ docker exec -it ollama ollama pull nomic-embed-text
 | [WebUI Navigation and Exploration Improvements](issues/ISS-004_20260304_webui_navigation.md) | 2026-03-04 | Open | High | The WebUI currently fails to allow full exploration of all ATDs. It only show... |
 | [ATD Dissection Granularity Enforcement](issues/ISS-002_20260304_atd_granularity.md) | 2026-03-04 | Open | Medium | Ensure that the dissection of documents and general ATD creation strictly fol... |
 | [Audit Performance Optimization](issues/ISS-001_20260304_audit_performance.md) | 2026-03-04 | Open | Medium | The current auditing process is too slow. It requires access to a more perfor... |
+

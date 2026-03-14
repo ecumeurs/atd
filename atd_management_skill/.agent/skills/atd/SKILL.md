@@ -69,62 +69,59 @@ dependents:
 
 
 ## Toolset Ingestion List
-**General Parameter Note:** All tools within the ATD toolkit natively support optional `-project` (path to project root), `-docs` (path to the ATD documentation folder), and `-bin` (path to the ATD toolkit binaries folder) flags to explicitly declare operating context.
+All `atd` subcommands automatically discover the project context by looking for a `.atd` configuration file in the current directory or its parents. This file defines the `docs_path`, LLM provider chain, and model routing.
 
 When utilizing this skill, the Agent has access to the following operational tools:
 
 ### Read/Crawl Tools
 0. **`atd init([--dir], [--docs], [--model], [--force])`**: Bootstrap a `.atd` configuration file in a target directory. **Must be run once per project.** Creates the docs folder, writes full default config with provider chain and model-to-task routing. Deterministic, no LLM.
-1. **`atd-query(search_term)`**: Deterministic search through `@id` and `@links` headers. No LLM used.
-2. **`atd-crawl(docs_path, src_path)`**: Crawls the repo for `@spec-link [[atom_id]]` in code, and parent/dependent tags in other atoms. Generates the Dependency Graph JSON.
-3. **`atd-report-gaps(graph_json)`**: Scans the dependency graph to find `STABLE` Atoms containing zero source code implementations.
-4. **`atd-congruence(docs_path)`**: **(Meta-Auditor / Architect)** Cross-validates ATDs against their related dependencies. Identifies logically adjacent rules and uses the LLM to verify there are no inherent system contradictions *before* any code is written. Outputs an analysis report.
-5. **`atd-verify-diff(docs_path)`**: **(Git Integration / CI)** Runs `git diff`, extracts impacted `@spec-link` tags, automatically executes native tests (e.g., `go test`), and builds the ultimate Auditor prompt for the IDE Assistant.
-6. **`atd-dissect(document_text)`**: Uses structural boundary mapping to propose multiple independent `.atom.md` fragments from legacy documentation.
-7. **`atd-link-weaver(docs_dir)`**: Automatically populates the `dependents: []` array in Markdown headers by scanning `parents` references, establishing the bi-directional graph.
-8. **`atd-cold-start.sh <project_dir>`**: **The Master Pipeline.** Orchestrates reading domain documentation, generating the structural roadmap, indexing the code to `.atd_index.db`, queuing dense files, dissecting logic, weaving links, and tagging the codebase via the Search-Then-Recon protocol. Used heavily for initiating a new repository into the ATD framework.
+1. **`atd query(--search <term>, [--field <id|type|tags|...>)`**: Deterministic search through `@id` and metadata headers. No LLM used.
+2. **`atd crawl(--src <path>, [--gaps], [--docs <path>])`**: Crawls the repo for `@spec-link [[atom_id]]` in code and parent/dependent tags in atoms. Generates a Dependency Graph JSON. If `--gaps` is set, identifies STABLE atoms with zero implementations.
+3. **`atd congruence([--docs <path>])`**: **(Meta-Auditor / Architect)** Cross-validates ATDs against their related dependencies. Identifies logically adjacent rules and uses the LLM to verify there are no inherent system contradictions *before* any code is written.
+4. **`atd verify`**: **(Git Integration / CI)** Runs `git diff`, extracts impacted `@spec-link` tags, and builds the Auditor prompt for the IDE Assistant.
+5. **`atd dissect(--file <path>, [--llm])`**: Uses structural boundary mapping to propose multiple independent `.atom.md` fragments from legacy documentation. Returns a prompt to stdout (passthrough) or JSON boundaries (--llm).
+6. **`atd generate(--dissect <path>)`**: Generates atom boundaries by sending a `dissect` prompt file to the LLM for structured JSON extraction.
+7. **`atd weave`**: Automatically populates the `dependents: []` array in Markdown headers by scanning `parents` references, establishing the bi-directional graph.
+8. **`atd roadmap(--dir <path>, [--out <path>])`**: Generates a structural roadmap of the codebase, identifying high-density files for prioritized documentation.
+9. **`atd-cold-start.sh <project_dir>`**: **The Master Pipeline.** Bash script that orchestrates `roadmap` -> `index` -> `dissect` -> `weave` -> `discover` -> `recon` to initiate a new repository.
 
 ### High-Volume / Local Auditing (The Cost Routing Protocol)
-To prevent the Primary Agent (IDE) from wasting expensive API tokens on high-volume analysis or brute-force code scanning, use the Local LLM toolchain:
-7. **`atd-ollama-indexer(dir_path, db_path)`**: Runs `nomic-embed-text` locally against all `.go` files in a directory to chunk and store their Semantic Vectors into a persistent SQLite DB. **(Developer Note: This index is persistent and checks file modification times. Proactively run this after making significant codebase changes or right before an audit so the LLM's vector view is perfectly synced!)**
-8. **`atd-ollama-search(db_path, query)`**: Searches the local `.atd_index.db` using the semantic intent of an Atom and returns the top 3 nearest code blocks. **NEVER use IDE tokens to brute-force read unfamiliar code directories when searching for an Atom implementation. Search the index.**
-9. **`atd-ollama-audit(atom_path, code_string)`**: Passes a Rule and a Code Snippet to a local `llama3.2` model to rapidly judge logic congruence. Returns `{"passed": bool, "resolutionMessage": string}`.
+To prevent the Primary Agent (IDE) from wasting expensive API tokens, use the local/remote Ollama backend via the unified CLI:
+10. **`atd index(--dir <path>, [--mode code|docs|all], [--db <path>])`**: Runs `nomic-embed-text` locally against the codebase or docs to chunk and store Semantic Vectors in a persistent SQLite DB.
+11. **`atd search(--query <term>, [--scope code|docs|all], [--limit <int>], [--grep <term>])`**: Performs semantic search using the local index OR a keyword grep search. Top matches are returned with similarity scores.
+12. **`atd audit([--threshold <float>], [--code <path> --atom <path>])`**: **LLM-Powered.** The structural "Auditor". Analyzes ATDs for documentation bloat or missing abstractions. In compliance mode (`--code`), validates snippet against a specific atom.
 
 ## Legacy Code Extraction Workflow (The Cold Start)
-When operating on undocumented legacy projects, the Architect should run the following baseline protocol natively:
+When operating on undocumented legacy projects, the Architect should run the following baseline protocol:
 
 1. **The Automated Pipeline:** Execute `scripts/atd-cold-start.sh <repo_target>`.
-2. **Phase 1-3 (Mapping):** The script automatically vectorizes the code, identifies high-density structs/funcs via the roadmap, and extracts existing human `.md` files.
-3. **Phase 4-5 (LLM Action):** The IDE Assistant must then read the `pipeline_output/domain_*.md.txt` to write `DOMAIN` specifications, followed by reading `pipeline_output/dissect_*.json` to write `MECHANIC` specifications in the `docs/` folder.
-4. **Phase 6 (Weaving):** The pipeline auto-runs `atd-link-weaver` to connect the parents mathematically.
-5. **Phase 7 (Search-Then-Recon):** The pipeline auto-tags the codebase in the background by searching the Nomic index for the Atom's intent, and then passing the matched file to the local LLM.
-6. **`atd-reconcile(new_text_block)`**: Match new inbound spec requirements against the populated library.
-7. **`atd-audit`**: **LLM-Powered.** The structural "Auditor". Analyzes ATDs for documentation bloat (Minimum Atomic Scale violations) and cross-references their vector embeddings for missing abstractions. 
+2. **Phase 1-3 (Mapping):** The script runs `atd roadmap` and `atd index` to vectorize the code and identify documentation gaps.
+3. **Phase 4-5 (LLM Action):** The IDE Assistant uses `atd dissect` on target files to propose boundaries, and then creates the `.atom.md` files.
+4. **Phase 6 (Weaving):** Run `atd weave` to connect the parents mathematically.
+5. **Phase 7 (Search-Then-Recon):** The pipeline uses `atd discover` and `atd recon` to auto-tag the codebase with `@spec-link`.
+6. **`atd reconcile(--file <path>, --intent <text>)`**: Match new inbound spec requirements against the populated library.
 
 ### Legacy Bridging Tools
-7. **`atd-discover-links(source_file, docs_path)`**: Recommends which ATD tags to apply by cross-referencing file logic against the known ATD registry.
-   > **Constraint: Surgical Proximity**
-   > * **NO Global Headers:** Do not place `@spec-link` tags in the file header unless the atom represents the entire architectural pattern of the file.
-   > * **Logic Boundaries:** Place tags immediately above class definitions, decorators, or major logical blocks (e.g., above a group of related FastAPI endpoints).
-   > * **Granularity Match:** If an atom describes "Version Control," the tag must be placed only at the start of the version control section of the code.
-8. **`atd-recon(atom_id, src_candidate)`**: Semantic archaeology. Validates if a specific candidate file is an implementation of a target Atom.
-9. **`atd-tag-sweep(atom_id, search_folder, keyword)`**: Attempts to locate potential implementations for specific atoms inside an untagged `/src` tree based on keyword matching.
-10. **`atd-legacy-wrapper(target_file, atom_id)`**: Automatically injects a `@spec-link` tag directly into a target source code file.
+13. **`atd discover(--file <path>, [--docs <dir>])`**: Recommends which ATD tags to apply by cross-referencing file logic against the known ATD registry.
+    > **Constraint: Surgical Proximity**
+    > * **NO Global Headers:** Do not place `@spec-link` tags in the file header unless the atom represents the entire architectural pattern of the file.
+    > * **Logic Boundaries:** Place tags immediately above class definitions, decorators, or logical blocks.
+14. **`atd recon(--atom <path>, --candidate <path>)`**: Semantic archaeology. Validates if a specific candidate file is an implementation of a target Atom. Confidence score returned.
+15. **`atd test-links(--src <path>, [--atom <id>])`**: Audits `@test-link [[ATOM_ID]]` tags in source code to map atoms to their verification tests.
 
 ### Generation Tools
-11. **`atd-assemble(start_ids, purpose)`**: Combines fragments sequentially into a temporary readable document. Follows dependency links.
-12. **`atd-generate-snapshot(theme, text_file)`**: Utilizes the aggregated assembly text alongside an LLM to generate narrative flowing documents, ignoring raw metadata.
+16. **`atd assemble(--starts <ids>, [--purpose <text>], [--snapshot], [--theme <text>])`**: Stitches atoms together into a cohesive document. If `--snapshot` is set, uses the LLM to generate a narrative executive summary.
 
 ### Write / Edit Tools
 
 > [!IMPORTANT]
-> **MANDATORY USAGE:** When modifying any field of an existing `.atom.md` file, you MUST use `atd-update` instead of rewriting the file. Rewriting the whole file via LLM is forbidden — it wastes tokens, risks data loss, and can corrupt the rest of the atom body.
+> **MANDATORY USAGE:** When modifying any field of an existing `.atom.md` file, you MUST use `atd update` instead of rewriting the file via LLM.
 
-13. **`atd-update -file <path> [-set key=value ...] [-intent <text>] [-logic <text>] [-interface <text>]`**: Surgically modifies an ATD file in-place.
-    - **Frontmatter edits** (any YAML key): `-set status=STABLE`, `-set priority=SECONDARY`.
-    - **Body section edits**: `-intent "..."`, `-logic "..."`, `-interface "..."`. Pass `-` to read from stdin: `echo "..." | atd-update -file foo.atom.md -intent -`.
-    - **ID / type rename**: When `-set id=new_id` is provided, the file is **automatically renamed** to `new_id.atom.md` and all `[[old_id]]` references across the `docs_path` are updated.
-    - Logs the action via the unified `config.Log` mechanism.
+17. **`atd update --file <path> [--set key=value ...] [--intent <text>] [--logic <text>] [--spec-link <id> --spec-link-file <path>]`**: Surgically modifies an ATD file or injects `@spec-link` into source code.
+    - **Frontmatter edits**: `--set status=STABLE`, `--set parents=[[parent_id]]`.
+    - **Body section edits**: `--intent "..."`, `--logic "..."`.
+    - **ID / type rename**: When `--set id=new_id` is passed, the file is automatically renamed and references are updated.
+    - **Tag Injection**: Passes `--spec-link` and `--spec-link-file` to insert tags into source code without manual editing.
 
 ## MCP Server Mode
 

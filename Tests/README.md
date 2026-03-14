@@ -23,6 +23,7 @@ Tests are organized as chunked task files, numbered sequentially. Each file is s
 2. **Ollama available** (optional, for LLM tasks): remote at `192.168.1.10:11434` or local at `localhost:11434`
 3. **Models pulled**: `llama3.2`, `nomic-embed-text`, optionally `qwen2.5-coder:14b`
 4. **Start with task 01** — it initializes `.atd` in `upsilonbattle/` which every subsequent task depends on
+5. **Skill directory**: `atd_management_skill/.agent/skill/SKILL.md`
 
 ## How to Read Task Files
 
