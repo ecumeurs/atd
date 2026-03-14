@@ -4,7 +4,7 @@
 **Ref:** `ISS-024`
 **Date:** 2026-03-13
 **Severity:** Medium
-**Status:** Open
+**Status:** Resolved
 **Component:** `scripts/atd-ollama-indexer`, `scripts/atd-ollama-search`
 **Affects:** `atd-audit`, and general ATD exploration workflows.
 

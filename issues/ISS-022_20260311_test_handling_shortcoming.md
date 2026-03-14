@@ -4,7 +4,7 @@
 **Ref:** `ISS-022`
 **Date:** 2026-03-11
 **Severity:** Medium
-**Status:** Open
+**Status:** Resolved
 **Component:** `atd_management_skill`
 **Affects:** `tests`, `tooling`
 

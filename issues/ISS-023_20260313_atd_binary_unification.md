@@ -4,7 +4,7 @@
 **Ref:** `ISS-023`
 **Date:** 2026-03-13
 **Severity:** Medium
-**Status:** Open
+**Status:** Resolved
 **Component:** `scripts/`
 **Affects:** All individual tools in `scripts/` (e.g., `atd-audit`, `atd-dissect`, `atd-compare`, etc.)
 
