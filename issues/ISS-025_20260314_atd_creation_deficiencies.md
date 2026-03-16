@@ -4,7 +4,7 @@
 **Ref:** `ISS-025`
 **Date:** 2026-03-14
 **Severity:** Medium
-**Status:** Open
+**Status:** Resolved
 **Component:** `scripts/cmd/atd/update`
 **Affects:** `Tests/03_atd_creation.md`
 
@@ -53,7 +53,9 @@ During Task 03 of the test suite, the following deficiencies were observed:
 
 ## Recommended Fix
 
-**Short term:** Update `atd update` to include default values for `version`, `parents`, and `dependents` when creating new files. Enforce the `id` naming convention in the `atd update` logic.
+**Short term:** Update `atd update` to include default values for `version`, `parents`, and `dependents` when creating new files. 
+Enforce the `id` naming convention in the `atd update` logic. (<type>_<camel_case_human_name>)
+Assess MCP impact (MCP should be able to create ATDs with the correct metadata).
 
 **Medium term:** Improve the `atd update` command to support populating more sections (LOGIC, INTERFACE, etc.) via flags or guided prompts.
 

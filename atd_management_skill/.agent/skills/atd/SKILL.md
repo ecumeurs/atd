@@ -85,6 +85,11 @@ When utilizing this skill, the Agent has access to the following operational too
 8. **`atd roadmap(--dir <path>, [--out <path>])`**: Generates a structural roadmap of the codebase, identifying high-density files for prioritized documentation.
 9. **`atd-cold-start.sh <project_dir>`**: **The Master Pipeline.** Bash script that orchestrates `roadmap` -> `index` -> `dissect` -> `weave` -> `discover` -> `recon` to initiate a new repository.
 
+### Granularity Control ("Minimum Atomic Scale")
+When generating or deconstructing Atoms, you must adhere to the "Minimum Atomic Scale" to prevent overly broad definitions:
+* **The "One Rule" Rule:** If a section of text contains more than one "State-Changing Rule" (e.g., a tax calculation AND a cooldown timer), it **must** be split into two atoms. Refer to `bloating_factor` in `.atd` configuration file (ratio between 1 and 0, 1 meaning exactly one rule per atom, with 0.3 meaning a dozen rules per atom, 0 meaning no limit)
+* **Intent Clarity:** If an intent statement requires the word "and" or "also," the granularity is likely too low. Split until the intent is a single, focused objective.
+
 ### High-Volume / Local Auditing (The Cost Routing Protocol)
 To prevent the Primary Agent (IDE) from wasting expensive API tokens, use the local/remote Ollama backend via the unified CLI:
 10. **`atd index(--dir <path>, [--mode code|docs|all], [--db <path>])`**: Runs `nomic-embed-text` locally against the codebase or docs to chunk and store Semantic Vectors in a persistent SQLite DB.

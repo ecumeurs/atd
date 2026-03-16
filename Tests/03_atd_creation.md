@@ -30,7 +30,10 @@ dependents: []
 
 ## Steps
 
-### 1. Create a MODULE atom for BattleArena
+### 1. Create atds
+
+Note: these are example, you need to follow directives from the dissect proposals and granularity guidelines
+
 Using `atd update` to create from scratch (or write the file directly and update with atd update):
 ```bash
 cd /home/bastien/work/skill/upsilonbattle
@@ -43,7 +46,6 @@ atd update --file docs/battle_arena.atom.md \
   --intent "Top-level game session container. Owns the grid, controller registry, and delegates turn arbitration to the Ruler."
 ```
 
-### 2. Create a SERVICE atom for Ruler
 ```bash
 atd update --file docs/ruler.atom.md \
   --set "id=ruler" \
@@ -53,15 +55,7 @@ atd update --file docs/ruler.atom.md \
   --intent "Arbitrates all game rules: movement range, attack range, damage computation, turn end detection, and death resolution."
 ```
 
-### 3. Create MECHANIC atoms from dissect proposals
-For each proposed atom from Task 02, create the corresponding `.atom.md` file using `atd update`. At minimum:
-- `ruler_turn_flow` — How entities are called in random ranking order
-- `ruler_movement` — Movement range and height constraints
-- `ruler_attack` — Attack range validation and damage computation
-- `entity_stats` — HP, Defense, Attack, Jump, MVT attributes
-- `entity_death` — Death condition and removal from arena
-
-### 4. Verify atoms are well-formed
+### 2. Verify atoms are well-formed
 ```bash
 atd query --search ""
 ```

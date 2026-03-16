@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"atd-tools/config"
 	"github.com/spf13/cobra"
@@ -18,6 +19,7 @@ const (
 	SecIntent
 	SecLogic
 	SecInterface
+	SecExpectation
 )
 
 var updateCmd = &cobra.Command{
@@ -31,6 +33,7 @@ and prepending @spec-link tags to source files.`,
 		intentArg, _ := cmd.Flags().GetString("intent")
 		logicArg, _ := cmd.Flags().GetString("logic")
 		interfaceArg, _ := cmd.Flags().GetString("interface")
+		expectationArg, _ := cmd.Flags().GetString("expectation")
 		setArgs, _ := cmd.Flags().GetStringSlice("set")
 		specLinkArgs, _ := cmd.Flags().GetStringSlice("spec-link")
 
@@ -42,7 +45,7 @@ and prepending @spec-link tags to source files.`,
 			return fmt.Errorf("--spec-link requires exactly two arguments: <id> <file>")
 		}
 
-		text, err := runUpdate(filePath, setArgs, intentArg, logicArg, interfaceArg, specLinkID, specLinkFile)
+		text, err := runUpdate(filePath, setArgs, intentArg, logicArg, interfaceArg, expectationArg, specLinkID, specLinkFile)
 		if err != nil {
 			return err
 		}
@@ -51,7 +54,7 @@ and prepending @spec-link tags to source files.`,
 	},
 }
 
-func runUpdate(filePath string, setArgs []string, intentArg, logicArg, interfaceArg, specLinkID, specLinkFile string) (string, error) {
+func runUpdate(filePath string, setArgs []string, intentArg, logicArg, interfaceArg, expectationArg, specLinkID, specLinkFile string) (string, error) {
 	if specLinkID != "" && specLinkFile != "" {
 		if err := applySpecLink(specLinkID, specLinkFile); err != nil {
 			return "", err
@@ -68,11 +71,19 @@ func runUpdate(filePath string, setArgs []string, intentArg, logicArg, interface
 	intentText := resolveArg(intentArg)
 	logicText := resolveArg(logicArg)
 	interfaceText := resolveArg(interfaceArg)
+	expectationText := resolveArg(expectationArg)
 
 	// Read original file
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return "", fmt.Errorf("error reading file: %v", err)
+		if os.IsNotExist(err) {
+			content = []byte("---\nid: temp\nstatus: DRAFT\n---\n\n# New Atom\n\n## INTENT\n\n## THE RULE / LOGIC\n\n## TECHNICAL INTERFACE\n\n## EXPECTATION\n")
+		} else {
+			return "", fmt.Errorf("error reading file: %v", err)
+		}
+	}
+	if len(content) == 0 {
+		content = []byte("---\nid: temp\nstatus: DRAFT\n---\n\n# New Atom\n\n## INTENT\n\n## THE RULE / LOGIC\n\n## TECHNICAL INTERFACE\n\n## EXPECTATION\n")
 	}
 
 	lines := strings.Split(string(content), "\n")
@@ -118,6 +129,79 @@ func runUpdate(filePath string, setArgs []string, intentArg, logicArg, interface
 
 	var newFrontmatter []string
 	newFrontmatter = append(newFrontmatter, "---")
+	// 1a. Enforce Naming Convention and Defaults
+	atomType := updates["type"]
+	if atomType == "" {
+		for _, line := range frontmatterLines {
+			if strings.HasPrefix(line, "type:") {
+				atomType = strings.TrimSpace(strings.TrimPrefix(line, "type:"))
+				break
+			}
+		}
+	}
+
+	if newID != "" && atomType != "" {
+		// Enforce <type>_<snake_case_name>
+		prefix := strings.ToLower(atomType) + "_"
+		if !strings.HasPrefix(newID, prefix) {
+			// Convert to snake_case
+			parts := strings.FieldsFunc(newID, func(r rune) bool {
+				return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+			})
+			var snake string
+			for i, p := range parts {
+				if i > 0 {
+					snake += "_"
+				}
+				snake += strings.ToLower(p)
+			}
+			newID = prefix + snake
+			updates["id"] = newID
+		}
+	}
+
+	// Mandatory metadata defaults
+	if updates["version"] == "" {
+		hasVersion := false
+		for _, line := range frontmatterLines {
+			if strings.HasPrefix(line, "version:") {
+				hasVersion = true
+				break
+			}
+		}
+		if !hasVersion {
+			updates["version"] = "1.0"
+		}
+	}
+	if updates["status"] == "" {
+		hasStatus := false
+		for _, line := range frontmatterLines {
+			if strings.HasPrefix(line, "status:") {
+				hasStatus = true
+				break
+			}
+		}
+		if !hasStatus {
+			updates["status"] = "DRAFT"
+		}
+	}
+	// We handle parents/dependents if they are missing entirely
+	hasParents := false
+	hasDependents := false
+	for _, line := range frontmatterLines {
+		if strings.HasPrefix(line, "parents:") {
+			hasParents = true
+		}
+		if strings.HasPrefix(line, "dependents:") {
+			hasDependents = true
+		}
+	}
+	if !hasParents && updates["parents"] == "" {
+		updates["parents"] = "[]"
+	}
+	if !hasDependents && updates["dependents"] == "" {
+		updates["dependents"] = "[]"
+	}
 
 	// Replace existing keys
 	matchedKeys := make(map[string]bool)
@@ -156,8 +240,8 @@ func runUpdate(filePath string, setArgs []string, intentArg, logicArg, interface
 		if strings.HasPrefix(line, "## THE RULE / LOGIC") {
 			return SecLogic
 		}
-		if strings.HasPrefix(line, "## TECHNICAL INTERFACE") {
-			return SecInterface
+		if strings.HasPrefix(line, "## EXPECTATION") {
+			return SecExpectation
 		}
 		return SecNone
 	}
@@ -182,6 +266,9 @@ func runUpdate(filePath string, setArgs []string, intentArg, logicArg, interface
 			} else if sec == SecInterface && interfaceText != "" {
 				newBody = append(newBody, strings.TrimSpace(interfaceText))
 				newBody = append(newBody, "")
+			} else if sec == SecExpectation && expectationText != "" {
+				newBody = append(newBody, strings.TrimSpace(expectationText))
+				newBody = append(newBody, "")
 			}
 			continue
 		} else if isAnyHeader(line) {
@@ -195,7 +282,7 @@ func runUpdate(filePath string, setArgs []string, intentArg, logicArg, interface
 		if currentSection == SecLogic && logicText != "" {
 			skipLine = true
 		}
-		if currentSection == SecInterface && interfaceText != "" {
+		if currentSection == SecExpectation && expectationText != "" {
 			skipLine = true
 		}
 
@@ -229,7 +316,7 @@ func runUpdate(filePath string, setArgs []string, intentArg, logicArg, interface
 	if len(updates) > 0 {
 		logMsg += fmt.Sprintf(" | set: %d keys", len(updates))
 	}
-	if intentText != "" || logicText != "" || interfaceText != "" {
+	if intentText != "" || logicText != "" || interfaceText != "" || expectationText != "" {
 		logMsg += " | updated body sections"
 	}
 	if renamed {
@@ -282,7 +369,8 @@ func resolveArg(arg string) string {
 		bytes, _ := io.ReadAll(os.Stdin)
 		return string(bytes)
 	}
-	return arg
+	// Interpret literal \n as actual newlines
+	return strings.ReplaceAll(arg, "\\n", "\n")
 }
 
 func updateLinks(docsPath, oldID, newID string) int {
@@ -320,6 +408,7 @@ func init() {
 	updateCmd.Flags().String("intent", "", "New content for ## INTENT section (use '-' for stdin)")
 	updateCmd.Flags().String("logic", "", "New content for ## THE RULE / LOGIC section (use '-' for stdin)")
 	updateCmd.Flags().String("interface", "", "New content for ## TECHNICAL INTERFACE section (use '-' for stdin)")
+	updateCmd.Flags().String("expectation", "", "New content for ## EXPECTATION section (use '-' for stdin)")
 	updateCmd.Flags().StringSlice("set", []string{}, "Set frontmatter key=value (can be used multiple times)")
 	updateCmd.Flags().StringSlice("spec-link", []string{}, "Inbound ID and source file to tag: --spec-link <id> <file>")
 }

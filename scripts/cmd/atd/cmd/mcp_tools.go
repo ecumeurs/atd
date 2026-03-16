@@ -119,6 +119,7 @@ func RegisterMCPTools(r *mcp.Registry) {
 				"intent":    map[string]any{"type": "string", "description": "New INTENT section text."},
 				"logic":     map[string]any{"type": "string", "description": "New THE RULE / LOGIC section text."},
 				"interface": map[string]any{"type": "string", "description": "New TECHNICAL INTERFACE section text."},
+				"expectation": map[string]any{"type": "string", "description": "New EXPECTATION section text."},
 				"spec_link": map[string]any{"type": "string", "description": "Atom ID to prepend as @spec-link in a source file (requires spec_link_file)."},
 				"spec_link_file": map[string]any{"type": "string", "description": "Source file path for --spec-link injection."},
 			},
@@ -129,6 +130,7 @@ func RegisterMCPTools(r *mcp.Registry) {
 		intent := argString(args, "intent", "")
 		logic := argString(args, "logic", "")
 		iface := argString(args, "interface", "")
+		expectation := argString(args, "expectation", "")
 		specLink := argString(args, "spec_link", "")
 		specFile := argString(args, "spec_link_file", "")
 
@@ -143,7 +145,7 @@ func RegisterMCPTools(r *mcp.Registry) {
 			}
 		}
 
-		return runUpdate(file, setPairs, intent, logic, iface, specLink, specFile)
+		return runUpdate(file, setPairs, intent, logic, iface, expectation, specLink, specFile)
 	})
 
 	r.Register(mcp.Tool{
