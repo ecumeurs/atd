@@ -7,7 +7,7 @@ status: STABLE
 priority: CORE
 tags: [atd, philosophy, methodology]
 parents: []
-dependents: [[[atd_cli]]]
+dependents: [[[atd_cli]]]]]]]]]
 ---
 
 # ATD Philosophy

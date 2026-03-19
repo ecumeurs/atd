@@ -54,6 +54,15 @@ var ActiveConfig ATDConfig
 
 // Load looks for .atd in the current directory and up to the root.
 func Load() error {
+	dir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	return LoadFromDir(dir)
+}
+
+// LoadFromDir looks for .atd starting from dir and up to the root.
+func LoadFromDir(dir string) error {
 	// Defaults
 	ActiveConfig = ATDConfig{
 		DiffSimilarityThreshold: 0.85,
@@ -67,11 +76,6 @@ func Load() error {
 			".h": true, ".hpp": true, ".cs": true, ".php": true,
 			".rb": true, ".swift": true, ".kt": true, ".scala": true,
 		},
-	}
-
-	dir, err := os.Getwd()
-	if err != nil {
-		return err
 	}
 
 	var configPath string

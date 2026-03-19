@@ -101,3 +101,14 @@ type ToolCallResult struct {
 	Content []ContentBlock `json:"content"`
 	IsError bool           `json:"isError,omitempty"`
 }
+
+// WorkspaceRoot represents a root directory of the workspace.
+type WorkspaceRoot struct {
+	Uri  string `json:"uri"`
+	Name string `json:"name,omitempty"`
+}
+
+// RootsListResult is the result for roots/list.
+type RootsListResult struct {
+	Roots []WorkspaceRoot `json:"roots"`
+}

@@ -8,7 +8,7 @@ priority: CORE
 tags: [atd, cli, audit, integrity]
 parents:
   - [[atd_cli]]
-dependents: [[[atd_compare]], [[atd_fix]]]
+dependents: [[[atd_compare]], [[atd_fix]]]], [[atd_fix]]]], [[atd_fix]]]], [[atd_fix]]]
 ---
 
 # ATD Audit

@@ -8,7 +8,7 @@ priority: CORE
 tags: [atd, cli, index, nomic, embedding]
 parents:
   - [[atd_cli]]
-dependents: [[[atd_search]]]
+dependents: [[[atd_search]]]]]]]]]
 ---
 
 # ATD Index

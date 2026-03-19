@@ -8,7 +8,7 @@ priority: CORE
 tags: [atd, config, specification]
 parents:
   - [[atd_cli]]
-dependents: [[[atd_tiered_provider]]]
+dependents: [[[atd_tiered_provider]]]]]]]]]
 ---
 
 # ATD Configuration Schema

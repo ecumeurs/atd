@@ -96,12 +96,32 @@ func (r *Registry) handleGet(w http.ResponseWriter, req *http.Request) {
 
 	// Prime the client with an event ID for reconnection.
 	fmt.Fprintf(w, "id: 0\ndata: \n\n")
-	if f, ok := w.(http.Flusher); ok {
-		f.Flush()
+	flusher, _ := w.(http.Flusher)
+	if flusher != nil {
+		flusher.Flush()
 	}
 
-	// Keep connection open until client disconnects.
-	<-req.Context().Done()
+	sendCh := make(chan any, 100)
+	r.SetSender(func(msg any) {
+		sendCh <- msg
+	})
+
+	// Keep connection open and forward server messages
+	for {
+		select {
+		case <-req.Context().Done():
+			r.SetSender(nil)
+			return
+		case msg := <-sendCh:
+			b, err := json.Marshal(msg)
+			if err == nil {
+				fmt.Fprintf(w, "event: message\ndata: %s\n\n", string(b))
+				if flusher != nil {
+					flusher.Flush()
+				}
+			}
+		}
+	}
 }
 
 func (r *Registry) handleDelete(w http.ResponseWriter, req *http.Request) {

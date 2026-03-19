@@ -1,4 +1,5 @@
 package cmd
+// @spec-link [[atd_test_links]]
 
 import (
 	"encoding/json"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"atd-tools/config"
+
 	"github.com/spf13/cobra"
 )
 

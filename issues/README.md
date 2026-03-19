@@ -4,6 +4,7 @@
 
 | Ref | File | Severity | Status | Summary |
 |---|---|---|---|---|
+| ISS-029 | [ISS-029_20260319_vscode_atomic_link.md](ISS-029_20260319_vscode_atomic_link.md) | Medium | Open | VSCode extension to allow clicking [[atomic_id]] links. |
 | ISS-025 | [ISS-025_20260314_atd_creation_deficiencies.md](ISS-025_20260314_atd_creation_deficiencies.md) | Medium | Open | ATD creation lacks critical metadata and produces sparse content. |
 | ISS-024 | [ISS-024_20260313_atd_indexing_nomic.md](ISS-024_20260313_atd_indexing_nomic.md) | Medium | Open | Add a tool to handle ATD indexing and research through Nomic. |
 | ISS-023 | [ISS-023_20260313_atd_binary_unification.md](ISS-023_20260313_atd_binary_unification.md) | Medium | Open | Merge all tools into ONE atd Go binary with subcommands. |

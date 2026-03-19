@@ -1,4 +1,5 @@
 package cmd
+// @spec-link [[atd_weave]]
 
 import (
 	"fmt"

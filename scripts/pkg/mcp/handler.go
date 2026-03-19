@@ -3,6 +3,9 @@ package mcp
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+
+	"atd-tools/config"
 )
 
 // Handler processes one JSON-RPC request and returns a Response.
@@ -14,6 +17,8 @@ func (r *Registry) Handle(raw []byte) *Response {
 		ID      any             `json:"id"`
 		Method  string          `json:"method"`
 		Params  json.RawMessage `json:"params"`
+		Result  json.RawMessage `json:"result"`
+		Error   *RPCError       `json:"error"`
 	}
 	if err := json.Unmarshal(raw, &msg); err != nil {
 		return errResponse(nil, CodeParseError, "parse error")
@@ -22,6 +27,30 @@ func (r *Registry) Handle(raw []byte) *Response {
 	// Notifications have no id — do not reply.
 	if msg.ID == nil && msg.Method != "" {
 		r.handleNotification(msg.Method, msg.Params)
+		return nil
+	}
+
+	// Is it a response from the client?
+	if msg.Method == "" && msg.ID != nil {
+		r.mu.Lock()
+		var idKey any
+		switch v := msg.ID.(type) {
+		case float64:
+			idKey = int64(v)
+		default:
+			idKey = v
+		}
+
+		if ch, ok := r.pending[idKey]; ok {
+			delete(r.pending, idKey)
+			r.mu.Unlock()
+
+			var resp Response
+			json.Unmarshal(raw, &resp)
+			ch <- &resp
+		} else {
+			r.mu.Unlock()
+		}
 		return nil
 	}
 
@@ -48,6 +77,15 @@ func (r *Registry) handleInitialize(id any, rawParams json.RawMessage) *Response
 	if err := json.Unmarshal(rawParams, &p); err != nil {
 		return errResponse(id, CodeInvalidParams, "invalid initialize params")
 	}
+
+	if p.Capabilities != nil {
+		if _, ok := p.Capabilities["roots"]; ok {
+			r.mu.Lock()
+			r.clientSupportsRoots = true
+			r.mu.Unlock()
+		}
+	}
+
 	result := InitializeResult{
 		ProtocolVersion: "2025-11-25",
 		Capabilities: map[string]any{
@@ -79,6 +117,30 @@ func (r *Registry) handleToolsCall(id any, rawParams json.RawMessage) *Response 
 func (r *Registry) handleNotification(method string, _ json.RawMessage) {
 	// notifications/initialized — no action needed for basic server.
 	// Future: could log or trigger post-init hooks.
+	if method == "notifications/initialized" {
+		r.mu.Lock()
+		supportsRoots := r.clientSupportsRoots
+		r.mu.Unlock()
+
+		if supportsRoots {
+			go func() {
+				resp, err := r.SendRequest("roots/list", nil)
+				if err == nil && resp.Result != nil {
+					b, _ := json.Marshal(resp.Result)
+					var lr RootsListResult
+					if err := json.Unmarshal(b, &lr); err == nil {
+						if len(lr.Roots) > 0 {
+							uri := lr.Roots[0].Uri
+							if strings.HasPrefix(uri, "file://") {
+								path := strings.TrimPrefix(uri, "file://")
+								config.LoadFromDir(path)
+							}
+						}
+					}
+				}
+			}()
+		}
+	}
 }
 
 // --- helpers ---

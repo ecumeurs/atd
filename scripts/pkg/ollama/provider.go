@@ -1,4 +1,5 @@
 package ollama
+// @spec-link [[atd_tiered_provider]]
 
 import (
 	"fmt"

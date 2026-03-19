@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 )
 
 // ServeStdio runs the MCP server over stdin/stdout.
@@ -15,6 +16,15 @@ import (
 func (r *Registry) ServeStdio() error {
 	scanner := bufio.NewScanner(os.Stdin)
 	encoder := json.NewEncoder(os.Stdout)
+
+	var outMu sync.Mutex
+	r.SetSender(func(msg any) {
+		outMu.Lock()
+		defer outMu.Unlock()
+		if err := encoder.Encode(msg); err != nil {
+			fmt.Fprintf(os.Stderr, "[mcp/stdio] emit error: %v\n", err)
+		}
+	})
 
 	for scanner.Scan() {
 		line := scanner.Bytes()
@@ -28,9 +38,11 @@ func (r *Registry) ServeStdio() error {
 			continue
 		}
 
+		outMu.Lock()
 		if err := encoder.Encode(resp); err != nil {
 			fmt.Fprintf(os.Stderr, "[mcp/stdio] encode error: %v\n", err)
 		}
+		outMu.Unlock()
 	}
 
 	if err := scanner.Err(); err != nil && err != io.EOF {

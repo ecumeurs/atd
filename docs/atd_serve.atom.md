@@ -8,7 +8,7 @@ priority: CORE
 tags: [atd, cli, mcp, server, json-rpc]
 parents:
   - [[atd_cli]]
-dependents: []
+dependents: [[[atd_serve_assemble]], [[atd_serve_audit]], [[atd_serve_crawl]], [[atd_serve_discover]], [[atd_serve_dissect]], [[atd_serve_index]], [[atd_serve_query]], [[atd_serve_recon]], [[atd_serve_roadmap]], [[atd_serve_search]], [[atd_serve_test_links]], [[atd_serve_update]], [[atd_serve_verify]], [[atd_serve_weave]]]], [[atd_serve_audit]], [[atd_serve_crawl]], [[atd_serve_discover]], [[atd_serve_dissect]], [[atd_serve_index]], [[atd_serve_query]], [[atd_serve_recon]], [[atd_serve_roadmap]], [[atd_serve_search]], [[atd_serve_test_links]], [[atd_serve_update]], [[atd_serve_verify]], [[atd_serve_weave]]]
 ---
 
 # ATD MCP Server
@@ -22,7 +22,8 @@ Expose all ATD operations as MCP (Model Context Protocol) tools over JSON-RPC 2.
   - `stdio` (primary): server reads newline-delimited JSON from stdin, writes to stdout. Launched by MCP host as a subprocess.
   - `HTTP` (secondary): single `/mcp` endpoint, `POST` for requests, `GET` for SSE stream, `DELETE` for session teardown. Tracks sessions via `MCP-Session-Id` header.
 - **Flags**: `atd serve [--http] [--port 7474]`
-- Implements MCP methods: `initialize`, `notifications/initialized`, `tools/list`, `tools/call`, `ping`
+- Implements server MCP methods: `initialize`, `notifications/initialized`, `tools/list`, `tools/call`, `ping`
+- Emits client MCP requests: `roots/list` (if client declares `roots` capability during initialization, to locate the `.atd` config accurately)
 - Registered tools (14 as of v1.0):
   - Deterministic: `atd_query`, `atd_crawl`, `atd_weave`, `atd_update`, `atd_roadmap`, `atd_verify`, `atd_assemble`, `atd_test_links`
   - LLM-backed: `atd_dissect`, `atd_index`, `atd_search`, `atd_audit`, `atd_recon`, `atd_discover`

@@ -83,6 +83,7 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
+| [VSCode Extension for Atomic Link Following](issues/ISS-029_20260319_vscode_atomic_link.md) | 2026-03-19 | Open | Medium | Currently, developers using the ATD system in VS Code cannot easily navigate ... |
 | [Insufficient Dissection Granularity for Complex Files](issues/ISS-027_20260314_atd_dissect_quality.md) | 2026-03-14 | Open | Medium | The `atd dissect` tool fails to identify a sufficient number of atomic bounda... |
 | [Low ATD Content Verbosity](issues/ISS-026_20260314_atd_low_verbosity.md) | 2026-03-14 | Open | Low | Atoms generated during the initial creation phase (Task 03) are often sparse,... |
 | [Research efficient API logic tracking for ATD atoms](issues/ISS-020_20260306_api_logic_tracking_research.md) | 2026-03-06 | Open | Medium | Current API-typed Atoms use free-form text or simplified summaries that often... |

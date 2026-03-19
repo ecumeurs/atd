@@ -1,0 +1,13 @@
+{
+    "name": "atd-linker",
+    "displayName": "ATD Linker",
+    "version": "1.0.0",
+    "publisher": "local-dev",
+    "engines": {
+        "vscode": "^1.60.0"
+    },
+    "activationEvents": [
+        "workspaceContains:.atd"
+    ],
+    "main": "./extension.js"
+}
