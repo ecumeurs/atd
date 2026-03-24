@@ -43,17 +43,42 @@ dependents:
 [Verifiable acceptance criteria for pass/fail testing. What must be true?]
 ```
 
-### 2. The "Minimum Atomic Scale" Rule
+### 2. Document Types & Bloat Factor Quick Reference
+
+Use this table to determine the correct `type`, `layer`, and expected granularity when creating atoms. The **Bloat Factor** column shows the default `bloating_factor` from `.atd` config (1.0 = strictest, 0.1 = most relaxed).
+
+| Type | Family | Typical Layer | Bloat Factor | Granularity |
+|---|---|---|---|---|
+| `MODULE` | Architectural | ARCHITECTURE | 0.3 | Broad — acts as a parent grouping |
+| `SERVICE` | Architectural | ARCH / IMPL | 0.8 | Single responsibility |
+| `ENTITY` | Architectural | ARCHITECTURE | 0.8 | Single data model |
+| `RULE` | Logic | CUSTOMER / ARCH | 0.8 | One rule per atom. Strict. |
+| `MECHANIC` | Logic | IMPLEMENTATION | 0.8 | One algorithm per atom |
+| `DOMAIN` | Logic | CUSTOMER | 0.8 | Narrative-driven context |
+| `API` | Interface | ARCH / IMPL | 0.1 | One contract, include payloads |
+| `UI` | Interface | CUSTOMER / ARCH | 0.8 | One screen or flow |
+| `DATA` | Operations | IMPLEMENTATION | 0.8 | Per config domain |
+| `USAGE` | Operations | CUSTOMER | 0.1 | Per tutorial/workflow |
+| `BUILD` | Operations | IMPLEMENTATION | 0.8 | Per pipeline stage |
+| `REQUIREMENT` | Requirements | CUSTOMER | 0.3 | Less granular than RULE |
+| `SPECIFICATION` | Requirements | CUSTOMER / ARCH | 0.3 | Can reference multiple atoms |
+| `USECASE` | Requirements | CUSTOMER | 0.1 | Multi-step workflow. Relaxed. |
+| `USER_STORY` | Requirements | CUSTOMER | 0.1 | Agile story. Relaxed. |
+
+> **Rule:** Before creating an atom, check the bloat factor for its type. High factor (≥0.7) = laser-focused on ONE rule. Low factor (≤0.3) = broader scope is acceptable.
+
+### 3. The "Minimum Atomic Scale" Rule
 * Each atom file must describe exactly ONE state-changing rule.
 * If an `## INTENT` statement requires the words "and" or "also", you must split the logic into multiple atoms.
-* **Always check tolerances:** Before creating a new atom, use the `atd_config` tool to retrieve the `bloating_factor` for that specific atom type. Keep `RULE` and `MECHANIC` types laser-focused (strict), while allowing slightly broader scopes only for naturally narrative types like `USECASE` or `API`.
+* **Always check tolerances:** Use the table above or the `atd_config` tool with `bloating_factor` to retrieve the tolerance for a specific atom type.
 
-### 3. File Modification & Tool Guardrails
+### 4. File Modification & Tool Guardrails
 * **Never rewrite an entire `.atom.md` file.** Always use the `atd_update` tool to surgically modify specific frontmatter fields or H2 sections.
+* **MCP tools auto-configure.** All MCP tools read paths (docs, src, db) and thresholds from `.atd` config. You never need to provide `--docs`, `--src`, `--db`, or `--threshold` via MCP — just call the tool.
 * **Prioritize deterministic tools:** Use `atd_query`, `atd_crawl`, `atd_weave`, and `atd_update` for fast, token-free structural operations.
 * **Delegate LLM tasks:** When semantic analysis, complex extraction, or auditing is required, do not do the analysis yourself. Instead, use the MCP's LLM-backed tools (`atd_search`, `atd_audit`, `atd_discover`, `atd_dissect`) to offload the work to ATD's configured models and save your own context window.
 
-### 4. The Day-to-Day Workflow
+### 5. The Day-to-Day Workflow
 When asked to build a feature, fix a bug, or update code, you must follow this lifecycle loop:
 * **Plan:** Use `atd_query` or `atd_search` to find existing relevant atoms. Create new `DRAFT` atoms using `atd_update` to capture new requirements before writing code.
 * **Specify:** Ensure every new atom links upward using the `parents` field in the frontmatter. Run `atd_weave` to establish the downward dependency graph (`dependents`).
@@ -61,12 +86,13 @@ When asked to build a feature, fix a bug, or update code, you must follow this l
 * **Verify:** Run `atd_verify` to check if your code changes align with the specification. Use `atd_test_links` to confirm the atom has test coverage.
 * **Evolve:** Before modifying any `STABLE` atom, you must run `atd_crawl` to assess the blast radius and impact on the rest of the system.
 
-### 5. Surgical Traceability (Tag Placement)
+### 6. Surgical Traceability (Tag Placement)
 * **No Global Headers:** Do not place `@spec-link` tags at the top of a source file unless the atom literally represents the entire architectural pattern of that file.
 * **Target Logic Boundaries:** Place `@spec-link` tags directly above the specific class definition, function, decorator, or logical block that implements the rule.
 * **Discovery:** If you are unsure where to place tags in undocumented code, use `atd_discover` to get placement recommendations.
 
-### 6. Respect the Documentation Hierarchy
+### 7. Respect the Documentation Hierarchy
 * **CUSTOMER Layer (`REQUIREMENT`, `USECASE`, etc.):** Treat these as low-volatility. Do not alter `STABLE` customer atoms without explicit human permission. **Requirement:** When requesting this permission from the user, you must proactively run `atd_crawl` and present the impact analysis/blast radius to them.
 * **ARCHITECTURE Layer (`MODULE`, `API`, etc.):** Treat these as moderate-volatility. Always run an impact analysis (`atd_crawl`) before changing.
 * **IMPLEMENTATION Layer (`MECHANIC`, `BUILD`, etc.):** Treat these as high-volatility. Update these freely as you refactor or write new code.
+

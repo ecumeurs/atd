@@ -188,7 +188,6 @@ Atoms are categorized into five families, each with distinct responsibilities an
 
 Atoms are organized into three **layers** that reflect the documentation's relationship to change and human oversight. This hierarchy is the backbone of ATD's traceability model.
 
-> The field is named `layer` (not `domain`) to avoid collision with the `DOMAIN` document type.
 
 ```
   CUSTOMER                    ARCHITECTURE                IMPLEMENTATION
@@ -403,32 +402,27 @@ These tools NEVER call an LLM. They are safe, cheap, and fast.
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `search` | string | ✅ | Value to match (case-insensitive substring). |
-| `field` | string | ❌ | Frontmatter field to search (e.g., `type`, `status`, `id`). Defaults to all fields. |
+| `field` | string | ❌ | Frontmatter field to search (e.g., `type`, `status`, `id`, `layer`, `tags`). Omit to search all fields. |
 
 **Output:** JSON array of matching atoms with full frontmatter.
 
-**When to use:**
-- Finding atoms by type, status, tag, or ID before performing operations.
-- Locating all `STABLE` atoms, or all atoms tagged `auth`.
+**When to use:** During **Plan** stage to find existing atoms before creating new ones, or to locate all atoms matching a criteria.
 
 ---
 
 #### `atd_crawl`
 
-**Purpose:** Build a dependency graph JSON. Optionally list orphaned `STABLE` atoms with no implementations.
+**Purpose:** Build a dependency graph of ATD atoms and their `@spec-link` connections to source code.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `src` | string | ❌ | Path to source code directory to scan for `@spec-link` tags. |
-| `gaps` | boolean | ❌ | If `true`, return only `STABLE` atoms with zero code implementations. |
-| `docs` | string | ❌ | Override docs directory path. |
+| `gaps` | boolean | ❌ | If `true`, return only `STABLE` atoms with zero code implementations (orphan detection). |
 
-**Output:** Full dependency graph JSON (atoms → code links, parent/dependent edges). With `--gaps`, only orphan atoms.
+**Output:** Full dependency graph JSON (atoms → code links, parent/dependent edges). With `gaps=true`, only orphan atoms.
 
 **When to use:**
-- Before modifying a high-level atom, to understand ripple effects.
-- Identifying undocumented or unlinked `STABLE` atoms.
-- Generating project-wide documentation coverage reports.
+- During **Evolve** stage before modifying a high-level atom, to understand ripple effects (blast radius analysis).
+- During **Verify** stage to find `STABLE` atoms with no code implementations.
 
 ---
 
@@ -477,7 +471,7 @@ These tools NEVER call an LLM. They are safe, cheap, and fast.
 
 #### `atd_roadmap`
 
-**Purpose:** Scan a source directory and build a complexity map identifying high-density files for documentation prioritization.
+**Purpose:** Scan a source directory and produce a complexity map ranking files by density.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -486,15 +480,13 @@ These tools NEVER call an LLM. They are safe, cheap, and fast.
 
 **Output:** JSON roadmap with files ranked by complexity (lines, cyclomatic density, function count).
 
-**When to use:**
-- Cold-start planning: which files to dissect first.
-- Identifying undocumented high-complexity areas.
+**When to use:** During cold-start **Plan** stage to prioritize which files to dissect first.
 
 ---
 
 #### `atd_verify`
 
-**Purpose:** Run `git diff`, extract impacted `@spec-link` tags, and produce an audit prompt for the IDE Agent.
+**Purpose:** Run `git diff`, extract impacted `@spec-link` tags, and produce a structured audit prompt.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -502,15 +494,13 @@ These tools NEVER call an LLM. They are safe, cheap, and fast.
 
 **Output:** Structured audit prompt containing the changed code and each atom it's linked to.
 
-**When to use:**
-- Pre-commit or CI check: "Does this code change still comply with its specification?"
-- After code modifications to ensure spec alignment.
+**When to use:** During **Verify** stage (pre-commit or CI) to check whether code changes still comply with their linked atom specifications.
 
 ---
 
 #### `atd_assemble`
 
-**Purpose:** Stitch atoms together into a cohesive narrative document.
+**Purpose:** Stitch atoms together into a cohesive narrative document by walking the dependency graph.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -518,13 +508,10 @@ These tools NEVER call an LLM. They are safe, cheap, and fast.
 | `purpose` | string | ❌ | Wraps output in `<System Objective>` tags for LLM consumption. |
 | `snapshot` | boolean | ❌ | If `true`, delegate narrative generation to the IDE Agent (returns a task ID). **Uses LLM.** |
 | `theme` | string | ❌ | Theme for snapshot narrative (default: "Executive Summary"). |
-| `docs` | string | ❌ | Override docs directory path. |
 
 **Output:** Concatenated atom contents following the dependency graph. With `--snapshot`, an LLM-generated narrative.
 
-**When to use:**
-- Generating onboarding documents, pitch decks, or architectural overviews by stitching atoms.
-- Creating executive summaries from the atom graph.
+**When to use:** During **Plan** stage for onboarding documents, architecture overviews, or executive summaries.
 
 ---
 
@@ -534,21 +521,17 @@ These tools NEVER call an LLM. They are safe, cheap, and fast.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `src` | string | ❌ | Path to source code to scan. |
 | `atom` | string | ❌ | Filter for a specific atom ID. |
-| `docs` | string | ❌ | Override docs directory path. |
 
 **Output:** JSON mapping of atom IDs to their associated test files and functions.
 
-**When to use:**
-- Verifying test coverage per atom.
-- Before modifying an atom, to identify which tests need re-run.
+**When to use:** During **Verify** stage to confirm test coverage per atom, or before modifying an atom to identify which tests need re-running.
 
 ---
 
 #### `atd_check`
 
-**Purpose:** Unified environment smoke test. Validates `.atd` config, checks provider connectivity, and verifies model availability for all configured tasks.
+**Purpose:** Unified environment smoke test. Validates `.atd` config, checks provider connectivity, and verifies model availability.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -556,10 +539,7 @@ These tools NEVER call an LLM. They are safe, cheap, and fast.
 
 **Output:** Status list of providers (with available models) and a task resolution map (which model/provider will be used for each task type).
 
-**When to use:**
-- Diagnosing "Connection Refused" or "Model Not Found" errors.
-- Verifying that a new provider or model is correctly configured.
-- CI/CD environment validation.
+**When to use:** To diagnose "Connection Refused" or "Model Not Found" errors, or to verify a new provider/model is correctly configured.
 
 ---
 
@@ -570,16 +550,13 @@ These tools NEVER call an LLM. They are safe, cheap, and fast.
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `list` | boolean | ❌ | If `true`, returns the full configuration as JSON. |
-| `bloating_factor` | string | ❌ | Atom type to query for its specific bloating factor override. |
-| `task` | string | ❌ | Task name to re-map (requires `model`). |
+| `bloating_factor` | string | ❌ | Atom type to query for its bloating factor (e.g., `RULE`, `USECASE`). Check this before creating atoms. |
+| `task` | string | ❌ | Task name to reassign (requires `model`). E.g., `dissect`, `embed`, `audit_bloat`. |
 | `model` | string | ❌ | Model name to assign to the task (requires `task`). |
 
 **Output:** JSON configuration or a confirmation message of the update.
 
-**When to use:**
-- Checking specific configuration values (bloating factors, model mappings) from an IDE Agent.
-- Batch-updating task-to-model assignments via script.
-- **CLI equivalent:** `atd config list` or `atd config bloating-factor <type>`.
+**When to use:** Checking bloating factors before creating atoms, or reassigning LLM task-to-model mappings.
 
 ---
 
@@ -591,80 +568,72 @@ These tools require an Ollama provider (local or remote) or fall back to IDE Age
 
 #### `atd_dissect`
 
-**Purpose:** Dissect a source file into proposed atomic boundaries. Returns either a prompt for IDE Agent passthrough or JSON boundaries via LLM.
+**Purpose:** Dissect a source code or documentation file into proposed atomic boundaries (IDs, types, line ranges).
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `file` | string | ✅ | Path to the file to dissect. |
-| `llm` | boolean | ❌ | If `true`, route through Ollama for structured JSON extraction. If `false` (default), return prompt for IDE Agent. |
+| `file` | string | ✅ | Path to the source or documentation file to dissect. |
 
-**Output:** Either a structured prompt (for IDE Agent to process) or JSON array of proposed atom boundaries with suggested IDs, types, and line ranges.
+**Output:** JSON array of proposed atom boundaries with suggested IDs, types, and line ranges. Falls back to a structured prompt for IDE Agent processing if no Ollama provider is available.
 
 **When to use:**
 - Cold-start: breaking down an undocumented file into atomic units.
 - Legacy extraction: proposing documentation structure for existing code.
-- **Model:** Typically `qwen2.5-coder:14b` for dissection tasks.
+- The tool uses the LLM provider configured in `.atd`; if no provider is available, it returns a structured prompt for the IDE Agent.
 
 ---
 
 #### `atd_index`
 
-**Purpose:** Build a semantic vector index of source code and/or ATD documents using `nomic-embed-text`.
+**Purpose:** Build or refresh the semantic vector index of all source code and ATD documents.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `dir` | string | ❌ | Directory to crawl and index (defaults to current directory). |
-| `mode` | string | ❌ | What to index: `code`, `docs`, or `all` (default: `code`). |
-| `db` | string | ❌ | Path to SQLite database (defaults to `<docs_path>/.atd_index.db`). |
+| *(none)* | — | — | Indexes the entire project using `.atd` configuration. |
 
-**Output:** Confirmation of indexing results (chunks processed, vectors stored).
+**Output:** Confirmation of indexing results (chunks processed, vectors stored, files skipped).
 
 **When to use:**
 - Before running semantic search (`atd_search`).
 - After significant code or documentation changes to refresh the index.
-- **Model:** `nomic-embed-text` for embeddings.
+- Uses `nomic-embed-text` for embeddings. Files unchanged since last indexing are automatically skipped (mtime-based caching).
 
 ---
 
 #### `atd_search`
 
-**Purpose:** Semantic or keyword search across the indexed codebase and/or docs.
+**Purpose:** Search the project semantically or by keyword.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `query` | string | ❌ | Semantic search query (uses Nomic embeddings). |
-| `grep` | string | ❌ | Literal keyword search across project files. |
-| `scope` | string | ❌ | Search scope: `code`, `docs`, or `all` (default: `all`). |
+| `query` | string | ❌ | Semantic search query (uses Nomic embeddings). Provide this OR `grep`, not both. |
+| `grep` | string | ❌ | Literal keyword search across project files. Provide this OR `query`, not both. |
+| `scope` | string | ❌ | Search scope: `code` (source files only), `docs` (ATD atoms only), or `all` (both). Default: `all`. |
 | `limit` | integer | ❌ | Number of semantic results to return (default: 5). |
-| `db` | string | ❌ | Path to SQLite index database. |
 
 **Output:** Ranked results with similarity scores and file context.
 
 **When to use:**
-- Finding related code or atoms by semantic meaning rather than exact text.
-- Locating implementations of a concept when IDs are unknown.
+- During **Plan** stage to find related code or atoms by meaning, or to locate implementations when atom IDs are unknown.
 - **Model:** `nomic-embed-text` for query embedding.
 
 ---
 
 #### `atd_audit`
 
-**Purpose:** Detect documentation bloat, semantic collisions between atoms, and optionally validate code compliance against a specific atom.
+**Purpose:** Audit ATD atoms for documentation quality issues.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `threshold` | float | ❌ | Cosine similarity threshold for collision detection (0.0–1.0, defaults to `.atd` config). |
 | `atom` | string | ❌ | Path to atom file for **compliance mode** (requires `code`). |
 | `code` | string | ❌ | Path to code file for **compliance mode** (requires `atom`). |
-| `docs` | string | ❌ | Override docs directory path. |
 
 **Output:** Bloat warnings, collision pairs with similarity scores, and/or compliance verdict.
 
 **When to use:**
-- **Default mode:** Global quality audit — run periodically to detect duplicate or bloated atoms.
+- **Default mode:** Global quality audit — run during **Verify** stage to detect duplicate or bloated atoms.
 - **Compliance mode:** Validate that a specific code file conforms to a specific atom's specification.
 - After creating new atoms, to check for semantic overlap with existing ones.
-- **Model:** `llama3.2` for bloat analysis, `deepseek-r1:7b` for code compliance.
 
 ---
 
@@ -688,18 +657,17 @@ These tools require an Ollama provider (local or remote) or fall back to IDE Age
 
 #### `atd_discover`
 
-**Purpose:** Extract architectural intent from an undocumented source file, search the ATD index, and recommend `@spec-link` tags to apply.
+**Purpose:** Extract architectural intent from an undocumented source file and recommend `@spec-link` tags to apply.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `file` | string | ✅ | Path to the undocumented source file. |
-| `docs` | string | ❌ | Override docs directory path. |
 
 **Output:** List of recommended `@spec-link [[atom_id]]` tags with placement suggestions and confidence scores.
 
 **When to use:**
+- During **Implement** stage to ensure new files are linked to the appropriate atoms.
 - Auto-tagging undocumented code during cold-start or legacy sweeps.
-- Ensuring new files are linked to the appropriate atoms.
 - **Constraint:** Follows the Surgical Attachment rules (no global headers, logic-boundary placement).
 
 ---
@@ -718,8 +686,8 @@ These tools require an Ollama provider (local or remote) or fall back to IDE Age
 | "Did my code changes break a spec?" | `atd_verify` | No |
 | "Generate a project overview" | `atd_assemble --starts root_atom_id` | No (unless `--snapshot`) |
 | "Which tests cover this atom?" | `atd_test_links --atom my_atom` | No |
-| "Break a file into atoms" | `atd_dissect --file X [--llm]` | Yes |
-| "Build a searchable index" | `atd_index --mode all` | Yes (embed) |
+| "Break a file into atoms" | `atd_dissect --file X` | Yes |
+| "Build a searchable index" | `atd_index` | Yes (embed) |
 | "Find code related to authentication" | `atd_search --query "authentication"` | Yes (embed) |
 | "Is this documentation bloated?" | `atd_audit` | Yes |
 | "Does this code match this atom?" | `atd_audit --atom X --code Y` | Yes |

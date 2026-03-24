@@ -1,5 +1,5 @@
 package cmd
-// @spec-link [[atd_recon]]
+// @spec-link [[mechanic_atd_recon]]
 
 import (
 	"encoding/json"

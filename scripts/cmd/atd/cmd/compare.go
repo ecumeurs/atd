@@ -1,5 +1,5 @@
 package cmd
-// @spec-link [[atd_compare]]
+// @spec-link [[mechanic_atd_compare]]
 
 import (
 	"fmt"

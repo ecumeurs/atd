@@ -1,5 +1,5 @@
 package cmd
-// @spec-link [[atd_discover]]
+// @spec-link [[service_atd_discover]]
 
 import (
 	"database/sql"

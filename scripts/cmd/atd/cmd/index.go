@@ -1,5 +1,5 @@
 package cmd
-// @spec-link [[atd_index]]
+// @spec-link [[service_atd_index]]
 
 import (
 	"database/sql"

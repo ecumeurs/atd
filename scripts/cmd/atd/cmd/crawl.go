@@ -1,5 +1,5 @@
 package cmd
-// @spec-link [[atd_crawl]]
+// @spec-link [[service_atd_crawl]]
 
 import (
 	"encoding/json"

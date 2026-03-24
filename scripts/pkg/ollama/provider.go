@@ -1,5 +1,5 @@
 package ollama
-// @spec-link [[atd_tiered_provider]]
+// @spec-link [[service_atd_tiered_provider]]
 
 import (
 	"atd-tools/config"

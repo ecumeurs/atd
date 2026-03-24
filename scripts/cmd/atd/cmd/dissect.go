@@ -1,5 +1,5 @@
 package cmd
-// @spec-link [[atd_dissect]]
+// @spec-link [[mechanic_atd_dissect]]
 
 import (
 	"encoding/json"

@@ -1,5 +1,5 @@
 // @ts-check
-// @spec-link [[vscode_atd_linker]]
+// @spec-link [[specification_vscode_atd_linker]]
 /** @typedef {import('vscode')} vscode */
 const vscode = require('vscode');
 const fs = require('fs');

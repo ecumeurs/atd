@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// @spec-link [[atd_lint]]
+// @spec-link [[mechanic_atd_lint]]
 var lintCmd = &cobra.Command{
 	Use:   "lint [dir]",
 	Short: "Structurally validate ATD atoms",

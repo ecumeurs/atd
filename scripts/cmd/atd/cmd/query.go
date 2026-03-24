@@ -1,5 +1,5 @@
 package cmd
-// @spec-link [[atd_query]]
+// @spec-link [[service_atd_query]]
 
 import (
 	"encoding/json"

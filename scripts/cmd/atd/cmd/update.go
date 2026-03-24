@@ -1,5 +1,5 @@
 package cmd
-// @spec-link [[atd_update]]
+// @spec-link [[mechanic_atd_update]]
 
 import (
 	"fmt"
@@ -469,13 +469,10 @@ func updateLinks(docsPath, oldID, newID string) int {
 	escapedOld := regexp.QuoteMeta(oldID)
 	re := regexp.MustCompile(`\[\[` + escapedOld + `\]\]`)
 
-	filepath.Walk(docsPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".atom.md") {
-			return nil
-		}
+	replaceInFile := func(path string) {
 		content, readErr := os.ReadFile(path)
 		if readErr != nil {
-			return nil
+			return
 		}
 		strContent := string(content)
 		if strings.Contains(strContent, oldLink) || re.MatchString(strContent) {
@@ -486,8 +483,46 @@ func updateLinks(docsPath, oldID, newID string) int {
 				updatedCount++
 			}
 		}
+	}
+
+	// 1. Propagate through all .atom.md files in docs
+	filepath.Walk(docsPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".atom.md") {
+			return nil
+		}
+		replaceInFile(path)
 		return nil
 	})
+
+	// 2. Propagate through source code @spec-link / @test-link tags
+	projectRoot := config.ProjectRoot()
+	if projectRoot != "" {
+		filepath.Walk(projectRoot, func(path string, info os.FileInfo, err error) error {
+			if err != nil || info.IsDir() {
+				return nil
+			}
+			// Skip .atom.md files (already handled above) and binary/hidden dirs
+			if strings.HasSuffix(path, ".atom.md") {
+				return nil
+			}
+			relPath, _ := filepath.Rel(projectRoot, path)
+			if strings.HasPrefix(relPath, ".git") || strings.HasPrefix(relPath, ".atd") {
+				if info.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			// Only scan text-like source files
+			ext := filepath.Ext(path)
+			switch ext {
+			case ".go", ".py", ".js", ".ts", ".tsx", ".jsx", ".rs", ".rb", ".java",
+				".c", ".cpp", ".h", ".hpp", ".cs", ".sh", ".yaml", ".yml", ".toml", ".md":
+				replaceInFile(path)
+			}
+			return nil
+		})
+	}
+
 	return updatedCount
 }
 

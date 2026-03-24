@@ -1,5 +1,5 @@
 package cmd
-// @spec-link [[atd_weave]]
+// @spec-link [[mechanic_atd_weave]]
 
 import (
 	"fmt"
@@ -69,7 +69,7 @@ func runWeave(docsDir string) (string, error) {
 	}
 
 	// 2. Rewrite each file with updated dependents
-	dependentsRegex := regexp.MustCompile(`(?m)^dependents:\s*\[.*?\]`)
+	dependentsRegex := regexp.MustCompile(`(?m)^dependents:\s*\[.*\]`)
 	edited := 0
 
 	for _, ref := range atomRefs {

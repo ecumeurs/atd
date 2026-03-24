@@ -1,5 +1,5 @@
 package cmd
-// @spec-link [[atd_test_links]]
+// @spec-link [[specification_atd_test_links]]
 
 import (
 	"encoding/json"

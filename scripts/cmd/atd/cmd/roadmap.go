@@ -1,5 +1,5 @@
 package cmd
-// @spec-link [[atd_roadmap]]
+// @spec-link [[service_atd_roadmap]]
 
 import (
 	"encoding/json"

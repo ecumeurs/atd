@@ -1,5 +1,5 @@
 package cmd
-// @spec-link [[atd_congruence]]
+// @spec-link [[mechanic_atd_congruence]]
 
 import (
 	"fmt"

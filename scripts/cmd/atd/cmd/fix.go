@@ -1,5 +1,5 @@
 package cmd
-// @spec-link [[atd_fix]]
+// @spec-link [[mechanic_atd_fix]]
 
 import (
 	"bufio"
