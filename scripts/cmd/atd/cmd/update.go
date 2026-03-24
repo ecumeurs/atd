@@ -31,6 +31,7 @@ Supports setting individual frontmatter keys, updating content sections (Intent,
 and prepending @spec-link tags to source files.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		filePath, _ := cmd.Flags().GetString("file")
+		filterArg, _ := cmd.Flags().GetString("filter")
 		intentArg, _ := cmd.Flags().GetString("intent")
 		logicArg, _ := cmd.Flags().GetString("logic")
 		interfaceArg, _ := cmd.Flags().GetString("interface")
@@ -46,6 +47,18 @@ and prepending @spec-link tags to source files.`,
 			return fmt.Errorf("--spec-link requires exactly two arguments: <id> <file>")
 		}
 
+		if filterArg != "" {
+			if filePath != "" {
+				return fmt.Errorf("cannot use both --file and --filter")
+			}
+			text, err := runBatchUpdate(filterArg, setArgs, intentArg, logicArg, interfaceArg, expectationArg, specLinkID, specLinkFile)
+			if err != nil {
+				return err
+			}
+			fmt.Println(text)
+			return nil
+		}
+
 		text, err := runUpdate(filePath, setArgs, intentArg, logicArg, interfaceArg, expectationArg, specLinkID, specLinkFile)
 		if err != nil {
 			return err
@@ -53,6 +66,81 @@ and prepending @spec-link tags to source files.`,
 		fmt.Println(text)
 		return nil
 	},
+}
+
+func runBatchUpdate(filter string, setArgs []string, intentArg, logicArg, interfaceArg, expectationArg, specLinkID, specLinkFile string) (string, error) {
+	filters := make(map[string]string)
+	for _, part := range strings.Split(filter, ",") {
+		kv := strings.SplitN(part, "=", 2)
+		if len(kv) == 2 {
+			filters[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+		}
+	}
+	if len(filters) == 0 {
+		return "", fmt.Errorf("invalid filter format, expected key=value,key2=value2")
+	}
+
+	docsDir := config.DocsDir()
+	yamlRegex := regexp.MustCompile(`(?s)^---[\r\n]+(.*?)[\r\n]+---`)
+	var targetFiles []string
+
+	err := filepath.Walk(docsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || !strings.HasSuffix(info.Name(), ".atom.md") {
+			return nil
+		}
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil
+		}
+		yamlMatch := yamlRegex.FindStringSubmatch(string(content))
+		if len(yamlMatch) > 1 {
+			frontmatter := yamlMatch[1]
+			matchesAll := true
+			for k, v := range filters {
+				fieldRegex := regexp.MustCompile(fmt.Sprintf(`(?m)^%s:\s*\[?(.*?)\]?$`, regexp.QuoteMeta(k)))
+				fieldMatch := fieldRegex.FindStringSubmatch(frontmatter)
+				if len(fieldMatch) > 1 {
+					if strings.ToLower(strings.TrimSpace(fieldMatch[1])) != strings.ToLower(v) {
+						matchesAll = false
+						break
+					}
+				} else {
+					matchesAll = false
+					break
+				}
+			}
+			if matchesAll {
+				targetFiles = append(targetFiles, path)
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("error finding matching files: %v", err)
+	}
+
+	if len(targetFiles) == 0 {
+		return "No atoms matched the given filter.", nil
+	}
+
+	var results []string
+	successCount := 0
+	errorCount := 0
+
+	for _, file := range targetFiles {
+		res, err := runUpdate(file, setArgs, intentArg, logicArg, interfaceArg, expectationArg, specLinkID, specLinkFile)
+		if err != nil {
+			results = append(results, fmt.Sprintf("Error updating %s: %v", file, err))
+			errorCount++
+		} else {
+			results = append(results, res)
+			successCount++
+		}
+	}
+
+	summary := fmt.Sprintf("\nBatch complete: %d updated, %d errors out of %d matching atoms.", successCount, errorCount, len(targetFiles))
+	return strings.Join(results, "\n") + summary, nil
 }
 
 func runUpdate(filePath string, setArgs []string, intentArg, logicArg, interfaceArg, expectationArg, specLinkID, specLinkFile string) (string, error) {
@@ -406,6 +494,7 @@ func updateLinks(docsPath, oldID, newID string) int {
 func init() {
 	rootCmd.AddCommand(updateCmd)
 	updateCmd.Flags().StringP("file", "f", "", "Path to the ATD file")
+	updateCmd.Flags().String("filter", "", "Filter atoms to update instead of a single file (e.g. 'status=DRAFT,type=RULE')")
 	updateCmd.Flags().String("intent", "", "New content for ## INTENT section (use '-' for stdin)")
 	updateCmd.Flags().String("logic", "", "New content for ## THE RULE / LOGIC section (use '-' for stdin)")
 	updateCmd.Flags().String("interface", "", "New content for ## TECHNICAL INTERFACE section (use '-' for stdin)")

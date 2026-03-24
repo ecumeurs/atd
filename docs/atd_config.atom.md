@@ -4,11 +4,12 @@ human_name: "ATD Configuration Schema"
 type: SPECIFICATION
 version: 1.0
 status: DRAFT
-priority: CORE
+priority: 5
 tags: [atd, config, specification]
 parents:
   - [[atd_cli]]
-dependents: [[[atd_tiered_provider]]]]]]]]]
+dependents: [[[atd_serve_config]], [[atd_tiered_provider]]]], [[atd_tiered_provider]]]]]]]]]]]]]
+layer: CUSTOMER
 ---
 
 # ATD Configuration Schema
@@ -30,5 +31,6 @@ No tool may hardcode an Ollama URL, model name, or path. All must read from this
 
 ## TECHNICAL INTERFACE (The Bridge)
 - **File:** `.atd` at project root
+- **Command:** `atd config list`, `atd config bloating-factor <type>`
 - **Loaded by:** `scripts/config/config.go`
 - **Code Tag:** `@spec-link [[atd_config]]`

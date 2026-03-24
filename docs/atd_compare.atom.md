@@ -4,11 +4,12 @@ human_name: "ATD Compare"
 type: MECHANIC
 version: 1.0
 status: DRAFT
-priority: CORE
+priority: 5
 tags: [atd, cli, audit, compare, collision]
 parents:
   - [[atd_audit]]
 dependents: []
+layer: IMPLEMENTATION
 ---
 
 # ATD Compare

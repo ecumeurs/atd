@@ -1,11 +1,11 @@
 ---
 id: atd_serve_update
 human_name: "MCP Tool: atd_update"
-description: "Surgically update fields in an ATD atom file without rewriting it. Pass set as 'key=value' pairs."
+description: "Surgically update fields in an ATD atom file without rewriting it. Pass set as 'key=value' pairs. File and filter are mutually exclusive."
 type: TECHNICAL_CONTRACT
 version: 1.0
 status: STABLE
-priority: CORE
+priority: 5
 tags:
   - mcp
   - tool
@@ -13,6 +13,7 @@ tags:
 parents:
   - [[atd_serve]]
 dependents: []
+layer: ARCHITECTURE
 ---
 
 # MCP Tool: atd_update
@@ -35,7 +36,11 @@ Surgically update fields in an ATD atom file without rewriting it. Pass set as '
   "properties": {
     "file": {
       "type": "string",
-      "description": "Absolute or relative path to the .atom.md file."
+      "description": "Absolute or relative path to the .atom.md file. Optional if filter is provided."
+    },
+    "filter": {
+      "type": "string",
+      "description": "Filter atoms to update instead of a single file (e.g. 'status=DRAFT,type=RULE'). Optional if file is provided."
     },
     "set": {
       "description": "Frontmatter edits as 'key=value' strings, e.g. [\"status=STABLE\",\"priority=CORE\"]."
@@ -69,7 +74,7 @@ Surgically update fields in an ATD atom file without rewriting it. Pass set as '
 ```
 
 ### Required Fields
-`file`
+None (either `file` or `filter` must be provided).
 
 ## EXPECTATION (For Testing)
 When the MCP client sends a `tools/call` request for `atd_update`, it must furnish the required arguments above, returning a JSON-RPC response with block texts.

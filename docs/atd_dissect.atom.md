@@ -4,11 +4,12 @@ human_name: "ATD Dissect"
 type: MECHANIC
 version: 1.0
 status: DRAFT
-priority: CORE
+priority: 5
 tags: [atd, cli, extraction, dissect]
 parents:
   - [[atd_cli]]
 dependents: []
+layer: IMPLEMENTATION
 ---
 
 # ATD Dissect

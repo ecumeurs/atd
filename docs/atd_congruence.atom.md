@@ -4,11 +4,12 @@ human_name: "ATD Congruence"
 type: MECHANIC
 version: 1.0
 status: DRAFT
-priority: CORE
+priority: 5
 tags: [atd, cli, audit, congruence, consistency]
 parents:
   - [[atd_cli]]
 dependents: []
+layer: IMPLEMENTATION
 ---
 
 # ATD Congruence

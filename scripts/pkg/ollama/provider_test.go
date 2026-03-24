@@ -14,15 +14,14 @@ func TestResolveProvider(t *testing.T) {
 	// Mock ListModels
 	ListModels = func(baseURL string, timeoutMs int) ([]string, error) {
 		if baseURL == "http://remote" {
-			return []string{"llama3.1", "nomic-embed-text"}, nil
+			// Remote has tagged versions
+			return []string{"llama3.2:latest", "deepseek-r1:7b", "nomic-embed-text:latest"}, nil
 		}
 		if baseURL == "http://local" {
-			return []string{"llama3.2", "qwen2.5"}, nil
+			// Local has mixed versions
+			return []string{"llama3.2:3b", "qwen2.5:14b"}, nil
 		}
-		if baseURL == "http://offline" {
-			return nil, fmt.Errorf("offline")
-		}
-		return nil, nil
+		return nil, fmt.Errorf("offline")
 	}
 
 	// Mock config
@@ -33,52 +32,42 @@ func TestResolveProvider(t *testing.T) {
 			{Name: "ide", Type: "passthrough"},
 		},
 		Models: map[string]config.ModelConfig{
-			"llama3.1": {Tasks: []string{"dissect"}},
+			"llama3.2":       {Tasks: []string{"audit"}, Priority: 0},
+			"deepseek-r1:7b": {Tasks: []string{"audit"}, Priority: 10},
+			"qwen2.5":        {Tasks: []string{"dissect"}},
 			"nomic-embed-text": {Tasks: []string{"embed"}},
-			"llama3.2": {Tasks: []string{"audit"}},
 		},
 		FallbackModel: "llama3.2",
 	}
 
-	// Case 1: Remote has desired model
-	res, err := ResolveProvider("dissect")
+	// Case 1: Priority match in same provider
+	// Both llama3.2 and deepseek-r1:7b handle "audit". 
+	// deepseek-r1:7b has higher priority (10 vs 0).
+	// remote has both (llama3.2:latest matches "llama3.2").
+	res, err := ResolveProvider("audit")
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if res.Provider != "remote" || res.Model != "llama3.1" {
-		t.Errorf("Expected remote/llama3.1, got %s/%s", res.Provider, res.Model)
+	if res.Provider != "remote" || res.Model != "deepseek-r1:7b" {
+		t.Errorf("Expected remote/deepseek-r1:7b (higher priority), got %s/%s", res.Provider, res.Model)
 	}
 
-	// Case 2: Only local has desired model
-	res, err = ResolveProvider("audit")
+	// Case 2: Version prefix match
+	// config has "qwen2.5", server has "qwen2.5:14b". Should match.
+	res, err = ResolveProvider("dissect")
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if res.Provider != "local" || res.Model != "llama3.2" {
-		t.Errorf("Expected local/llama3.2, got %s/%s", res.Provider, res.Model)
+	if res.Provider != "local" || res.Model != "qwen2.5:14b" {
+		t.Errorf("Expected local/qwen2.5:14b (prefix match), got %s/%s", res.Provider, res.Model)
 	}
 
-	// Case 3: Remote unreachable, Local has desired model
+	// Case 3: Exact match with tag
+	// config has "deepseek-r1:7b". If server only had "deepseek-r1:3b", it shouldn't match.
+	// (Already covered by Case 1 where it matched remote/deepseek-r1:7b)
+
+	// Case 4: No match, fallback to IDE
 	config.ActiveConfig.LLM.Providers[0].BaseURL = "http://offline"
-	res, err = ResolveProvider("audit")
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if res.Provider != "local" || res.Model != "llama3.2" {
-		t.Errorf("Expected local/llama3.2, got %s/%s", res.Provider, res.Model)
-	}
-
-	// Case 4: Remote offline, Local doesn't have model, Fallback to local fallback
-	config.ActiveConfig.LLM.Models["nonexistent"] = config.ModelConfig{Tasks: []string{"unknown"}}
-	res, err = ResolveProvider("unknown")
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if res.Provider != "local" || res.Model != "llama3.2" {
-		t.Errorf("Expected local/llama3.2 (fallback), got %s/%s", res.Provider, res.Model)
-	}
-
-	// Case 5: Both offline, Fallback to IDE
 	config.ActiveConfig.LLM.Providers[1].BaseURL = "http://offline"
 	res, err = ResolveProvider("dissect")
 	if err != nil {

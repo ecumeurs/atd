@@ -5,7 +5,7 @@ description: "Crawl ATD docs and source code. Returns a dependency graph JSON. S
 type: TECHNICAL_CONTRACT
 version: 1.0
 status: STABLE
-priority: CORE
+priority: 5
 tags:
   - mcp
   - tool
@@ -13,6 +13,7 @@ tags:
 parents:
   - [[atd_serve]]
 dependents: []
+layer: ARCHITECTURE
 ---
 
 # MCP Tool: atd_crawl

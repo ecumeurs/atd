@@ -20,6 +20,8 @@ type DependencyGraph struct {
 
 type AtomNode struct {
 	ID              string   `json:"id"`
+	Type            string   `json:"type"`
+	Layer           string   `json:"layer"`
 	Status          string   `json:"status"`
 	Parents         []string `json:"parents"`
 	Dependents      []string `json:"dependents"`
@@ -112,6 +114,8 @@ func crawlDocs(dir string, graph *DependencyGraph) error {
 
 			graph.Atoms[a.ID] = &AtomNode{
 				ID:              a.ID,
+				Type:            a.Type,
+				Layer:           a.Layer,
 				Status:          a.Status,
 				Parents:         a.Parents,
 				Dependents:      a.Dependents,

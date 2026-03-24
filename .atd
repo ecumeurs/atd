@@ -24,7 +24,7 @@
     ],
     "models": {
       "llama3.2":           {"tasks": ["audit_bloat", "intent_extract", "snapshot"]},
-      "deepseek-r1:7b":     {"tasks": ["audit_code", "compare", "congruence", "reconcile", "fix_split"]},
+      "deepseek-r1:7b":     {"tasks": ["audit_code", "compare", "congruence", "reconcile", "fix_split", "audit_bloat", "intent_extract", "snapshot"]},
       "qwen2.5-coder:14b":  {"tasks": ["dissect", "recon"]},
       "nomic-embed-text":   {"tasks": ["embed"]}
     },

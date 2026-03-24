@@ -5,7 +5,7 @@ description: "Search ATD atoms by frontmatter field value. Returns JSON array of
 type: TECHNICAL_CONTRACT
 version: 1.0
 status: STABLE
-priority: CORE
+priority: 5
 tags:
   - mcp
   - tool
@@ -13,6 +13,7 @@ tags:
 parents:
   - [[atd_serve]]
 dependents: []
+layer: ARCHITECTURE
 ---
 
 # MCP Tool: atd_query

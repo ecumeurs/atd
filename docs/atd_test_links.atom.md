@@ -4,11 +4,12 @@ human_name: "ATD Test Links"
 type: SPECIFICATION
 version: 1.0
 status: DRAFT
-priority: CORE
+priority: 5
 tags: [atd, cli, test, traceability, test-link]
 parents:
   - [[atd_cli]]
 dependents: []
+layer: CUSTOMER
 ---
 
 # ATD Test Links

@@ -4,11 +4,12 @@ human_name: "ATD Tiered LLM Provider"
 type: SERVICE
 version: 1.0
 status: DRAFT
-priority: CORE
+priority: 5
 tags: [atd, llm, provider, tiered]
 parents:
   - [[atd_config]]
 dependents: []
+layer: CUSTOMER
 ---
 
 # ATD Tiered LLM Provider

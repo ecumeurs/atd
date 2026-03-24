@@ -4,11 +4,12 @@ human_name: "ATD Roadmap"
 type: SERVICE
 version: 1.0
 status: DRAFT
-priority: CORE
+priority: 5
 tags: [atd, cli, roadmap, coverage, scanning]
 parents:
   - [[atd_cli]]
 dependents: []
+layer: CUSTOMER
 ---
 
 # ATD Roadmap

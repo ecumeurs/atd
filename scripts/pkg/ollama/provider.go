@@ -2,9 +2,10 @@ package ollama
 // @spec-link [[atd_tiered_provider]]
 
 import (
+	"atd-tools/config"
 	"fmt"
 	"os"
-	"atd-tools/config"
+	"strings"
 )
 
 // Resolution holds the result of provider resolution.
@@ -16,59 +17,100 @@ type Resolution struct {
 }
 
 // ResolveProvider determines which provider and model to use for a given task type.
-//
-// Algorithm:
-// 1. Look up which model handles this task (config.ModelForTask)
-// 2. For each provider in priority order:
-//    a. If provider.Type == "passthrough" → return IDE fallback
-//    b. Call ListModels(provider.BaseURL, provider.TimeoutMs)
-//    c. If desired model is in the list → return this provider + model
-//    d. If desired model NOT found but fallback_model IS found → return provider + fallback
-// 3. If no provider has any model → return IDE fallback
 func ResolveProvider(taskType string) (Resolution, error) {
 	cfg := config.ActiveConfig.LLM
-	desiredModel := config.ModelForTask(taskType)
+	candidateModels := config.ModelForTask(taskType)
 
-	for _, provider := range cfg.Providers {
-		// IDE passthrough is always last resort
-		if provider.Type == "passthrough" {
-			res := Resolution{IsIDE: true, Provider: provider.Name}
-			fmt.Fprintf(os.Stderr, "[LLM] Task=%s Model=N/A Provider=%s (IDE Fallback)\n", taskType, res.Provider)
-			return res, nil
-		}
+	type providerModels struct {
+		provider config.LLMProvider
+		models   []string
+	}
+	var cachedProviders []providerModels
 
-		models, err := ListModels(provider.BaseURL, provider.TimeoutMs)
-		if err != nil {
-			// Provider unreachable, try next
-			continue
-		}
+	// 1. Try all preferred candidate models across all providers
+	for _, desired := range candidateModels {
+		hasTag := strings.Contains(desired, ":")
 
-		// Check if desired model is available
-		for _, m := range models {
-			if m == desiredModel {
-				res := Resolution{
-					BaseURL:  provider.BaseURL,
-					Model:    desiredModel,
-					Provider: provider.Name,
-				}
-				fmt.Fprintf(os.Stderr, "[LLM] Task=%s Model=%s Provider=%s\n", taskType, res.Model, res.Provider)
-				return res, nil
+		for i, provider := range cfg.Providers {
+			// IDE passthrough handled separately if no Ollama matches
+			if provider.Type == "passthrough" {
+				continue
 			}
-		}
 
-		// Desired model not found, try fallback
-		if cfg.FallbackModel != "" && cfg.FallbackModel != desiredModel {
-			for _, m := range models {
-				if m == cfg.FallbackModel {
+			// Cache models per provider to avoid repeated API calls
+			var serverModels []string
+			if len(cachedProviders) > i {
+				serverModels = cachedProviders[i].models
+			} else {
+				var err error
+				serverModels, err = ListModels(provider.BaseURL, provider.TimeoutMs)
+				// Cache even if it's nil (error) to avoid re-trying
+				cachedProviders = append(cachedProviders, providerModels{provider, serverModels})
+				if err != nil {
+					continue
+				}
+			}
+
+			if serverModels == nil {
+				continue
+			}
+
+			for _, m := range serverModels {
+				matched := false
+				if hasTag {
+					matched = (m == desired)
+				} else {
+					matched = (m == desired || strings.HasPrefix(m, desired+":"))
+				}
+
+				if matched {
 					res := Resolution{
 						BaseURL:  provider.BaseURL,
-						Model:    cfg.FallbackModel,
+						Model:    m,
 						Provider: provider.Name,
+					}
+					fmt.Fprintf(os.Stderr, "[LLM] Task=%s Model=%s Provider=%s\n", taskType, res.Model, res.Provider)
+					return res, nil
+				}
+			}
+		}
+	}
+
+	// 2. Try fallback if none of the preferred models were found
+	if cfg.FallbackModel != "" {
+		fallbackHasTag := strings.Contains(cfg.FallbackModel, ":")
+		for _, cp := range cachedProviders {
+			if cp.provider.Type == "passthrough" || cp.models == nil {
+				continue
+			}
+
+			for _, m := range cp.models {
+				matched := false
+				if fallbackHasTag {
+					matched = (m == cfg.FallbackModel)
+				} else {
+					matched = (m == cfg.FallbackModel || strings.HasPrefix(m, cfg.FallbackModel+":"))
+				}
+
+				if matched {
+					res := Resolution{
+						BaseURL:  cp.provider.BaseURL,
+						Model:    m,
+						Provider: cp.provider.Name,
 					}
 					fmt.Fprintf(os.Stderr, "[LLM] Task=%s Model=%s Provider=%s (Fallback)\n", taskType, res.Model, res.Provider)
 					return res, nil
 				}
 			}
+		}
+	}
+
+	// 3. Last resort: IDE passthrough
+	for _, provider := range cfg.Providers {
+		if provider.Type == "passthrough" {
+			res := Resolution{IsIDE: true, Provider: provider.Name}
+			fmt.Fprintf(os.Stderr, "[LLM] Task=%s Model=N/A Provider=%s (IDE Fallback)\n", taskType, res.Provider)
+			return res, nil
 		}
 	}
 

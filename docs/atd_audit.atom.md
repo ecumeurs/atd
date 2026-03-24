@@ -4,11 +4,12 @@ human_name: "ATD Audit"
 type: SERVICE
 version: 1.0
 status: DRAFT
-priority: CORE
+priority: 5
 tags: [atd, cli, audit, integrity]
 parents:
   - [[atd_cli]]
-dependents: [[[atd_compare]], [[atd_fix]]]], [[atd_fix]]]], [[atd_fix]]]], [[atd_fix]]]
+dependents: [[[atd_compare]], [[atd_fix]]]], [[atd_fix]]]], [[atd_fix]]]], [[atd_fix]]]], [[atd_fix]]]], [[atd_fix]]]], [[atd_fix]]]
+layer: IMPLEMENTATION
 ---
 
 # ATD Audit

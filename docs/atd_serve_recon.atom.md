@@ -5,7 +5,7 @@ description: "Semantic archaeology: validate whether a candidate source file imp
 type: TECHNICAL_CONTRACT
 version: 1.0
 status: STABLE
-priority: CORE
+priority: 5
 tags:
   - mcp
   - tool
@@ -13,6 +13,7 @@ tags:
 parents:
   - [[atd_serve]]
 dependents: []
+layer: ARCHITECTURE
 ---
 
 # MCP Tool: atd_recon

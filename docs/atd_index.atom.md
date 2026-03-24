@@ -4,11 +4,12 @@ human_name: "ATD Index"
 type: SERVICE
 version: 1.0
 status: DRAFT
-priority: CORE
+priority: 5
 tags: [atd, cli, index, nomic, embedding]
 parents:
   - [[atd_cli]]
-dependents: [[[atd_search]]]]]]]]]
+dependents: [[[atd_search]]]]]]]]]]]]]]]
+layer: IMPLEMENTATION
 ---
 
 # ATD Index

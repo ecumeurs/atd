@@ -4,11 +4,12 @@ human_name: "ATD Fix"
 type: MECHANIC
 version: 1.0
 status: DRAFT
-priority: CORE
+priority: 5
 tags: [atd, cli, audit, fix, split]
 parents:
   - [[atd_audit]]
 dependents: []
+layer: IMPLEMENTATION
 ---
 
 # ATD Fix

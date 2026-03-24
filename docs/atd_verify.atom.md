@@ -4,11 +4,12 @@ human_name: "ATD Verify"
 type: SERVICE
 version: 1.0
 status: DRAFT
-priority: CORE
+priority: 5
 tags: [atd, cli, verify, git, compliance]
 parents:
   - [[atd_cli]]
 dependents: []
+layer: CUSTOMER
 ---
 
 # ATD Verify

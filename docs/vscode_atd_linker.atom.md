@@ -2,10 +2,11 @@
 id: vscode_atd_linker
 type: SPECIFICATION
 status: STABLE
-priority: CORE
+priority: 5
 version: 1.0.0
 parents: [atd_philosophy]
 dependents: []
+layer: CUSTOMER
 ---
 
 # VS Code ATD Linker

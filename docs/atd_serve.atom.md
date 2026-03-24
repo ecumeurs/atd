@@ -4,11 +4,29 @@ human_name: "ATD MCP Server"
 type: SERVICE
 version: 1.0
 status: STABLE
-priority: CORE
+priority: 5
 tags: [atd, cli, mcp, server, json-rpc]
 parents:
   - [[atd_cli]]
-dependents: [[[atd_serve_assemble]], [[atd_serve_audit]], [[atd_serve_crawl]], [[atd_serve_discover]], [[atd_serve_dissect]], [[atd_serve_index]], [[atd_serve_query]], [[atd_serve_recon]], [[atd_serve_roadmap]], [[atd_serve_search]], [[atd_serve_test_links]], [[atd_serve_update]], [[atd_serve_verify]], [[atd_serve_weave]]]], [[atd_serve_audit]], [[atd_serve_crawl]], [[atd_serve_discover]], [[atd_serve_dissect]], [[atd_serve_index]], [[atd_serve_query]], [[atd_serve_recon]], [[atd_serve_roadmap]], [[atd_serve_search]], [[atd_serve_test_links]], [[atd_serve_update]], [[atd_serve_verify]], [[atd_serve_weave]]]
+dependents:
+  - [[atd_serve_assemble]]
+  - [[atd_serve_audit]]
+  - [[atd_serve_check]]
+  - [[atd_serve_config]]
+  - [[atd_serve_crawl]]
+  - [[atd_serve_discover]]
+  - [[atd_serve_dissect]]
+  - [[atd_serve_index]]
+  - [[atd_serve_query]]
+  - [[atd_serve_recon]]
+  - [[atd_serve_roadmap]]
+  - [[atd_serve_search]]
+  - [[atd_serve_stats]]
+  - [[atd_serve_test_links]]
+  - [[atd_serve_update]]
+  - [[atd_serve_verify]]
+  - [[atd_serve_weave]]
+layer: ARCHITECTURE
 ---
 
 # ATD MCP Server
@@ -24,8 +42,8 @@ Expose all ATD operations as MCP (Model Context Protocol) tools over JSON-RPC 2.
 - **Flags**: `atd serve [--http] [--port 7474]`
 - Implements server MCP methods: `initialize`, `notifications/initialized`, `tools/list`, `tools/call`, `ping`
 - Emits client MCP requests: `roots/list` (if client declares `roots` capability during initialization, to locate the `.atd` config accurately)
-- Registered tools (14 as of v1.0):
-  - Deterministic: `atd_query`, `atd_crawl`, `atd_weave`, `atd_update`, `atd_roadmap`, `atd_verify`, `atd_assemble`, `atd_test_links`
+- Registered tools (16 as of v1.0):
+  - Deterministic: `atd_query`, `atd_crawl`, `atd_weave`, `atd_update`, `atd_roadmap`, `atd_verify`, `atd_assemble`, `atd_test_links`, `atd_check`, `atd_config`, `atd_stats`
   - LLM-backed: `atd_dissect`, `atd_index`, `atd_search`, `atd_audit`, `atd_recon`, `atd_discover`
 - LLM tools that print progress use `captureStdout()` redirect to avoid polluting the JSON-RPC stdio channel
 - HTTP transport validates `Origin` header against `localhost` / `127.0.0.1` to prevent DNS rebinding attacks

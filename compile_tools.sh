@@ -15,15 +15,16 @@ mkdir -p "$DEST_DIR"
 
 cd "$SCRIPTS_DIR"
 
-# Compile all Go tools in scripts/
-for tool_dir in atd-*/; do
+# Compile all Go tools in scripts/cmd/
+for tool_dir in cmd/*/; do
     # Remove trailing slash
-    tool_name="${tool_dir%/}"
+    tool_dir="${tool_dir%/}"
+    tool_name=$(basename "$tool_dir")
     
     # Check if a main.go exists in the directory
-    if [ -f "$tool_name/main.go" ]; then
+    if [ -f "$tool_dir/main.go" ]; then
         echo "[Build] Compiling $tool_name..."
-        (cd "$tool_name" && go build -o "$DEST_DIR/$tool_name" . && go build -o "../bin/$tool_name" .)
+        (go build -o "$DEST_DIR/$tool_name" "./$tool_dir" && go build -o "bin/$tool_name" "./$tool_dir")
     fi
 done
 
@@ -46,9 +47,20 @@ cp lib/logging.sh bin/lib/logging.sh
 
 echo "[Copy] Copying .atd configuration to skill folder..."
 cp "$PROJECT_ROOT/.atd" "$PROJECT_ROOT/atd_management_skill/"
+cp bin/atd ~/.local/bin/atd
 
 echo "======================================"
 echo "[Permissions] Adding execute permissions to all tools..."
 chmod +x "$DEST_DIR"/atd-*
+chmod +x ~/.local/bin/atd
 
 echo "[Done] All tools compiled and installed to: $DEST_DIR"
+echo "[Done] atd binary installed to: ~/.local/bin/atd"
+
+echo "======================================"
+echo "Installing extensions..."
+
+cp -r ../extension ~/.vscode/extensions/local-dev.atd-linker
+cp -r ../extension ~/.antigravity/extensions/local-dev.atd-linker
+
+echo "[Done] All extensions installed to: ~/.vscode/extensions/local-dev.atd-linker and ~/.antigravity/extensions/local-dev.atd-linker"

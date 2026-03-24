@@ -4,10 +4,11 @@ human_name: "ATD Philosophy"
 type: DOMAIN
 version: 1.0
 status: STABLE
-priority: CORE
+priority: 5
 tags: [atd, philosophy, methodology]
 parents: []
-dependents: [[[atd_cli]]]]]]]]]
+dependents: [[[atd_cli]], [[atd_structure]], [[atd_usage_protocol]], [[vscode_atd_linker]], [[atd_structure]], [[atd_usage_protocol]], [[vscode_atd_linker]], [[atd_structure]], [[atd_usage_protocol]], [[vscode_atd_linker]]]
+layer: CUSTOMER
 ---
 
 # ATD Philosophy
@@ -20,9 +21,9 @@ ATD operates on five core principles:
 
 1. **Minimum Atomic Scale**: Each atom describes exactly ONE state-changing rule. If an atom contains compound rules (e.g., "validates input AND applies transformation"), it must be split into separate atoms.
 
-2. **Bidirectional Traceability**: Every atom links to its code via `@spec-link [[atom_id]]` tags embedded in source files, and every code module links back to its governing atom. This creates a verifiable chain from requirement → implementation → test.
+2. **Bidirectional Traceability**: Every atom links to its code via `@spec-link [[atom_id]]` tags and to tests via `@test-link [[atom_id]]` tags embedded in source files. This creates a verifiable chain from Customer requirement → Architecture → Implementation → Test.
 
-3. **Fact-First Documentation**: The code is the ultimate source of truth. ATD atoms are extracted FROM implementations, not imposed on them. Domain-level documentation (READMEs, design docs) acts as a semantic overlay enriching the mechanical graph.
+3. **Doc-Code Co-evolution**: During cold-start (bootstrapping an undocumented codebase), atoms are extracted FROM existing implementations — the code is the initial source of truth. Once the initial ATD base is established, documentation and code evolve together: new features begin as DRAFT atoms (requirements, specs, design) before implementation, and implementation feeds back into atom refinement. Neither side is subordinate; they are kept in sync through the verification loop.
 
 4. **LLM-Assisted, Human-Governed**: Local and remote LLMs handle bulk extraction, classification, and auditing tasks. The IDE Agent handles high-intelligence tasks (generation, reconciliation). Humans govern the final architecture.
 

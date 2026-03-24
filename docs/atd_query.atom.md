@@ -4,11 +4,12 @@ human_name: "ATD Query"
 type: SERVICE
 version: 1.0
 status: DRAFT
-priority: CORE
+priority: 5
 tags: [atd, cli, query, frontmatter]
 parents:
   - [[atd_cli]]
 dependents: []
+layer: IMPLEMENTATION
 ---
 
 # ATD Query

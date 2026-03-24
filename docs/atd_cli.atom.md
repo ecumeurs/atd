@@ -4,11 +4,34 @@ human_name: "ATD CLI Tool"
 type: MODULE
 version: 1.0
 status: DRAFT
-priority: CORE
+priority: 5
 tags: [atd, cli, unified]
 parents:
   - [[atd_philosophy]]
-dependents: [[[atd_assemble]], [[atd_audit]], [[atd_config]], [[atd_congruence]], [[atd_continue]], [[atd_crawl]], [[atd_discover]], [[atd_dissect]], [[atd_generate]], [[atd_index]], [[atd_init]], [[atd_query]], [[atd_recon]], [[atd_reconcile]], [[atd_roadmap]], [[atd_serve]], [[atd_test_links]], [[atd_update]], [[atd_verify]], [[atd_weave]]]], [[atd_audit]], [[atd_config]], [[atd_congruence]], [[atd_continue]], [[atd_crawl]], [[atd_discover]], [[atd_dissect]], [[atd_generate]], [[atd_index]], [[atd_init]], [[atd_query]], [[atd_recon]], [[atd_reconcile]], [[atd_roadmap]], [[atd_serve]], [[atd_test_links]], [[atd_update]], [[atd_verify]], [[atd_weave]]]], [[atd_audit]], [[atd_config]], [[atd_congruence]], [[atd_continue]], [[atd_crawl]], [[atd_discover]], [[atd_dissect]], [[atd_generate]], [[atd_index]], [[atd_init]], [[atd_query]], [[atd_recon]], [[atd_reconcile]], [[atd_roadmap]], [[atd_serve]], [[atd_test_links]], [[atd_update]], [[atd_verify]], [[atd_weave]]]], [[atd_audit]], [[atd_config]], [[atd_congruence]], [[atd_continue]], [[atd_crawl]], [[atd_discover]], [[atd_dissect]], [[atd_generate]], [[atd_index]], [[atd_init]], [[atd_query]], [[atd_recon]], [[atd_reconcile]], [[atd_roadmap]], [[atd_serve]], [[atd_test_links]], [[atd_update]], [[atd_verify]], [[atd_weave]]]
+dependents:
+  - [[atd_assemble]]
+  - [[atd_audit]]
+  - [[atd_check]]
+  - [[atd_config]]
+  - [[atd_congruence]]
+  - [[atd_continue]]
+  - [[atd_crawl]]
+  - [[atd_discover]]
+  - [[atd_dissect]]
+  - [[atd_generate]]
+  - [[atd_index]]
+  - [[atd_init]]
+  - [[atd_query]]
+  - [[atd_recon]]
+  - [[atd_reconcile]]
+  - [[atd_roadmap]]
+  - [[atd_serve]]
+  - [[atd_stats]]
+  - [[atd_test_links]]
+  - [[atd_update]]
+  - [[atd_verify]]
+  - [[atd_weave]]
+layer: ARCHITECTURE
 ---
 
 # ATD CLI Tool

@@ -83,6 +83,17 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
+| [MCP Tools Review and Parameter Cleanup](issues/ISS-045_20260324_mcp_tools_refactor_and_cleanup.md) | 2026-03-24 | Open | Medium | The current MCP tools expose internal implementation details (like file paths... |
+| [ATD Verify Tool is Hardcoded to Go Testing](issues/ISS-044_20260324_verify_go_dependency.md) | 2026-03-24 | Open | High | The `atd verify` tool currently has a hard dependency on Go, specifically exe... |
+| [WebUI Specification](issues/ISS-041_20260324_webui_specification.md) | 2026-03-24 | Open | Medium | The WebUI currently exists only as the kernel of an idea — basic rendering wi... |
+| [Crawl Summary and Mermaid Graph Export](issues/ISS-040_20260324_crawl_summary_mermaid.md) | 2026-03-24 | Open | Medium | The dependency graph from `atd crawl` is a raw JSON blob. There is no human-r... |
+| [Reconcile Tool via MCP](issues/ISS-039_20260324_reconcile_mcp.md) | 2026-03-24 | Open | Medium | When new external requirements arrive that semantically overlap with existing... |
+| [Type-Specific Atom Templates](issues/ISS-038_20260324_type_specific_templates.md) | 2026-03-24 | Open | Medium | All atoms use the same generic template regardless of type. `API` atoms would... |
+| [Cross-Project Atom Sharing with Destination Selection](issues/ISS-035_20260324_cross_project_sharing.md) | 2026-03-24 | Open | Low | ATD is currently single-project. There is no mechanism for sharing atoms betw... |
+| [Change History Sidecar per Atom](issues/ISS-034_20260324_changelog_sidecar.md) | 2026-03-24 | Open | Medium | Atoms have a `version` field but no change log. When an atom is modified, the... |
+| [Atom Deprecation and Archival Statuses](issues/ISS-033_20260324_atom_deprecation_archival.md) | 2026-03-24 | Open | Medium | There is no `DEPRECATED` or `ARCHIVED` status for atoms. When a feature is re... |
+| [Cold-Start and Full Audit via MCP](issues/ISS-031_20260324_cold_start_mcp.md) | 2026-03-24 | Open | High | The cold-start pipeline (`roadmap` → `index` → `dissect` → `weave` → `discove... |
+| [Implement `map-impact` sub-mode for `atd crawl`](issues/ISS-030_20260323_crawl_map_impact_submode.md) | 2026-03-23 | Open | Medium | The `atd_map_impact` tool is mentioned in the `ATD.md` rules as a "Ripple che... |
 | [VSCode Extension for Atomic Link Following](issues/ISS-029_20260319_vscode_atomic_link.md) | 2026-03-19 | Open | Medium | Currently, developers using the ATD system in VS Code cannot easily navigate ... |
 | [Insufficient Dissection Granularity for Complex Files](issues/ISS-027_20260314_atd_dissect_quality.md) | 2026-03-14 | Open | Medium | The `atd dissect` tool fails to identify a sufficient number of atomic bounda... |
 | [Low ATD Content Verbosity](issues/ISS-026_20260314_atd_low_verbosity.md) | 2026-03-14 | Open | Low | Atoms generated during the initial creation phase (Task 03) are often sparse,... |

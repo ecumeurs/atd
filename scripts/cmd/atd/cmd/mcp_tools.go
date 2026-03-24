@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -101,7 +102,7 @@ func RegisterMCPTools(r *mcp.Registry) {
 		Name:        "atd_weave",
 		Description: "Populate the dependents[] array in ATD atoms by scanning parents references. Bi-directional link weaving.",
 		InputSchema: map[string]any{
-			"type": "object",
+			"type":       "object",
 			"properties": map[string]any{},
 		},
 	}, func(args map[string]any) (string, error) {
@@ -110,23 +111,24 @@ func RegisterMCPTools(r *mcp.Registry) {
 
 	r.Register(mcp.Tool{
 		Name:        "atd_update",
-		Description: "Surgically update fields in an ATD atom file without rewriting it. Pass set as 'key=value' pairs.",
+		Description: "Surgically update fields in an ATD atom file without rewriting it. Pass set as 'key=value' pairs. File and filter are mutually exclusive.",
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"file":      map[string]any{"type": "string", "description": "Absolute or relative path to the .atom.md file."},
-				"set":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Frontmatter edits as 'key=value' strings, e.g. [\"status=STABLE\",\"priority=CORE\"]."},
-				"intent":    map[string]any{"type": "string", "description": "New INTENT section text."},
-				"logic":     map[string]any{"type": "string", "description": "New THE RULE / LOGIC section text."},
-				"interface": map[string]any{"type": "string", "description": "New TECHNICAL INTERFACE section text."},
-				"expectation": map[string]any{"type": "string", "description": "New EXPECTATION section text."},
-				"spec_link": map[string]any{"type": "string", "description": "Atom ID to prepend as @spec-link in a source file (requires spec_link_file)."},
+				"file":           map[string]any{"type": "string", "description": "Absolute or relative path to the .atom.md file. Optional if filter is provided."},
+				"filter":         map[string]any{"type": "string", "description": "Filter atoms to update instead of a single file (e.g. 'status=DRAFT,type=RULE'). Optional if file is provided."},
+				"set":            map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Frontmatter edits as 'key=value' strings, e.g. [\"status=STABLE\",\"priority=CORE\"]."},
+				"intent":         map[string]any{"type": "string", "description": "New INTENT section text."},
+				"logic":          map[string]any{"type": "string", "description": "New THE RULE / LOGIC section text."},
+				"interface":      map[string]any{"type": "string", "description": "New TECHNICAL INTERFACE section text."},
+				"expectation":    map[string]any{"type": "string", "description": "New EXPECTATION section text."},
+				"spec_link":      map[string]any{"type": "string", "description": "Atom ID to prepend as @spec-link in a source file (requires spec_link_file)."},
 				"spec_link_file": map[string]any{"type": "string", "description": "Source file path for --spec-link injection."},
 			},
-			"required": []string{"file"},
 		},
 	}, func(args map[string]any) (string, error) {
 		file := argString(args, "file", "")
+		filter := argString(args, "filter", "")
 		intent := argString(args, "intent", "")
 		logic := argString(args, "logic", "")
 		iface := argString(args, "interface", "")
@@ -143,6 +145,17 @@ func RegisterMCPTools(r *mcp.Registry) {
 					}
 				}
 			}
+		}
+
+		if filter != "" {
+			if file != "" {
+				return "", fmt.Errorf("cannot use both 'file' and 'filter'")
+			}
+			return runBatchUpdate(filter, setPairs, intent, logic, iface, expectation, specLink, specFile)
+		}
+
+		if file == "" {
+			return "", fmt.Errorf("either 'file' or 'filter' is required")
 		}
 
 		return runUpdate(file, setPairs, intent, logic, iface, expectation, specLink, specFile)
@@ -165,11 +178,28 @@ func RegisterMCPTools(r *mcp.Registry) {
 		return runRoadmap(dir, out)
 	})
 
+	// @spec-link [[atd_serve_stats]]
+	r.Register(mcp.Tool{
+		Name:        "atd_stats",
+		Description: "Produce quantitative documentation health metrics: total atoms, atoms by type, status, domain, coverage ratio, and orphan count.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"src":  map[string]any{"type": "string", "description": "Path to source code directory (optional)."},
+				"docs": map[string]any{"type": "string", "description": "Override docs directory path."},
+			},
+		},
+	}, func(args map[string]any) (string, error) {
+		src := argString(args, "src", ".")
+		docs := argString(args, "docs", config.DocsDir())
+		return runStats(src, docs)
+	})
+
 	r.Register(mcp.Tool{
 		Name:        "atd_verify",
 		Description: "Run git diff, extract @spec-link tags, and produce an audit prompt for the IDE Agent.",
 		InputSchema: map[string]any{
-			"type": "object",
+			"type":       "object",
 			"properties": map[string]any{},
 		},
 	}, func(args map[string]any) (string, error) {
@@ -265,11 +295,11 @@ func RegisterMCPTools(r *mcp.Registry) {
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"query":  map[string]any{"type": "string", "description": "Semantic search query (uses Nomic embeddings)."},
-				"grep":   map[string]any{"type": "string", "description": "Literal keyword search across project files."},
-				"db":     map[string]any{"type": "string", "description": "Path to SQLite index database."},
-				"limit":  map[string]any{"type": "integer", "description": "Number of semantic results to return. Defaults to 5."},
-				"scope":  map[string]any{"type": "string", "description": "Search scope: 'code', 'docs', or 'all'. Defaults to 'all'."},
+				"query": map[string]any{"type": "string", "description": "Semantic search query (uses Nomic embeddings)."},
+				"grep":  map[string]any{"type": "string", "description": "Literal keyword search across project files."},
+				"db":    map[string]any{"type": "string", "description": "Path to SQLite index database."},
+				"limit": map[string]any{"type": "integer", "description": "Number of semantic results to return. Defaults to 5."},
+				"scope": map[string]any{"type": "string", "description": "Search scope: 'code', 'docs', or 'all'. Defaults to 'all'."},
 			},
 		},
 	}, func(args map[string]any) (string, error) {
@@ -371,5 +401,61 @@ func RegisterMCPTools(r *mcp.Registry) {
 			fmt.Println(out)
 			return nil
 		})
+	})
+
+	r.Register(mcp.Tool{
+		Name:        "atd_check",
+		Description: "Check ATD configuration and model availability across all providers.",
+		InputSchema: map[string]any{
+			"type":       "object",
+			"properties": map[string]any{},
+		},
+	}, func(args map[string]any) (string, error) {
+		return runCheck()
+	})
+
+	r.Register(mcp.Tool{
+		Name:        "atd_config",
+		Description: "View or modify .atd configuration. Use 'list':true for full config, or 'bloating_factor' to get bloating factor.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"task":            map[string]any{"type": "string", "description": "Task name to update (optional)."},
+				"model":           map[string]any{"type": "string", "description": "Model name to assign to the task (required with task)."},
+				"list":            map[string]any{"type": "boolean", "description": "List current config as JSON."},
+				"bloating_factor": map[string]any{"type": "string", "description": "Atom type to get bloating factor for (e.g. 'REQUIREMENT')."},
+			},
+		},
+	}, func(args map[string]any) (string, error) {
+		list := argBool(args, "list")
+		if list {
+			out, _ := json.MarshalIndent(config.ActiveConfig, "", "  ")
+			return string(out), nil
+		}
+		atomType := argString(args, "bloating_factor", "")
+		if atomType != "" {
+			return runConfigGetBloating(atomType)
+		}
+		task := argString(args, "task", "")
+		model := argString(args, "model", "")
+		if task != "" && model != "" {
+			return runConfigUpdate(task, model)
+		}
+		return "", fmt.Errorf("must provide 'list':true, 'bloating_factor', or both 'task' and 'model'")
+	})
+
+	// @spec-link [[atd_serve_lint]]
+	r.Register(mcp.Tool{
+		Name:        "atd_lint",
+		Description: "Perform deterministic structural validation on ATD atoms.",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"docs": map[string]any{"type": "string", "description": "Override docs directory path. Defaults to configured docs path."},
+			},
+		},
+	}, func(args map[string]any) (string, error) {
+		docs := argString(args, "docs", config.DocsDir())
+		return runLint(docs)
 	})
 }

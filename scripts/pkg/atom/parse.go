@@ -14,12 +14,15 @@ type AtomData struct {
 	Type       string
 	Status     string
 	Priority   string
+	Layer      string
 	Tags       []string
+	Version    string
 	Parents    []string
 	Dependents []string
 	Intent     string // Content of ## INTENT section
 	Logic      string // Content of ## THE RULE / LOGIC section
 	Interface  string // Content of ## TECHNICAL INTERFACE section
+	Expectation string // Content of ## EXPECTATION section
 	FilePath   string // Original file path
 }
 
@@ -60,6 +63,16 @@ func Parse(path string) (AtomData, error) {
 			}
 			if strings.HasPrefix(line, "type:") {
 				data.Type = strings.TrimSpace(strings.TrimPrefix(line, "type:"))
+				inParents = false
+				continue
+			}
+			if strings.HasPrefix(line, "layer:") {
+				data.Layer = strings.TrimSpace(strings.TrimPrefix(line, "layer:"))
+				inParents = false
+				continue
+			}
+			if strings.HasPrefix(line, "version:") {
+				data.Version = strings.TrimSpace(strings.TrimPrefix(line, "version:"))
 				inParents = false
 				continue
 			}
@@ -123,7 +136,7 @@ func Parse(path string) (AtomData, error) {
 		}
 
 		// Section parsing
-		if mode == "sections" || mode == "intent" || mode == "logic" || mode == "interface" {
+		if mode == "sections" || mode == "intent" || mode == "logic" || mode == "interface" || mode == "expectation" {
 			if strings.HasPrefix(line, "## INTENT") {
 				mode = "intent"
 				continue
@@ -134,6 +147,10 @@ func Parse(path string) (AtomData, error) {
 			}
 			if strings.HasPrefix(line, "## TECHNICAL INTERFACE") {
 				mode = "interface"
+				continue
+			}
+			if strings.HasPrefix(line, "## EXPECTATION") {
+				mode = "expectation"
 				continue
 			}
 			if strings.HasPrefix(line, "##") {
@@ -148,12 +165,15 @@ func Parse(path string) (AtomData, error) {
 				data.Logic += line + "\n"
 			case "interface":
 				data.Interface += line + "\n"
+			case "expectation":
+				data.Expectation += line + "\n"
 			}
 		}
 	}
 	data.Intent = strings.TrimSpace(data.Intent)
 	data.Logic = strings.TrimSpace(data.Logic)
 	data.Interface = strings.TrimSpace(data.Interface)
+	data.Expectation = strings.TrimSpace(data.Expectation)
 
 	return data, scanner.Err()
 }
@@ -198,7 +218,8 @@ func BuildContent(a AtomData) string {
 id: %s
 human_name: %s
 type: %s
-version: 1.0
+layer: %s
+version: %s
 status: %s
 priority: %s
 tags: []
@@ -216,7 +237,10 @@ dependents: []
 
 ## TECHNICAL INTERFACE (The Bridge)
 - **Code Tag:** `+"`"+`@spec-link [[%s]]`+"`"+`
-`, a.ID, a.HumanName, a.Type, a.Status, a.Priority, strings.TrimRight(parentsStr.String(), "\n"), a.HumanName, a.Intent, a.Logic, a.ID)
+
+## EXPECTATION
+%s
+`, a.ID, a.HumanName, a.Type, a.Layer, a.Version, a.Status, a.Priority, strings.TrimRight(parentsStr.String(), "\n"), a.HumanName, a.Intent, a.Logic, a.ID, a.Expectation)
 }
 
 // BuildParentContent generates a MODULE parent .atom.md.

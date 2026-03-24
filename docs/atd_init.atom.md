@@ -4,11 +4,12 @@ human_name: "ATD Init Command"
 type: MECHANIC
 version: 1.0
 status: STABLE
-priority: CORE
+priority: 5
 tags: [atd, cli, init, bootstrap]
 parents:
   - [[atd_cli]]
 dependents: []
+layer: CUSTOMER
 ---
 
 # ATD Init Command

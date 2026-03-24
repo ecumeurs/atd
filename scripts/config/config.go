@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 )
 
@@ -24,7 +25,8 @@ type LLMProvider struct {
 }
 
 type ModelConfig struct {
-	Tasks []string `json:"tasks"`
+	Tasks    []string `json:"tasks"`
+	Priority int      `json:"priority,omitempty"`
 }
 
 type LLMConfig struct {
@@ -169,21 +171,40 @@ func DocsDir() string {
 	return p
 }
 
-// ModelForTask returns the model name assigned to a given task type.
+// ModelForTask returns the model names assigned to a given task type,
+// sorted by priority (if provided).
 // Falls back to FallbackModel, then to the legacy "model" field, then "llama3.2".
-func ModelForTask(taskType string) string {
+func ModelForTask(taskType string) []string {
+	type candidate struct {
+		name     string
+		priority int
+	}
+	var candidates []candidate
+
 	for modelName, mc := range ActiveConfig.LLM.Models {
 		for _, t := range mc.Tasks {
 			if t == taskType {
-				return modelName
+				candidates = append(candidates, candidate{modelName, mc.Priority})
 			}
 		}
 	}
+
+	if len(candidates) > 0 {
+		sort.Slice(candidates, func(i, j int) bool {
+			return candidates[i].priority > candidates[j].priority
+		})
+		var names []string
+		for _, c := range candidates {
+			names = append(names, c.name)
+		}
+		return names
+	}
+
+	fallback := "llama3.2"
 	if ActiveConfig.LLM.FallbackModel != "" {
-		return ActiveConfig.LLM.FallbackModel
+		fallback = ActiveConfig.LLM.FallbackModel
+	} else if ActiveConfig.Model != "" {
+		fallback = ActiveConfig.Model
 	}
-	if ActiveConfig.Model != "" {
-		return ActiveConfig.Model
-	}
-	return "llama3.2"
+	return []string{fallback}
 }
