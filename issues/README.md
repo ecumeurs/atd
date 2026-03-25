@@ -2,8 +2,8 @@
 
 ## Index
 
-| Ref | File | Severity | Status | Summary |
-|---|---|---|---|---|
+| ISS-050 | [ISS-050_20260325_mcp_protocol_unification.md](ISS-050_20260325_mcp_protocol_unification.md) | High | Open | Unified Cold-Start and Audit Protocol as MCP Tools |
+| ISS-049 | [ISS-049_20260325_audit_trace_integration.md](ISS-049_20260325_audit_trace_integration.md) | Medium | Open | Audit Should Request Trace for Coverage Detection |
 | ISS-048 | [ISS-048_20260325_atd_graph_visualization_improvements.md](ISS-048_20260325_atd_graph_visualization_improvements.md) | Medium | Open | ATD graph visualization improvements (legend, hover, click to center, depth). |
 | ISS-047 | [ISS-047_20260325_trace_proof_test_case.md](ISS-047_20260325_trace_proof_test_case.md) | Medium | Open | Proof Test Trace with complex graph and health violations. |
 | ISS-045 | [ISS-045_20260324_mcp_tools_refactor_and_cleanup.md](ISS-045_20260324_mcp_tools_refactor_and_cleanup.md) | Medium | Open | MCP Tools Review and Parameter Cleanup |

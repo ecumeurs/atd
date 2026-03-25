@@ -83,6 +83,8 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
+| [Unified Cold-Start and Audit Protocol as MCP Tools](issues/ISS-050_20260325_mcp_protocol_unification.md) | 2026-03-25 | Open | High | The full cold-start and auditing protocols should be exposed as first-class MCP tools. |
+| [Audit Should Request Trace for Coverage Detection](issues/ISS-049_20260325_audit_trace_integration.md) | 2026-03-25 | Open | Medium | Audit should suggest/trigger trace to detect missing doc/impl/test coverage. |
 | [Proof Test Trace with Complex Graph](issues/ISS-047_20260325_trace_proof_test_case.md) | 2026-03-25 | Open | Medium | Proof Test Trace with complex graph and health violations. |
 | [ATD Graph Visualization Improvements](issues/ISS-048_20260325_atd_graph_visualization_improvements.md) | 2026-03-25 | Open | Medium | The current ATD graph visualization in the VS Code extension (`atd.showFullGr... |
 | [Weave Regex Corrupts Dependents Field](issues/ISS-046_20260324_weave_dependents_corruption.md) | 2026-03-24 | Open | Critical | The `atd weave` command corrupts the `dependents` YAML field on every run, pr... |
