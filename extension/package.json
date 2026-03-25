@@ -9,5 +9,33 @@
     "activationEvents": [
         "workspaceContains:.atd"
     ],
-    "main": "./extension.js"
+    "main": "./extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "atd.showFullGraph",
+                "title": "ATD: Show Full System Graph",
+                "category": "ATD"
+            }
+        ],
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "atd-explorer",
+                    "title": "ATD",
+                    "icon": "$(type-hierarchy)"
+                }
+            ]
+        },
+        "views": {
+            "atd-explorer": [
+                {
+                    "id": "atdGraphExplorer",
+                    "name": "ATD Graph Explorer",
+                    "type": "tree",
+                    "icon": "type-hierarchy"
+                }
+            ]
+        }
+    }
 }

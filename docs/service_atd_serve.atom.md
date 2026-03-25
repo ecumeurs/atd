@@ -9,23 +9,9 @@ tags: [atd, cli, mcp, server, json-rpc]
 parents:
   - [[module_atd_cli]]
 dependents:
-  - [[api_atd_serve_assemble]]
-  - [[api_atd_serve_audit]]
+  - [[api_atd_mcp_ops]]
   - [[service_atd_serve_check]]
   - [[service_atd_serve_config]]
-  - [[api_atd_serve_crawl]]
-  - [[api_atd_serve_discover]]
-  - [[api_atd_serve_dissect]]
-  - [[api_atd_serve_index]]
-  - [[api_atd_serve_query]]
-  - [[api_atd_serve_recon]]
-  - [[api_atd_serve_roadmap]]
-  - [[api_atd_serve_search]]
-  - [[api_atd_serve_stats]]
-  - [[api_atd_serve_test_links]]
-  - [[api_atd_serve_update]]
-  - [[api_atd_serve_verify]]
-  - [[api_atd_serve_weave]]
 layer: ARCHITECTURE
 ---
 

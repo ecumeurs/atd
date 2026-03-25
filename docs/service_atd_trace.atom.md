@@ -6,7 +6,7 @@ layer: IMPLEMENTATION
 priority: 3
 parents: [[api_atd_mcp_ops]]
 version: 1.0
-dependents: []
+dependents: [[[atd_health_snapshot_schema]]]
 human_name: ATD Trace Command
 ---
 

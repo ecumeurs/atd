@@ -42,207 +42,348 @@ function activate(context) {
         }
     };
 
-    // Initial load
     loadConfig();
 
-    // 2. Watch the .atd file so we reload if the config changes
-    const watcher = vscode.workspace.createFileSystemWatcher(
-        new vscode.RelativePattern(workspaceRoot, '.atd')
-    );
+    const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(workspaceRoot, '.atd'));
     watcher.onDidChange(loadConfig);
     watcher.onDidCreate(loadConfig);
 
-    // Common helper to get the target file URI
     const getTargetUri = (ATDId) => {
         const targetPath = path.join(workspaceRoot, docsPath, `${ATDId}.atom.md`);
         return vscode.Uri.file(targetPath);
     };
 
-    // 3. The Link Provider (Ctrl + Click)
+    // Helper to read and parse an atom file lightly
+    const parseAtomMetadata = (atomId) => {
+        try {
+            const uri = getTargetUri(atomId);
+            if (!fs.existsSync(uri.fsPath)) return null;
+            const content = fs.readFileSync(uri.fsPath, 'utf8');
+
+            const layerMatch = content.match(/^layer:\s*(.+)$/m);
+            const statusMatch = content.match(/^status:\s*(.+)$/m);
+            const priorityMatch = content.match(/^priority:\s*(.+)$/m);
+            const intentMatch = content.match(/## INTENT\n([^#]+)/);
+
+            const getLinks = (section) => {
+                const sectionRegex = new RegExp(`${section}:\\s*\\n(?:\\s*-\\s*\\[\\[([a-zA-Z0-9_-]+)\\]\\]\\n?)*`, 'm');
+                const match = content.match(sectionRegex);
+                if (!match) return [];
+                return [...match[0].matchAll(/\[\[([a-zA-Z0-9_-]+)\]\]/g)].map(m => m[1]);
+            };
+
+            return {
+                layer: layerMatch ? layerMatch[1].trim() : 'UNKNOWN',
+                status: statusMatch ? statusMatch[1].trim() : 'UNKNOWN',
+                priority: priorityMatch ? priorityMatch[1].trim() : '?',
+                intent: intentMatch ? intentMatch[1].trim() : 'No intent documented.',
+                parents: getLinks('parents'),
+                dependents: getLinks('dependents')
+            };
+        } catch (e) {
+            return null;
+        }
+    };
+
+    // 2. Link & Definition Providers
     const linkProvider = vscode.languages.registerDocumentLinkProvider('*', {
         provideDocumentLinks(document) {
             const text = document.getText();
             const links = [];
             const regex = /\[\[([^\]]+)\]\]/g;
             let match;
-
             while ((match = regex.exec(text))) {
                 const ATDId = match[1];
                 const startPos = document.positionAt(match.index);
                 const endPos = document.positionAt(match.index + match[0].length);
-                const range = new vscode.Range(startPos, endPos);
-                links.push(new vscode.DocumentLink(range, getTargetUri(ATDId)));
+                links.push(new vscode.DocumentLink(new vscode.Range(startPos, endPos), getTargetUri(ATDId)));
             }
-
             return links;
         }
     });
 
-    // 4. The Definition Provider (Peek / Go to Definition)
     const definitionProvider = vscode.languages.registerDefinitionProvider('*', {
         provideDefinition(document, position) {
             const wordRange = document.getWordRangeAtPosition(position, /\[\[[^\]]+\]\]/);
             if (!wordRange) return null;
-
-            const text = document.getText(wordRange);
-            const ATDId = text.replace('[[', '').replace(']]', '');
-
-            return new vscode.Location(
-                getTargetUri(ATDId),
-                new vscode.Position(0, 0)
-            );
+            const ATDId = document.getText(wordRange).replace('[[', '').replace(']]', '');
+            return new vscode.Location(getTargetUri(ATDId), new vscode.Position(0, 0));
         }
     });
 
-    // 5. Shared CodeLens Emitter to force UI refresh
+    // 3. Header CodeLens Provider (Markdown files)
     const lensEmitter = new vscode.EventEmitter();
-    context.subscriptions.push(lensEmitter);
-
-
-    // 6. The ATD Health CodeLens Provider
     const codeLensProvider = vscode.languages.registerCodeLensProvider({ scheme: 'file', language: 'markdown' }, {
         onDidChangeCodeLenses: lensEmitter.event,
-        async provideCodeLenses(document, token) {
-            outputChannel.appendLine(`[ATD Linker] Markdown Lens Provider checking file: ${document.fileName}`);
-            // Only run on .atom.md files
-            if (!document.fileName.endsWith('.atom.md')) {
-                return [];
-            }
-
-            outputChannel.appendLine(`[ATD Linker] Generating lenses for atom: ${document.fileName}`);
-            // Read the first 20 lines to find the ID in the frontmatter
+        async provideCodeLenses(document) {
+            if (!document.fileName.endsWith('.atom.md')) return [];
             const text = document.getText(new vscode.Range(0, 0, 20, 0));
             const idMatch = text.match(/^id:\s*([a-zA-Z0-9_-]+)/m);
-
             if (!idMatch) return [];
 
             const atomId = idMatch[1];
-            const topOfFile = new vscode.Range(0, 0, 0, 0);
-
             try {
-                // Execute the CLI command in the workspace directory
                 const { stdout } = await execAsync(`atd trace ${atomId}`, { cwd: workspaceRoot });
                 const traceData = JSON.parse(stdout);
-
-                // Format the metrics
-                const ancestryIcon = traceData.health_summary.ancestry_complete ? '✅' : '⚠️';
-                const originText = traceData.health_summary.has_customer_origin ? 'Cust' : 'No Cust';
 
                 const implPercent = Math.round(traceData.health_summary.implementation_rate * 100);
                 const testPercent = Math.round(traceData.health_summary.test_coverage_rate * 100);
                 const warningCount = traceData.warnings ? traceData.warnings.length : 0;
-                const warningText = warningCount > 0 ? ` | ⚠️ ${warningCount} Warn` : '';
 
-                const title = `${ancestryIcon} Ancestry: ${originText} | ⚙️ Impl: ${implPercent}% (${traceData.metrics.implemented_dependents}/${traceData.metrics.total_dependents}) | 🧪 Tests: ${testPercent}%${warningText}`;
-
-                // Return the CodeLens attached to the top of the file
-                const lens = new vscode.CodeLens(topOfFile, {
-                    title: title,
+                return [new vscode.CodeLens(new vscode.Range(0, 0, 0, 0), {
+                    title: `✅ Ancestry | ⚙️ Impl: ${implPercent}% | 🧪 Tests: ${testPercent}% ${warningCount > 0 ? `| ⚠️ ${warningCount}` : ''}`,
                     command: 'atd.showDetails',
                     arguments: [traceData]
-                });
-
-                return [lens];
-            } catch (error) {
-                outputChannel.appendLine(`[ATD Linker ERROR] Trace failed for ${atomId}: ${error}`);
-                return [new vscode.CodeLens(topOfFile, {
-                    title: `⚠️ ATD: Trace Failed for ${atomId}`,
-                    command: "atd.showDetails",
-                    arguments: [{ target_id: atomId, warnings: ["CLI execution failed.", "Is the 'atd' binary compiled and in your system PATH?", String(error)] }]
                 })];
-            }
-        }
-    });
-
-    // 6. Command to handle CodeLens clicks
-    const showDetailsCommand = vscode.commands.registerCommand('atd.showDetails', (traceData) => {
-        if (traceData.warnings && traceData.warnings.length > 0) {
-            const warningMsg = traceData.warnings.join(' \n• ');
-            vscode.window.showWarningMessage(`ATD Warnings for ${traceData.target_id}:\n• ${warningMsg}`, { modal: true });
-        } else {
-            vscode.window.showInformationMessage(`ATD Branch Health for ${traceData.target_id} is looking great!`);
-        }
-    });
-
-    // 8. The Implementation CodeLens Provider (Above @spec-link in source code)
-    const implCodeLensProvider = vscode.languages.registerCodeLensProvider({ scheme: 'file' }, {
-        onDidChangeCodeLenses: lensEmitter.event,
-        async provideCodeLenses(document, token) {
-            // Skip markdown files to avoid overlapping with our Header Lens
-            if (document.fileName.endsWith('.atom.md') || document.fileName.endsWith('.md')) {
+            } catch (e) {
                 return [];
             }
-            outputChannel.appendLine(`[ATD Linker] Source Code Lens Provider running on: ${document.fileName}`);
-
-            const text = document.getText();
-            const regex = /@spec-link\s+\[\[([a-zA-Z0-9_-]+)\]\]/g;
-            let match;
-
-            // 1. Collect all matches in the file
-            const matches = [];
-            while ((match = regex.exec(text))) {
-                matches.push({
-                    id: match[1],
-                    // Get the line number where the tag was found
-                    line: document.positionAt(match.index).line
-                });
-            }
-
-            if (matches.length === 0) return [];
-
-            // 2. Fetch trace data for all found IDs concurrently
-            const tracePromises = matches.map(async (m) => {
-                const range = new vscode.Range(m.line, 0, m.line, 0);
-
-                try {
-                    const { stdout } = await execAsync(`atd trace ${m.id}`, { cwd: workspaceRoot });
-                    const traceData = JSON.parse(stdout);
-
-                    // Format the inline UI based on the trace.go output
-                    const layer = traceData.layer || 'UNKNOWN';
-                    const implPercent = Math.round(traceData.health_summary.implementation_rate * 100);
-                    const testPercent = Math.round(traceData.health_summary.test_coverage_rate * 100);
-                    const warnCount = traceData.warnings ? traceData.warnings.length : 0;
-
-                    let title = `ATD [${layer}] | Impl: ${implPercent}% | Tests: ${testPercent}%`;
-                    if (warnCount > 0) title += ` | ⚠️ ${warnCount} Warn`;
-
-                    return new vscode.CodeLens(range, {
-                        title: title,
-                        command: 'atd.showDetails', // Reuse the same click command!
-                        arguments: [traceData]
-                    });
-                } catch (err) {
-                    outputChannel.appendLine(`[ATD Linker ERROR] Source trace failed for ${m.id}: ${err}`);
-                    return new vscode.CodeLens(range, {
-                        title: `⚠️ ATD: Trace Failed for ${m.id}`,
-                        command: "atd.showDetails",
-                        arguments: [{ target_id: m.id, warnings: ["CLI execution failed.", "Is the 'atd' binary compiled and in your system PATH?", String(err)] }]
-                    });
-                }
-            });
-
-            // 3. Wait for all CLI calls to finish and return the lenses
-            const resolvedLenses = await Promise.all(tracePromises);
-            return resolvedLenses;
         }
     });
 
-    // Register all providers and commands
-    context.subscriptions.push(
-        watcher,
-        codeLensProvider,
-        implCodeLensProvider,
-        linkProvider,
-        definitionProvider,
-        showDetailsCommand
-    );
+    const showDetailsCommand = vscode.commands.registerCommand('atd.showDetails', (traceData) => {
+        if (traceData.warnings && traceData.warnings.length > 0) {
+            vscode.window.showWarningMessage(`Warnings for ${traceData.target_id}:\n• ${traceData.warnings.join('\n• ')}`, { modal: true });
+        } else {
+            vscode.window.showInformationMessage(`Health for ${traceData.target_id} looks great!`);
+        }
+    });
 
+    // 4. THE NEW HOVER PROVIDER FOR SOURCE CODE
+    const hoverProvider = vscode.languages.registerHoverProvider('*', {
+        async provideHover(document, position) {
+            const range = document.getWordRangeAtPosition(position, /@spec-link\s+\[\[([a-zA-Z0-9_-]+)\]\]/);
+            if (!range) return null;
+
+            const text = document.getText(range);
+            const match = text.match(/\[\[([a-zA-Z0-9_-]+)\]\]/);
+            if (!match) return null;
+
+            const atomId = match[1];
+            const meta = parseAtomMetadata(atomId);
+
+            let traceData = null;
+            try {
+                const { stdout } = await execAsync(`atd trace ${atomId}`, { cwd: workspaceRoot });
+                traceData = JSON.parse(stdout);
+            } catch (e) { }
+
+            const md = new vscode.MarkdownString();
+            md.isTrusted = true;
+
+            if (meta) {
+                md.appendMarkdown(`### 📄 ${atomId} \n\n`);
+                md.appendMarkdown(`**Layer:** ${meta.layer} | **Status:** ${meta.status} | **Priority:** ${meta.priority}\n\n`);
+
+                if (traceData) {
+                    const implPercent = Math.round(traceData.health_summary.implementation_rate * 100);
+                    const testPercent = Math.round(traceData.health_summary.test_coverage_rate * 100);
+                    const warnIcon = (traceData.warnings && traceData.warnings.length > 0) ? '🔴' : '🟢';
+                    md.appendMarkdown(`**Health:** ⚙️ ${implPercent}% Impl | 🧪 ${testPercent}% Tests ${warnIcon}\n\n`);
+                }
+
+                md.appendMarkdown(`---\n**INTENT:**\n*${meta.intent}*\n\n---\n`);
+
+                // Add a command link to open the file directly from the hover
+                const args = encodeURIComponent(JSON.stringify([getTargetUri(atomId)]));
+                md.appendMarkdown(`[📂 Open Document](command:vscode.open?${args})`);
+            } else {
+                md.appendMarkdown(`⚠️ **Atom not found:** \`${atomId}\``);
+            }
+
+            return new vscode.Hover(md, range);
+        }
+    });
+
+    // 5. ATD GRAPH EXPLORER (SIDEBAR TREE)
+    class ATDGraphProvider {
+        constructor() {
+            this._onDidChangeTreeData = new vscode.EventEmitter();
+            this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+            this.currentAtomId = null;
+        }
+
+        refresh(atomId) {
+            this.currentAtomId = atomId;
+            this._onDidChangeTreeData.fire();
+        }
+
+        getTreeItem(element) { return element; }
+
+        async getChildren(element) {
+            if (!this.currentAtomId) return [new vscode.TreeItem("Open an .atom.md file to view its graph")];
+
+            if (!element) {
+                const meta = parseAtomMetadata(this.currentAtomId);
+                const cur = new vscode.TreeItem(`📍 CURRENT: ${this.currentAtomId}`, vscode.TreeItemCollapsibleState.None);
+                const parents = new vscode.TreeItem(`🔻 PARENTS (${meta?.parents.length || 0})`, vscode.TreeItemCollapsibleState.Expanded);
+                parents.contextValue = 'parents';
+                const deps = new vscode.TreeItem(`🔻 DEPENDENTS (${meta?.dependents.length || 0})`, vscode.TreeItemCollapsibleState.Expanded);
+                deps.contextValue = 'deps';
+                return [cur, parents, deps];
+            }
+
+            const meta = parseAtomMetadata(this.currentAtomId);
+            if (!meta) return [];
+
+            let listToProcess = [];
+            if (element.contextValue === 'parents') listToProcess = meta.parents;
+            if (element.contextValue === 'deps') listToProcess = meta.dependents;
+
+            // Fetch health for each child asynchronously
+            const children = await Promise.all(listToProcess.map(async (id) => {
+                const childMeta = parseAtomMetadata(id);
+                const item = new vscode.TreeItem(`${id}`, vscode.TreeItemCollapsibleState.None);
+                item.description = childMeta ? childMeta.layer : 'Unknown';
+
+                try {
+                    const { stdout } = await execAsync(`atd trace ${id}`, { cwd: workspaceRoot });
+                    const trace = JSON.parse(stdout);
+                    if (trace.health_summary.implementation_rate === 1 && trace.health_summary.test_coverage_rate === 1) {
+                        item.iconPath = new vscode.ThemeIcon('pass');
+                    } else {
+                        item.iconPath = new vscode.ThemeIcon('warning', new vscode.ThemeColor('problemsWarningIcon.foreground'));
+                    }
+                } catch (e) {
+                    item.iconPath = new vscode.ThemeIcon('error', new vscode.ThemeColor('problemsErrorIcon.foreground'));
+                }
+
+                item.command = {
+                    command: 'vscode.open',
+                    title: "Open File",
+                    arguments: [getTargetUri(id)]
+                };
+                return item;
+            }));
+
+            return children;
+        }
+    }
+
+    const atdGraphProvider = new ATDGraphProvider();
+    vscode.window.registerTreeDataProvider('atdGraphExplorer', atdGraphProvider);
+
+    // Update Sidebar when active editor changes
+    vscode.window.onDidChangeActiveTextEditor(editor => {
+        if (editor && editor.document.fileName.endsWith('.atom.md')) {
+            const fileName = path.basename(editor.document.fileName);
+            const atomId = fileName.replace('.atom.md', '');
+            atdGraphProvider.refresh(atomId);
+        }
+    });
+
+    // 6. FULL SYSTEM GRAPH (WEBVIEW)// 6. ATOM NEIGHBORHOOD GRAPH (WEBVIEW)
+    const showGraphCommand = vscode.commands.registerCommand('atd.showFullGraph', async () => {
+        // 1. Figure out which atom we are looking at
+        const editor = vscode.window.activeTextEditor;
+        if (!editor || !editor.document.fileName.endsWith('.atom.md')) {
+            vscode.window.showErrorMessage("Please open an .atom.md file to view its graph.");
+            return;
+        }
+
+        const atomId = path.basename(editor.document.fileName, '.atom.md');
+        const panel = vscode.window.createWebviewPanel(
+            'atdGraph',
+            `ATD Graph: ${atomId}`,
+            vscode.ViewColumn.Beside, // Opens in a split pane!
+            { enableScripts: true }
+        );
+
+        panel.webview.html = `<h1>Loading Graph for ${atomId}...</h1>`;
+
+        try {
+            // 2. Run the trace command you suggested
+            const { stdout } = await execAsync(`atd trace ${atomId}`, { cwd: workspaceRoot });
+
+            // 3. Inject the stdout directly into the HTML payload
+            panel.webview.html = `
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+                    <style type="text/css">
+                        body { margin: 0; padding: 0; background: var(--vscode-editor-background); color: var(--vscode-editor-foreground); font-family: sans-serif; }
+                        #mynetwork { width: 100vw; height: 100vh; }
+                        .header { position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 5px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h2>${atomId}</h2>
+                        <p>Scroll to zoom. Drag to move.</p>
+                    </div>
+                    <div id="mynetwork"></div>
+                    <script type="text/javascript">
+                        // The JSON from your CLI output
+                        const traceData = ${stdout};
+                        
+                        const nodes = new vis.DataSet();
+                        const edges = new vis.DataSet();
+                        
+                        // Add the central target atom
+                        nodes.add({ 
+                            id: traceData.target_id, 
+                            label: traceData.target_id + "\\n(" + traceData.layer + ")", 
+                            shape: 'box', 
+                            color: { background: '#007acc', border: '#005a9e' }, 
+                            font: { color: 'white', face: 'monospace' },
+                            borderWidth: 2
+                        });
+                        
+                        // Parse parents (Upward links)
+                        if (traceData.graph_slice && traceData.graph_slice.parents) {
+                            traceData.graph_slice.parents.forEach(p => {
+                                if (!nodes.get(p)) {
+                                    nodes.add({ id: p, label: p, shape: 'ellipse', color: '#4d4d4d', font: { color: 'white' } });
+                                }
+                                // Arrow points FROM parent TO target (Dependency flow)
+                                edges.add({ from: p, to: traceData.target_id, arrows: 'to', color: '#888888' });
+                            });
+                        }
+                        
+                        // Parse dependents (Downward links)
+                        if (traceData.graph_slice && traceData.graph_slice.dependents) {
+                            traceData.graph_slice.dependents.forEach(d => {
+                                if (!nodes.get(d)) {
+                                    nodes.add({ id: d, label: d, shape: 'ellipse', color: '#4d4d4d', font: { color: 'white' } });
+                                }
+                                // Arrow points FROM target TO dependent
+                                edges.add({ from: traceData.target_id, to: d, arrows: 'to', color: '#888888' });
+                            });
+                        }
+
+                        // Optional: Parse Code Links if they exist
+                        if (traceData.graph_slice && traceData.graph_slice.code_links) {
+                            traceData.graph_slice.code_links.forEach(codeFile => {
+                                if (!nodes.get(codeFile)) {
+                                    nodes.add({ id: codeFile, label: codeFile, shape: 'text', font: { color: '#4EC9B0' } });
+                                }
+                                edges.add({ from: traceData.target_id, to: codeFile, arrows: 'to', color: '#4EC9B0', dashes: true });
+                            });
+                        }
+                        
+                        const container = document.getElementById('mynetwork');
+                        const data = { nodes: nodes, edges: edges };
+                        const options = {
+                            physics: { solver: 'repulsion', repulsion: { nodeDistance: 150 } },
+                            layout: { hierarchical: { direction: 'UD', sortMethod: 'directed' } }
+                        };
+                        
+                        new vis.Network(container, data, options);
+                    </script>
+                </body>
+                </html>
+            `;
+        } catch (e) {
+            panel.webview.html = `<h1>Error generating graph</h1><p>${e.message}</p>`;
+        }
+    });
+
+    context.subscriptions.push(
+        watcher, codeLensProvider, hoverProvider, linkProvider, definitionProvider, showDetailsCommand, showFullGraphCommand
+    );
 }
 
 function deactivate() { }
 
-module.exports = {
-    activate,
-    deactivate
-};
+module.exports = { activate, deactivate };

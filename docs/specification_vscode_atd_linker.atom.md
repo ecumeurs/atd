@@ -20,11 +20,15 @@ Provide seamless navigation and traceability within Atomic Traceable Documentati
 
 The extension implements standard VS Code language features:
 
-1.  **DocumentLinkProvider**: Recognizes `[[atomic_id]]` patterns in any document and transforms them into clickable links (Ctrl+Click) that resolve to the corresponding `.atom.md` file in the project's documentation directory.
-2.  **DefinitionProvider**: Allows users to "Go to Definition" or "Peek Definition" on `[[atomic_id]]` patterns, jumping directly to the source atom document.
+### Language Features
+1.  **DocumentLinkProvider**: Recognizes `[[atomic_id]]` patterns and transforms them into clickable links resolving to `.atom.md` files.
+2.  **DefinitionProvider**: Allows "Go to Definition" on `[[atomic_id]]` patterns.
+3.  **HoverProvider**: When hovering over `@spec-link [[ID]]` in source code, displays atom metadata (layer, status, priority), intent, and live health metrics (implementation/test rates) fetched via `atd trace`.
+4.  **CodeLensProvider**: In `.atom.md` files, displays a status bar at the top with ancestry completeness, implementation coverage, and test coverage metrics.
 
-### Configuration
-The extension reads the `.atd` configuration file at the workspace root to determine the `docs_path`. It watches this file for changes to ensure the link resolution path is always up-to-date.
+### Visualizations
+1.  **ATD Graph Explorer**: A sidebar tree view (in the "ATD" activity bar container) that displays the local graph slice (parents and dependents) for the currently active atom file. It uses `atd trace` to fetch child health status.
+2.  **ATD System Graph**: A webview panel showing the full system architecture graph, generated using `atd crawl` and rendered via Vis.js.
 
 ---
 
@@ -34,7 +38,13 @@ The extension reads the `.atd` configuration file at the workspace root to deter
 2.  **Path Resolution**: 
     - Loads `docs_path` from `.atd` JSON.
     - Resolves `[[ID]]` to `<workspaceRoot>/<docs_path>/ID.atom.md`.
-3.  **Activation**: The extension activates when the workspace contains a `.atd` file.
+3.  **Health Integration**: 
+    - Invokes `atd trace <ID>` as a subprocess to retrieve the `HealthSnapshot` JSON.
+    - Maps the snapshot to UI elements (Hover, CodeLens, Tree Items).
+4.  **Graph Visualization**: 
+    - Invokes `atd crawl` to get the full project graph.
+    - Renders the graph in a Webview using a Vis.js network.
+5.  **Activation**: The extension activates when the workspace contains a `.atd` file.
 
 ---
 
