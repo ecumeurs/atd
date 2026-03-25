@@ -239,6 +239,24 @@ Set snapshot=true to delegate narrative generation to the IDE Agent for polished
 	})
 
 	r.Register(mcp.Tool{
+		Name: "atd_trace",
+		Description: `Get a structured Health Snapshot JSON for a specific atom by traversing its graph ancestry and descendants. Includes warnings for layer compliance and metrics for testing and implementation coverage.`,
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"atom": map[string]any{"type": "string", "description": "Target ID of the atom to trace."},
+			},
+			"required": []string{"atom"},
+		},
+	}, func(args map[string]any) (string, error) {
+		atomID, ok := args["atom"].(string)
+		if !ok || atomID == "" {
+			return "", fmt.Errorf("atom is required")
+		}
+		return runTrace(atomID, config.DocsDir(), ".")
+	})
+
+	r.Register(mcp.Tool{
 		Name: "atd_test_links",
 		Description: `Audit @test-link [[ATOM_ID]] tags in source code to map atoms to their verification tests.
 Use during VERIFY stage to confirm test coverage per atom, or before modifying an atom to identify which tests need re-running.`,

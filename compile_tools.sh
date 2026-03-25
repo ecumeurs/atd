@@ -47,6 +47,10 @@ cp lib/logging.sh bin/lib/logging.sh
 
 echo "[Copy] Copying .atd configuration to skill folder..."
 cp "$PROJECT_ROOT/.atd" "$PROJECT_ROOT/atd_management_skill/"
+
+set +e
+killall atd
+set -e
 cp bin/atd ~/.local/bin/atd
 
 echo "======================================"
@@ -59,6 +63,9 @@ echo "[Done] atd binary installed to: ~/.local/bin/atd"
 
 echo "======================================"
 echo "Installing extensions..."
+
+rm -rf ~/.vscode/extensions/local-dev.atd-linker
+rm -rf ~/.antigravity/extensions/local-dev.atd-linker
 
 cp -r ../extension ~/.vscode/extensions/local-dev.atd-linker
 cp -r ../extension ~/.antigravity/extensions/local-dev.atd-linker
