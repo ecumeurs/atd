@@ -41,4 +41,4 @@ To use this extension within a Devcontainer, add the following to your `.devcont
 
 ## Documentation
 
-This extension is documented using ATD itself. See `docs/vscode_atd_linker.atom.md` for more details.
+This extension is documented using ATD itself. See `docs/specification_vscode_atd_linker.atom.md` for more details.

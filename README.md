@@ -13,7 +13,7 @@ Because an ATD is atomic, it describes only one primary rule or concept. This st
 2. **The Tools**: A unified `atd` CLI binary (built from `scripts/cmd/atd/`) provides all ATD operations as subcommands. The tools can validate formatting, extract legacy logic into new Atoms, weave dependency graphs, and verify congruence between the documentation and the codebase.
 3. **The Link (@spec-link)**: Code objects (functions, classes) are annotated with `@spec-link [[ATOM_ID]]`. The ATD agents and tools trace these links to verify that code implementations align with current architecture definitions. If a developer or an AI agent attempts to violate an ATD rule, the discrepancy is flagged.
 4. **Agent Integration**: The AI assistant (having the ATD skill) operates under specific modes (Architect, Developer, Analyst) to either create/manage Atoms, write compliant code, or audit the system respectively.
-5. **MCP Server**: `atd serve` exposes all 14 ATD operations as [MCP](https://modelcontextprotocol.io) tools over JSON-RPC 2.0, enabling IDE agents (VS Code, Claude Desktop) to invoke ATD commands directly without shell access.
+5. **MCP Server**: `atd serve` exposes all 19 ATD operations as [MCP](https://modelcontextprotocol.io) tools over JSON-RPC 2.0, enabling IDE agents (VS Code, Claude Desktop) to invoke ATD commands directly without shell access.
 
 ## Setup & Tooling
 The ATD system relies on the `atd` unified binary compiled from the Go source.
@@ -59,7 +59,7 @@ docker exec -it ollama ollama pull nomic-embed-text
 ```
 
 ### MCP Integration (VS Code / Claude Desktop)
-`atd serve` starts a JSON-RPC 2.0 MCP server exposing **14 tools** — all ATD subcommands including LLM-backed operations.
+`atd serve` starts a JSON-RPC 2.0 MCP server exposing **19 tools** — all ATD subcommands including LLM-backed operations (e.g., `atd_dissect`, `atd_search`) and deterministic diagnostics (e.g., `atd_stats`, `atd_lint`, `atd_trace`).
 
 **stdio transport (recommended):** Add to `.mcp.json` in your project root:
 ```json
@@ -83,6 +83,9 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
+| [Proof Test Trace with Complex Graph](issues/ISS-047_20260325_trace_proof_test_case.md) | 2026-03-25 | Open | Medium | Proof Test Trace with complex graph and health violations. |
+| [ATD Graph Visualization Improvements](issues/ISS-048_20260325_atd_graph_visualization_improvements.md) | 2026-03-25 | Open | Medium | The current ATD graph visualization in the VS Code extension (`atd.showFullGr... |
+| [Weave Regex Corrupts Dependents Field](issues/ISS-046_20260324_weave_dependents_corruption.md) | 2026-03-24 | Open | Critical | The `atd weave` command corrupts the `dependents` YAML field on every run, pr... |
 | [MCP Tools Review and Parameter Cleanup](issues/ISS-045_20260324_mcp_tools_refactor_and_cleanup.md) | 2026-03-24 | Open | Medium | The current MCP tools expose internal implementation details (like file paths... |
 | [ATD Verify Tool is Hardcoded to Go Testing](issues/ISS-044_20260324_verify_go_dependency.md) | 2026-03-24 | Open | High | The `atd verify` tool currently has a hard dependency on Go, specifically exe... |
 | [WebUI Specification](issues/ISS-041_20260324_webui_specification.md) | 2026-03-24 | Open | Medium | The WebUI currently exists only as the kernel of an idea — basic rendering wi... |

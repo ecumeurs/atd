@@ -4,6 +4,8 @@
 
 | Ref | File | Severity | Status | Summary |
 |---|---|---|---|---|
+| ISS-048 | [ISS-048_20260325_atd_graph_visualization_improvements.md](ISS-048_20260325_atd_graph_visualization_improvements.md) | Medium | Open | ATD graph visualization improvements (legend, hover, click to center, depth). |
+| ISS-047 | [ISS-047_20260325_trace_proof_test_case.md](ISS-047_20260325_trace_proof_test_case.md) | Medium | Open | Proof Test Trace with complex graph and health violations. |
 | ISS-045 | [ISS-045_20260324_mcp_tools_refactor_and_cleanup.md](ISS-045_20260324_mcp_tools_refactor_and_cleanup.md) | Medium | Open | MCP Tools Review and Parameter Cleanup |
 | ISS-044 | [ISS-044_20260324_verify_go_dependency.md](ISS-044_20260324_verify_go_dependency.md) | High | Open | ATD Verify Tool is hardcoded to Go. |
 | ISS-043 | [ISS-043_20260324_config_check_tool_missing.md](ISS-043_20260324_config_check_tool_missing.md) | Medium | Resolved | Missing configuration and model availability check tool. |

@@ -134,8 +134,8 @@ func crawlSrc(dir string, graph *DependencyGraph) error {
 			return nil
 		}
 		
-		// Skip hidden dirs
-		if strings.Contains(path, "/.") {
+		// Skip hidden dirs and atom files
+		if strings.Contains(path, "/.") || strings.HasSuffix(path, ".atom.md") {
 			return nil
 		}
 

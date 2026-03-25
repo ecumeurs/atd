@@ -39,6 +39,7 @@ func Parse(path string) (AtomData, error) {
 	scanner := bufio.NewScanner(f)
 	mode := "header"
 	inParents := false
+	inDependents := false
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -99,10 +100,12 @@ func Parse(path string) (AtomData, error) {
 			}
 			if strings.HasPrefix(line, "parents:") {
 				inParents = true
+				inDependents = false
 				inline := strings.TrimSpace(strings.TrimPrefix(line, "parents:"))
 				if inline != "" && inline != "[]" {
 					inline = strings.ReplaceAll(inline, "[", "")
 					inline = strings.ReplaceAll(inline, "]", "")
+					inline = strings.ReplaceAll(inline, "\"", "")
 					for _, p := range strings.Split(inline, ",") {
 						if t := strings.TrimSpace(p); t != "" {
 							data.Parents = append(data.Parents, t)
@@ -111,22 +114,40 @@ func Parse(path string) (AtomData, error) {
 				}
 				continue
 			}
-			if inParents {
+			if strings.HasPrefix(line, "dependents:") {
+				inParents = false
+				inDependents = true
+				inline := strings.TrimSpace(strings.TrimPrefix(line, "dependents:"))
+				if inline != "" && inline != "[]" {
+					inline = strings.ReplaceAll(inline, "[", "")
+					inline = strings.ReplaceAll(inline, "]", "")
+					inline = strings.ReplaceAll(inline, "\"", "")
+					for _, d := range strings.Split(inline, ",") {
+						if t := strings.TrimSpace(d); t != "" {
+							data.Dependents = append(data.Dependents, t)
+						}
+					}
+				}
+				continue
+			}
+			if inParents || inDependents {
 				trimmedLine := strings.TrimSpace(line)
 				if strings.HasPrefix(trimmedLine, "- ") {
 					entry := strings.TrimPrefix(trimmedLine, "- ")
 					entry = strings.ReplaceAll(entry, "[", "")
 					entry = strings.ReplaceAll(entry, "]", "")
+					entry = strings.ReplaceAll(entry, "\"", "")
 					if t := strings.TrimSpace(entry); t != "" {
-						data.Parents = append(data.Parents, t)
+						if inParents {
+							data.Parents = append(data.Parents, t)
+						} else {
+							data.Dependents = append(data.Dependents, t)
+						}
 					}
 					continue
 				}
 				inParents = false
-			}
-			if strings.HasPrefix(line, "dependents:") {
-				inParents = false // stop parents if we hit dependents
-				continue
+				inDependents = false
 			}
 
 			// If we hit a header, switch to section parsing

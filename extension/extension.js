@@ -271,32 +271,48 @@ function activate(context) {
             atdGraphProvider.refresh(atomId);
         }
     });
+    // 6. ATOM NEIGHBORHOOD GRAPH (WEBVIEW)
+    let graphPanel = undefined; // Track the open panel
 
-    // 6. FULL SYSTEM GRAPH (WEBVIEW)// 6. ATOM NEIGHBORHOOD GRAPH (WEBVIEW)
-    const showGraphCommand = vscode.commands.registerCommand('atd.showFullGraph', async () => {
-        // 1. Figure out which atom we are looking at
-        const editor = vscode.window.activeTextEditor;
+    // Helper function to update or create the graph
+    const updateGraphPanel = async (editor) => {
         if (!editor || !editor.document.fileName.endsWith('.atom.md')) {
-            vscode.window.showErrorMessage("Please open an .atom.md file to view its graph.");
-            return;
+            return; // Ignore non-ATD files
         }
 
         const atomId = path.basename(editor.document.fileName, '.atom.md');
-        const panel = vscode.window.createWebviewPanel(
-            'atdGraph',
-            `ATD Graph: ${atomId}`,
-            vscode.ViewColumn.Beside, // Opens in a split pane!
-            { enableScripts: true }
-        );
 
-        panel.webview.html = `<h1>Loading Graph for ${atomId}...</h1>`;
+        // If the panel isn't open, create it
+        if (!graphPanel) {
+            graphPanel = vscode.window.createWebviewPanel(
+                'atdGraph',
+                `ATD Graph`,
+                vscode.ViewColumn.Beside, // Open beside the current editor
+                {
+                    enableScripts: true,
+                    retainContextWhenHidden: true // Keeps the graph loaded when switching tabs
+                }
+            );
+
+            // Clean up the reference if the user closes the tab
+            graphPanel.onDidDispose(() => {
+                graphPanel = undefined;
+            });
+        }
+
+        // Update the panel's title and show a loading state
+        graphPanel.title = `ATD: ${atomId}`;
+        graphPanel.webview.html = `
+            <div style="padding: 20px; font-family: sans-serif; color: var(--vscode-editor-foreground);">
+                <h2>Loading Graph for ${atomId}...</h2>
+            </div>`;
 
         try {
-            // 2. Run the trace command you suggested
+            // Fetch new trace data for the newly opened file
             const { stdout } = await execAsync(`atd trace ${atomId}`, { cwd: workspaceRoot });
 
-            // 3. Inject the stdout directly into the HTML payload
-            panel.webview.html = `
+            // Re-inject the HTML with the new data
+            graphPanel.webview.html = `
                 <!DOCTYPE html>
                 <html lang="en">
                 <head>
@@ -304,7 +320,7 @@ function activate(context) {
                     <style type="text/css">
                         body { margin: 0; padding: 0; background: var(--vscode-editor-background); color: var(--vscode-editor-foreground); font-family: sans-serif; }
                         #mynetwork { width: 100vw; height: 100vh; }
-                        .header { position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 5px; }
+                        .header { position: absolute; top: 10px; left: 10px; z-index: 10; background: var(--vscode-editor-background); padding: 10px; border-radius: 5px; border: 1px solid var(--vscode-panel-border); }
                     </style>
                 </head>
                 <body>
@@ -314,13 +330,12 @@ function activate(context) {
                     </div>
                     <div id="mynetwork"></div>
                     <script type="text/javascript">
-                        // The JSON from your CLI output
                         const traceData = ${stdout};
                         
                         const nodes = new vis.DataSet();
                         const edges = new vis.DataSet();
                         
-                        // Add the central target atom
+                        // Center Node
                         nodes.add({ 
                             id: traceData.target_id, 
                             label: traceData.target_id + "\\n(" + traceData.layer + ")", 
@@ -330,29 +345,27 @@ function activate(context) {
                             borderWidth: 2
                         });
                         
-                        // Parse parents (Upward links)
+                        // Parents
                         if (traceData.graph_slice && traceData.graph_slice.parents) {
                             traceData.graph_slice.parents.forEach(p => {
                                 if (!nodes.get(p)) {
                                     nodes.add({ id: p, label: p, shape: 'ellipse', color: '#4d4d4d', font: { color: 'white' } });
                                 }
-                                // Arrow points FROM parent TO target (Dependency flow)
                                 edges.add({ from: p, to: traceData.target_id, arrows: 'to', color: '#888888' });
                             });
                         }
                         
-                        // Parse dependents (Downward links)
+                        // Dependents
                         if (traceData.graph_slice && traceData.graph_slice.dependents) {
                             traceData.graph_slice.dependents.forEach(d => {
                                 if (!nodes.get(d)) {
                                     nodes.add({ id: d, label: d, shape: 'ellipse', color: '#4d4d4d', font: { color: 'white' } });
                                 }
-                                // Arrow points FROM target TO dependent
                                 edges.add({ from: traceData.target_id, to: d, arrows: 'to', color: '#888888' });
                             });
                         }
 
-                        // Optional: Parse Code Links if they exist
+                        // Code Links
                         if (traceData.graph_slice && traceData.graph_slice.code_links) {
                             traceData.graph_slice.code_links.forEach(codeFile => {
                                 if (!nodes.get(codeFile)) {
@@ -375,7 +388,26 @@ function activate(context) {
                 </html>
             `;
         } catch (e) {
-            panel.webview.html = `<h1>Error generating graph</h1><p>${e.message}</p>`;
+            graphPanel.webview.html = `<div style="padding: 20px;"><h1>Error generating graph</h1><p>${e.message}</p></div>`;
+        }
+    };
+
+    // The manual command now just triggers the update function
+    const showGraphCommand = vscode.commands.registerCommand('atd.showFullGraph', () => {
+        updateGraphPanel(vscode.window.activeTextEditor);
+    });
+
+    // 7. UNIFIED EDITOR CHANGE LISTENER
+    // This watches for tab changes and updates both the Sidebar and the Webview!
+    vscode.window.onDidChangeActiveTextEditor(editor => {
+        if (editor && editor.document.fileName.endsWith('.atom.md')) {
+            const atomId = path.basename(editor.document.fileName, '.atom.md');
+
+            // 1. Update the Sidebar
+            atdGraphProvider.refresh(atomId);
+
+            // 2. Update the Webview Graph (Will auto-open if you want it to always appear)
+            updateGraphPanel(editor);
         }
     });
 

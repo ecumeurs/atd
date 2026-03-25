@@ -156,6 +156,15 @@ func runTrace(targetID, docsDir, srcPath string) (string, error) {
 	}
 	walkDown(targetID)
 
+	// Helper to strip line number from implementation "file.go:12"
+	getFile := func(impl string) string {
+		parts := strings.Split(impl, ":")
+		if len(parts) > 0 {
+			return parts[0]
+		}
+		return impl
+	}
+
 	// 5. Calculate implementations and test links over the dependents
 	codeFiles := make(map[string]bool)
 	testFiles := make(map[string]bool)
@@ -164,13 +173,21 @@ func runTrace(targetID, docsDir, srcPath string) (string, error) {
 	testedCount := 0
 	uniqueCodeForTargetOrDescendants := make(map[string]bool)
 
-	// Helper to strip line number from implementation "file.go:12"
-	getFile := func(impl string) string {
-		parts := strings.Split(impl, ":")
-		if len(parts) > 0 {
-			return parts[0]
+	// Check target itself
+	targetImplemented := len(target.Implementations) > 0
+	targetTested := len(testMap[targetID]) > 0
+	if targetImplemented {
+		for _, impl := range target.Implementations {
+			f := getFile(impl)
+			codeFiles[f] = true
+			uniqueCodeForTargetOrDescendants[f] = true
 		}
-		return impl
+	}
+	if targetTested {
+		for _, tf := range testMap[targetID] {
+			testFiles[tf] = true
+			uniqueCodeForTargetOrDescendants[tf] = true
+		}
 	}
 
 	for _, id := range snap.GraphSlice.Dependents {
@@ -198,13 +215,6 @@ func runTrace(targetID, docsDir, srcPath string) (string, error) {
 			if isImplemented {
 				testedCount++
 			}
-		}
-	}
-
-	targetImplemented := len(target.Implementations) > 0
-	if targetImplemented {
-		for _, impl := range target.Implementations {
-			uniqueCodeForTargetOrDescendants[getFile(impl)] = true
 		}
 	}
 
@@ -260,23 +270,38 @@ func runTrace(targetID, docsDir, srcPath string) (string, error) {
 	for f := range codeFiles {
 		snap.GraphSlice.CodeLinks = append(snap.GraphSlice.CodeLinks, f)
 	}
-	for f := range testFiles {
-		snap.GraphSlice.TestLinks = append(snap.GraphSlice.TestLinks, f)
+	// 7. Health Summary
+	totalPool := len(snap.GraphSlice.Dependents)
+	// For IMPLEMENTATION layer, the health of the atom itself is primary.
+	// We've already populated implementedCount and testedCount from dependents in the loop.
+	// If it's an IMPLEMENTATION atom, we consider it part of the pool.
+	if target.Layer == "IMPLEMENTATION" {
+		totalPool++
+		// The loop over dependents above already checked if descendants were implemented.
+		// We already checked targetImplemented/targetTested before the loop.
+		// But implementedCount and testedCount in the loop only tracked DESCENDANTS.
+		// So we add 1 to implementedCount if the target itself is implemented.
+		if targetImplemented {
+			implementedCount++
+			if targetTested {
+				testedCount++
+			}
+		}
 	}
 
 	snap.HealthSummary.AncestryComplete = ancestryComplete
-	snap.HealthSummary.HasCustomerOrigin = foundCustAnc
+	snap.HealthSummary.HasCustomerOrigin = foundCustAnc || target.Layer == "CUSTOMER"
 
-	if len(snap.GraphSlice.Dependents) > 0 {
-		snap.HealthSummary.ImplementationRate = float64(implementedCount) / float64(len(snap.GraphSlice.Dependents))
+	if totalPool > 0 {
+		snap.HealthSummary.ImplementationRate = float64(implementedCount) / float64(totalPool)
 	} else {
-		snap.HealthSummary.ImplementationRate = 1.0 // Vacuously true
+		snap.HealthSummary.ImplementationRate = 0.0
 	}
 
 	if implementedCount > 0 {
 		snap.HealthSummary.TestCoverageRate = float64(testedCount) / float64(implementedCount)
 	} else {
-		snap.HealthSummary.TestCoverageRate = 1.0
+		snap.HealthSummary.TestCoverageRate = 0.0
 	}
 
 	snap.Metrics.TotalDependents = len(snap.GraphSlice.Dependents)
