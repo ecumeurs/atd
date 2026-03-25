@@ -1,28 +1,33 @@
 ---
 id: service_atd_trace
-status: DRAFT
+status: REVIEW
 type: SERVICE
 layer: IMPLEMENTATION
 priority: 3
 parents: [[api_atd_mcp_ops]]
 version: 1.0
 dependents: [[[atd_health_snapshot_schema]]]
-human_name: ATD Trace Command
+human_name: Trace Service
 ---
 
 # New Atom
 
 ## INTENT
-Provide an automated, snapshot view of an atom's health constraints, tracking upward ancestry layer compliance and downward test/implementation coverage.
+Orchestrate the cross-referencing of an atom's graph position with its real-world implementation and test coverage to produce a machine-readable health snapshot.
 
 ## THE RULE / LOGIC
-- Perform an upward graph traversal of `parents` to identify missing `CUSTOMER` or `ARCHITECTURE` origin layers, and assert that all ancestors are `STABLE`.
-- Perform a downward traversal of `dependents` to identify missing `IMPLEMENTATION` layers.
-- Cross-reference downstream dependent leaf nodes against `@spec-link` source indices to compute the `implementation_rate`.
-- Calculate `test_coverage_rate` by identifying which of those implemented downstream nodes also appear alongside `@test-link` annotations.
-- Warn if an atom breaks layer constraints (e.g. IMPLEMENTATION atom with zero source/test implementations).
+- Crawl all atoms to build the standard dependency graph.
+- Extract all @spec-link and @test-link tags from the codebase.
+- For the target atom:
+  - Walk up parents to ensure a path to CUSTOMER layer (ancestry compliance).
+  - Walk down dependents to identify all IMPLEMENTATION layer leaves.
+  - Intersection of dependents and @spec-link sources defines Implementation Rate.
+  - Intersection of implemented dependents and @test-link files defines Test Coverage Rate.
+- Emit structured JSON matching TraceSnapshot schema.
 
 ## TECHNICAL INTERFACE
+- **Source File**: `scripts/cmd/atd/cmd/trace.go`
+- **Spec Link**: `@spec-link [[service_atd_trace]]`
 
 ## EXPECTATION
-Given a real atom ID, output matches the `HealthSnapshot` JSON schema. Handles invalid IDs and missing directories gracefully. Warns correctly about missing layer origins and implementations.
+When triggered from the API, correctly walks the ancestry (parents) and descendants (dependents) of any valid atom. Correctly detects layer violations (e.g., ARCHITECTURE atom with no CUSTOMER parent). Produces accurate implementation and test coverage ratios based on @spec-link and @test-link indices.

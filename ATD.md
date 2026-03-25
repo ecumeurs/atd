@@ -366,12 +366,12 @@ All tools read from a **`.atd`** JSON file at project root (created by `atd init
 
 ## 2. MCP Toolset Reference
 
-The `atd serve` command starts a JSON-RPC 2.0 / MCP (spec 2025-11-25) server exposing **14 tools** via two transports:
+The `atd serve` command starts a JSON-RPC 2.0 / MCP (spec 2025-11-25) server exposing **19 tools** via two transports:
 
 - **stdio** (default): `atd serve` — host launches as subprocess.
 - **HTTP**: `atd serve --http --port 7474` — single `/mcp` endpoint.
 
-The server currently exposes **16 tools**.
+The server currently exposes **19 tools**.
 
 ### VS Code Configuration (`.mcp.json`)
 
@@ -484,6 +484,20 @@ These tools NEVER call an LLM. They are safe, cheap, and fast.
 
 ---
 
+#### `atd_stats`
+
+**Purpose:** Produce quantitative documentation health metrics: total atoms, atoms by type, status, domain, coverage ratio, and orphan count.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| *(none)* | — | — | Operates on the full project. |
+
+**Output:** JSON report with quantitative health metrics.
+
+**When to use:** During **Verify** stage to assess overall documentation quality, or in CI to generate health badges.
+
+---
+
 #### `atd_verify`
 
 **Purpose:** Run `git diff`, extract impacted `@spec-link` tags, and produce a structured audit prompt.
@@ -529,6 +543,20 @@ These tools NEVER call an LLM. They are safe, cheap, and fast.
 
 ---
 
+#### `atd_trace`
+
+**Purpose:** Get a structured Health Snapshot JSON for a specific atom by traversing its graph ancestry and descendants.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `atom` | string | ✅ | Target ID of the atom to trace. |
+
+**Output:** JSON Health Snapshot with layer compliance warnings and coverage metrics.
+
+**When to use:** To diagnose an atom's health, check its dependency chain, or verify its implementation/test coverage.
+
+---
+
 #### `atd_check`
 
 **Purpose:** Unified environment smoke test. Validates `.atd` config, checks provider connectivity, and verifies model availability.
@@ -557,6 +585,20 @@ These tools NEVER call an LLM. They are safe, cheap, and fast.
 **Output:** JSON configuration or a confirmation message of the update.
 
 **When to use:** Checking bloating factors before creating atoms, or reassigning LLM task-to-model mappings.
+
+---
+
+#### `atd_lint`
+
+**Purpose:** Perform fast, deterministic structural validation on all ATD atoms.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| *(none)* | — | — | Scans the documented project directory. |
+
+**Output:** List of structural violations (missing fields, broken links, empty sections).
+
+**When to use:** During **Verify** stage as a cheap first-pass before running the heavier `atd_audit`.
 
 ---
 

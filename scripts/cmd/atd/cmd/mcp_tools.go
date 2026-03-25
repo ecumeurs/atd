@@ -238,6 +238,7 @@ Set snapshot=true to delegate narrative generation to the IDE Agent for polished
 		return runAssemble(starts, purpose, snapshot, theme, config.DocsDir())
 	})
 
+	// @spec-link [[api_atd_serve_trace]]
 	r.Register(mcp.Tool{
 		Name: "atd_trace",
 		Description: `Get a structured Health Snapshot JSON for a specific atom by traversing its graph ancestry and descendants. Includes warnings for layer compliance and metrics for testing and implementation coverage.`,

@@ -27,6 +27,7 @@ function activate(context) {
     }
     const workspaceRoot = workspaceFolder.uri.fsPath;
 
+    // @spec-link [[mechanic_vscode_atd_config]]
     // 1. Function to read the .atd configuration file
     const loadConfig = () => {
         const atdFile = path.join(workspaceRoot, '.atd');
@@ -53,6 +54,7 @@ function activate(context) {
         return vscode.Uri.file(targetPath);
     };
 
+    // @spec-link [[mechanic_vscode_atom_parser]]
     // Helper to read and parse an atom file lightly
     const parseAtomMetadata = (atomId) => {
         try {
@@ -85,7 +87,9 @@ function activate(context) {
         }
     };
 
+    // @spec-link [[service_vscode_linker_features]]
     // 2. Link & Definition Providers
+    // @spec-link [[mechanic_vscode_link_provider]]
     const linkProvider = vscode.languages.registerDocumentLinkProvider('*', {
         provideDocumentLinks(document) {
             const text = document.getText();
@@ -112,6 +116,7 @@ function activate(context) {
     });
 
     // 3. Header CodeLens Provider (Markdown files)
+    // @spec-link [[mechanic_vscode_codelens_provider]]
     const lensEmitter = new vscode.EventEmitter();
     const codeLensProvider = vscode.languages.registerCodeLensProvider({ scheme: 'file', language: 'markdown' }, {
         onDidChangeCodeLenses: lensEmitter.event,
@@ -150,6 +155,7 @@ function activate(context) {
     });
 
     // 4. THE NEW HOVER PROVIDER FOR SOURCE CODE
+    // @spec-link [[mechanic_vscode_hover_provider]]
     const hoverProvider = vscode.languages.registerHoverProvider('*', {
         async provideHover(document, position) {
             const range = document.getWordRangeAtPosition(position, /@spec-link\s+\[\[([a-zA-Z0-9_-]+)\]\]/);
@@ -195,7 +201,9 @@ function activate(context) {
         }
     });
 
+    // @spec-link [[service_vscode_atd_ui]]
     // 5. ATD GRAPH EXPLORER (SIDEBAR TREE)
+    // @spec-link [[mechanic_vscode_sidebar_tree]]
     class ATDGraphProvider {
         constructor() {
             this._onDidChangeTreeData = new vscode.EventEmitter();
@@ -271,6 +279,7 @@ function activate(context) {
             atdGraphProvider.refresh(atomId);
         }
     });
+    // @spec-link [[mechanic_vscode_webview_graph]]
     // 6. ATOM NEIGHBORHOOD GRAPH (WEBVIEW)
     let graphPanel = undefined; // Track the open panel
 
@@ -412,7 +421,7 @@ function activate(context) {
     });
 
     context.subscriptions.push(
-        watcher, codeLensProvider, hoverProvider, linkProvider, definitionProvider, showDetailsCommand, showFullGraphCommand
+        watcher, codeLensProvider, hoverProvider, linkProvider, definitionProvider, showDetailsCommand, showGraphCommand
     );
 }
 
