@@ -536,6 +536,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (explorerTools) {
                 explorerTools.style.display = tab === 'explorer' ? 'flex' : 'none';
             }
+            // Fix: Redraw treemap when switching back to explorer to avoid black screen
+            if (tab === 'explorer' && currentFlatData) {
+                // Use setTimeout to ensure container is visible before measuring
+                setTimeout(() => renderTreemap(currentFlatData), 10);
+            }
         });
     });
 });

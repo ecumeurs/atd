@@ -6,6 +6,10 @@ trigger: always_on
 trigger: always_on
 ---
 
+## Script
+
+The `issues` script should be in the path. It allows listing issues `issues`, create new ref number `issues --next-ref`, and update the readme table `issues --update-readme`.
+
 ## Issue Filing Procedure
 
 When you discover a **bug, design risk, data race, security concern, or technical debt** during your work, you must file an issue in `/workspace/issues/`.
@@ -43,7 +47,7 @@ After creating an issue file, **add a row to `/workspace/issues/README.md`** in 
 
 
 Update the root README.md with an active issues table
-python3 .agent/skills/issue_management/scripts/list_issues.py --update-readme
+issues --update-readme
 
 ### Template: Issue File
 
@@ -51,7 +55,7 @@ python3 .agent/skills/issue_management/scripts/list_issues.py --update-readme
 # Issue: [Short Title]
 
 **ID:** `YYYYMMDD_short_slug`
-**Ref:** `must be the `ISS-NNN` value obtained from `--next-ref`. Do not reuse or skip numbers.
+**Ref:** `must be the `ISS-NNN` value obtained from `issues --next-ref`. Do not reuse or skip numbers.
 **Date:** YYYY-MM-DD
 **Severity:** Critical / High / Medium / Low
 **Status:** Open / In Progress / Resolved / Wont Fix

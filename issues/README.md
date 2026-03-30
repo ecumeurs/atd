@@ -2,6 +2,7 @@
 
 ## Index
 
+| ISS-055 | [ISS-055_20260330_webui_issue_integration.md](ISS-055_20260330_webui_issue_integration.md) | Medium | Open | Add a dedicated Issues tab and list view to the WebUI. |
 | ISS-054 | [ISS-054_20260330_atd_summarization_feature.md](ISS-054_20260330_atd_summarization_feature.md) | Medium | Open | Add a contextual summarization feature for ATD atoms. |
 | ISS-053 | [ISS-053_20260325_atd_atom_link_format_inconsistency.md](ISS-053_20260325_atd_atom_link_format_inconsistency.md) | Medium | Resolved | ATD atom link format inconsistency (triple brackets, VS Code compatibility). |
 | ISS-052 | [ISS-052_20260325_atd_stats_coverage_ancestry.md](ISS-052_20260325_atd_stats_coverage_ancestry.md) | Medium | Open | atd stats coverage and ancestry reporting |

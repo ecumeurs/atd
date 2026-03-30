@@ -401,6 +401,126 @@ func main() {
 			}
 			c.JSON(http.StatusOK, results)
 		})
+
+		api.POST("/gemini/apply-proposal", func(c *gin.Context) {
+			var proposal struct {
+				Action  string                 `json:"action"`
+				AtomID  string                 `json:"atom_id"`
+				Content map[string]interface{} `json:"content"`
+			}
+			if err := c.ShouldBindJSON(&proposal); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+
+			toolPath := filepath.Join(expandPath(AppConfig.ToolkitPath), "atd")
+			atdDir := filepath.Join(AppConfig.ProjectPath, AppConfig.ATDPath)
+
+			switch proposal.Action {
+			case "CREATE":
+				// Build the atom file path
+				filePath := filepath.Join(atdDir, proposal.AtomID+".atom.md")
+
+				// Build atd update args to create a new atom
+				args := []string{"update", "--file", filePath, "--set", "id=" + proposal.AtomID}
+
+				// Map content fields to --set and section flags
+				if v, ok := proposal.Content["human_name"].(string); ok && v != "" {
+					args = append(args, "--set", "human_name="+v)
+				}
+				if v, ok := proposal.Content["type"].(string); ok && v != "" {
+					args = append(args, "--set", "type="+v)
+				}
+				if v, ok := proposal.Content["layer"].(string); ok && v != "" {
+					args = append(args, "--set", "layer="+v)
+				}
+				if v, ok := proposal.Content["status"].(string); ok && v != "" {
+					args = append(args, "--set", "status="+v)
+				}
+				if v, ok := proposal.Content["priority"].(string); ok && v != "" {
+					args = append(args, "--set", "priority="+v)
+				}
+				if v, ok := proposal.Content["intent"].(string); ok && v != "" {
+					args = append(args, "--intent", v)
+				}
+				if v, ok := proposal.Content["logic"].(string); ok && v != "" {
+					args = append(args, "--logic", v)
+				}
+				if v, ok := proposal.Content["technical_interface"].(string); ok && v != "" {
+					args = append(args, "--interface", v)
+				}
+				if v, ok := proposal.Content["expectation"].(string); ok && v != "" {
+					args = append(args, "--expectation", v)
+				}
+
+				cmd := exec.Command(toolPath, args...)
+				output, err := cmd.CombinedOutput()
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{
+						"error":   "Failed to create atom",
+						"details": string(output),
+					})
+					return
+				}
+
+			case "UPDATE":
+				atom, exists := Atoms[proposal.AtomID]
+				if !exists {
+					c.JSON(http.StatusNotFound, gin.H{"error": "Atom not found: " + proposal.AtomID})
+					return
+				}
+
+				args := []string{"update", "--file", atom.FilePath}
+				// Same field mapping as CREATE
+				if v, ok := proposal.Content["human_name"].(string); ok && v != "" {
+					args = append(args, "--set", "human_name="+v)
+				}
+				if v, ok := proposal.Content["type"].(string); ok && v != "" {
+					args = append(args, "--set", "type="+v)
+				}
+				if v, ok := proposal.Content["status"].(string); ok && v != "" {
+					args = append(args, "--set", "status="+v)
+				}
+				if v, ok := proposal.Content["intent"].(string); ok && v != "" {
+					args = append(args, "--intent", v)
+				}
+				if v, ok := proposal.Content["logic"].(string); ok && v != "" {
+					args = append(args, "--logic", v)
+				}
+				if v, ok := proposal.Content["technical_interface"].(string); ok && v != "" {
+					args = append(args, "--interface", v)
+				}
+				if v, ok := proposal.Content["expectation"].(string); ok && v != "" {
+					args = append(args, "--expectation", v)
+				}
+
+				cmd := exec.Command(toolPath, args...)
+				output, err := cmd.CombinedOutput()
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{
+						"error":   "Failed to update atom",
+						"details": string(output),
+					})
+					return
+				}
+
+			case "DELETE":
+				atom, exists := Atoms[proposal.AtomID]
+				if !exists {
+					c.JSON(http.StatusNotFound, gin.H{"error": "Atom not found: " + proposal.AtomID})
+					return
+				}
+				// Delete the file
+				if err := os.Remove(atom.FilePath); err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete atom file"})
+					return
+				}
+			}
+
+			// Refresh atoms after any change
+			refreshAtoms()
+			c.JSON(http.StatusOK, gin.H{"message": "Proposal applied successfully", "atom_id": proposal.AtomID})
+		})
 	}
 
 	addr := fmt.Sprintf("%s:%d", AppConfig.Host, AppConfig.Port)
