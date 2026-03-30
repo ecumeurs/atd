@@ -38,10 +38,11 @@ type ChatMessage struct {
 }
 
 type ChatRequest struct {
-	Messages   []ChatMessage            `json:"messages"`    // Full conversation history
-	Model      string                   `json:"model"`       // Selected Gemini model (default: gemini-2.5-flash)
-	AtdContext []map[string]interface{} `json:"atd_context"` // ATD atoms to inject as context
-	Actions    []ActionRecord           `json:"actions"`     // Accept/reject history
+	Messages    []ChatMessage            `json:"messages"`     // Full conversation history
+	Model       string                   `json:"model"`        // Selected Gemini model (default: gemini-2.5-flash)
+	AtdContext  []map[string]interface{} `json:"atd_context"`  // ATD atoms to inject as context
+	Actions     []ActionRecord           `json:"actions"`      // Accept/reject history
+	OmitHistory bool                     `json:"omit_history"` // If true, only send the latest message
 }
 
 type ActionRecord struct {
@@ -58,9 +59,16 @@ type GeminiProposal struct {
 	ImpactSummary string                 `json:"impact_summary"`
 }
 
+type UsageRecord struct {
+	PromptTokens     int `json:"prompt_tokens"`
+	CandidatesTokens int `json:"candidates_tokens"`
+	TotalTokens      int `json:"total_tokens"`
+}
+
 type GeminiResponse struct {
 	Message   string           `json:"message"`
 	Proposals []GeminiProposal `json:"proposals"`
+	Usage     UsageRecord      `json:"usage"`
 }
 
 const atdManifesto = `You are an ATD (Atomic Traceable Documentation) Specification Architect.
@@ -73,8 +81,8 @@ RULES YOU MUST FOLLOW:
 4. Valid types: MODULE, SERVICE, ENTITY, RULE, MECHANIC, DOMAIN, API, UI, DATA, USAGE, BUILD, REQUIREMENT, SPECIFICATION, USECASE, USER_STORY.
 5. Valid statuses: DRAFT, REVIEW, STABLE.
 6. Valid layers: CUSTOMER, ARCHITECTURE, IMPLEMENTATION.
-7. Each atom has 4 mandatory H2 sections: INTENT, THE RULE / LOGIC, TECHNICAL INTERFACE, EXPECTATION.
-8. The INTENT must be ONE sentence, no "and" or "also".
+7. Each atom has 4 mandatory sections: intent, logic, technical_interface, expectation.
+8. The intent must be ONE sentence, no "and" or "also".
 9. Parents link upward (impl -> arch -> customer). Dependents link downward.
 
 RESPONSE FORMAT:
@@ -89,14 +97,14 @@ You MUST respond with valid JSON matching this schema:
         "human_name": "Human Readable Name",
         "type": "MECHANIC",
         "layer": "IMPLEMENTATION",
-        "status": "DRAFT",
-        "priority": "3",
-        "tags": ["tag1"],
-        "parents": ["parent_atom_id"],
         "intent": "Single sentence why this exists.",
         "logic": "The core specification.",
         "technical_interface": "API endpoints, code tags, test names.",
         "expectation": "Verifiable acceptance criteria."
+        "status": "DRAFT",
+        "priority": "3",
+        "tags": ["tag1"],
+        "parents": ["parent_atom_id"],
       },
       "impact_summary": "Brief description of what this change means."
     }
@@ -106,8 +114,11 @@ You MUST respond with valid JSON matching this schema:
 When the conversation is exploratory or you need clarification, return "proposals": []. Only propose atoms when you have sufficient information and the user's intent is clear.
 When proposing updates, only include fields that change in "content".
 When no proposals are needed (e.g. answering a question, challenging an assumption, or asking for more details), return an empty proposals array.
-Always explain your reasoning in "message" before listing proposals.`
+Always explain your reasoning in "message" before listing proposals.
+Always provide the content for intent and logic. Expectation should be provided if you have enough information to define it.
+`
 
+// @spec-link [[module_webui]]
 func loadConfig() {
 	file, err := os.Open("config.json")
 	if err != nil {
@@ -121,6 +132,7 @@ func loadConfig() {
 	fmt.Printf("Loaded Config: %+v\n", AppConfig)
 }
 
+// @spec-link [[module_webui]]
 func refreshAtoms() {
 	atdDir := filepath.Join(AppConfig.ProjectPath, AppConfig.ATDPath)
 	newAtoms, err := parser.ParseAtoms(atdDir)
@@ -155,6 +167,7 @@ func main() {
 
 	api := r.Group("/api")
 	{
+		// @spec-link [[api_webui_health_stats]]
 		api.GET("/info", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
 				"project_path": AppConfig.ProjectPath,
@@ -163,6 +176,7 @@ func main() {
 			})
 		})
 
+		// @spec-link [[api_webui_health_stats]]
 		api.GET("/tree", func(c *gin.Context) {
 			// Convert mapping to slice for easy JSON response
 			var slice []*parser.Atom
@@ -172,6 +186,7 @@ func main() {
 			c.JSON(http.StatusOK, slice)
 		})
 
+		// @spec-link [[api_webui_health_stats]]
 		api.GET("/atd/:id", func(c *gin.Context) {
 			id := c.Param("id")
 			if atom, exists := Atoms[id]; exists {
@@ -181,6 +196,7 @@ func main() {
 			}
 		})
 
+		// @spec-link [[api_webui_health_stats]]
 		api.GET("/atd/:id/code", func(c *gin.Context) {
 			id := c.Param("id")
 			if atom, exists := Atoms[id]; exists {
@@ -190,6 +206,7 @@ func main() {
 			}
 		})
 
+		// @spec-link [[api_webui_health_stats]]
 		api.GET("/atd/:id/tests", func(c *gin.Context) {
 			id := c.Param("id")
 			if atom, exists := Atoms[id]; exists {
@@ -203,6 +220,7 @@ func main() {
 			}
 		})
 
+		// @spec-link [[mechanic_atd_update]]
 		api.POST("/bulk-update", func(c *gin.Context) {
 			var req struct {
 				IDs    []string `json:"ids"`
@@ -241,6 +259,7 @@ func main() {
 			c.JSON(http.StatusOK, gin.H{"summary": "Ollama summary will be generated here."})
 		})
 
+		// @spec-link [[mechanic_atd_update]]
 		api.POST("/atd/:id/update", func(c *gin.Context) {
 			id := c.Param("id")
 			var req struct {
@@ -366,6 +385,7 @@ func main() {
 						"id":           m.Name,
 						"display_name": m.DisplayName,
 						"description":  m.Description,
+						"actions":      m.SupportedActions,
 					})
 				}
 				if page.NextPageToken == "" {
@@ -379,7 +399,7 @@ func main() {
 
 			c.JSON(http.StatusOK, gin.H{
 				"models":  models,
-				"default": "gemini-2.5-flash",
+				"default": "models/gemini-3.1-flash-lite-preview",
 			})
 		})
 
@@ -402,6 +422,26 @@ func main() {
 			c.JSON(http.StatusOK, results)
 		})
 
+		// @spec-link [[mechanic_webui_gemini_proxy]]
+		api.GET("/gemini/atom/:id", func(c *gin.Context) {
+			id := c.Param("id")
+			atom, exists := Atoms[id]
+			if !exists {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Atom not found"})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"id":         atom.ID,
+				"human_name": atom.HumanName,
+				"type":       atom.Type,
+				"status":     atom.Status,
+				"content":    atom.Content,
+				"parents":    atom.Parents,
+				"dependents": atom.Dependents,
+			})
+		})
+
+		// @spec-link [[mechanic_atd_update]]
 		api.POST("/gemini/apply-proposal", func(c *gin.Context) {
 			var proposal struct {
 				Action  string                 `json:"action"`
@@ -530,6 +570,7 @@ func main() {
 	}
 }
 
+// @spec-link [[module_webui]]
 func expandPath(path string) string {
 	if strings.HasPrefix(path, "~/") {
 		home := os.Getenv("HOME")
@@ -541,6 +582,7 @@ func expandPath(path string) string {
 	return path
 }
 
+// @spec-link [[module_webui]]
 func extractIntent(content string) string {
 	lines := strings.Split(content, "\n")
 	inIntent := false
@@ -606,13 +648,19 @@ func handleGeminiChat(c *gin.Context) {
 
 	// Build conversation parts from history
 	var contents []*genai.Content
-	for _, msg := range req.Messages {
+	messagesToInclude := req.Messages
+	if req.OmitHistory && len(req.Messages) > 0 {
+		// Only include the last message
+		messagesToInclude = req.Messages[len(req.Messages)-1:]
+	}
+
+	for _, msg := range messagesToInclude {
 		role := msg.Role
 		if role == "assistant" {
 			role = "model"
 		}
 		contents = append(contents, &genai.Content{
-			Role: role,
+			Role:  role,
 			Parts: []*genai.Part{genai.NewPartFromText(msg.Content)},
 		})
 	}
@@ -632,9 +680,40 @@ func handleGeminiChat(c *gin.Context) {
 					Items: &genai.Schema{
 						Type: genai.TypeObject,
 						Properties: map[string]*genai.Schema{
-							"action":         {Type: genai.TypeString, Enum: []string{"CREATE", "UPDATE", "DELETE"}},
-							"atom_id":        {Type: genai.TypeString},
-							"content":        {Type: genai.TypeObject},
+							"action":  {Type: genai.TypeString, Enum: []string{"CREATE", "UPDATE", "DELETE"}},
+							"atom_id": {Type: genai.TypeString},
+							"content": {
+								Type: genai.TypeObject,
+								Properties: map[string]*genai.Schema{
+									"human_name": {Type: genai.TypeString},
+									"type": {
+										Type: genai.TypeString,
+										Enum: []string{
+											"MODULE", "SERVICE", "ENTITY", "RULE", "MECHANIC", "DOMAIN",
+											"API", "UI", "DATA", "USAGE", "BUILD", "REQUIREMENT",
+											"SPECIFICATION", "USECASE", "USER_STORY",
+										},
+									},
+									"layer": {
+										Type: genai.TypeString,
+										Enum: []string{"CUSTOMER", "ARCHITECTURE", "IMPLEMENTATION"},
+									},
+									"status": {
+										Type: genai.TypeString,
+										Enum: []string{"DRAFT", "REVIEW", "STABLE"},
+									},
+									"priority":            {Type: genai.TypeString},
+									"tags":                {Type: genai.TypeArray, Items: &genai.Schema{Type: genai.TypeString}},
+									"parents":             {Type: genai.TypeArray, Items: &genai.Schema{Type: genai.TypeString}},
+									"intent":              {Type: genai.TypeString},
+									"logic":               {Type: genai.TypeString},
+									"technical_interface": {Type: genai.TypeString},
+									"expectation":         {Type: genai.TypeString},
+								},
+								Required: []string{
+									"human_name", "type", "intent", "logic", "expectation",
+								},
+							},
 							"impact_summary": {Type: genai.TypeString},
 						},
 						Required: []string{"action", "atom_id"},
@@ -649,12 +728,16 @@ func handleGeminiChat(c *gin.Context) {
 	// Use selected model or default
 	model := req.Model
 	if model == "" {
-		model = "gemini-2.5-flash"
+		model = "gemini-3.1-flash-lite-preview"
 	}
 
 	result, err := client.Models.GenerateContent(ctx, model, contents, config)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gemini API error: " + err.Error()})
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "429") || strings.Contains(err.Error(), "RESOURCE_EXHAUSTED") || strings.Contains(err.Error(), "Quota exceeded") {
+			status = http.StatusTooManyRequests
+		}
+		c.JSON(status, gin.H{"error": "Gemini API error: " + err.Error()})
 		return
 	}
 
@@ -668,6 +751,16 @@ func handleGeminiChat(c *gin.Context) {
 		geminiResp = GeminiResponse{
 			Message:   responseText,
 			Proposals: []GeminiProposal{},
+		}
+	}
+
+	// @spec-link [[requirement_webui_token_transparency]]
+	// Extract usage
+	if result.UsageMetadata != nil {
+		geminiResp.Usage = UsageRecord{
+			PromptTokens:     int(result.UsageMetadata.PromptTokenCount),
+			CandidatesTokens: int(result.UsageMetadata.CandidatesTokenCount),
+			TotalTokens:      int(result.UsageMetadata.TotalTokenCount),
 		}
 	}
 

@@ -184,16 +184,29 @@
                         <div class="chat-header">
                             <div class="chat-header-left">
                                 <h2>Spec Builder</h2>
-                                <div class="model-selector">
-                                    <label for="model-select" class="model-label">Model:</label>
-                                    <select id="model-select" class="model-select">
-                                        <option value="gemini-2.5-flash" selected>gemini-2.5-flash</option>
-                                        <option value="gemini-2.5-pro">gemini-2.5-pro</option>
-                                        <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
-                                        <option value="gemini-3-flash-preview">gemini-3-flash-preview</option>
-                                        <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview</option>
-                                        <option value="gemini-3.1-flash-lite-preview">gemini-3.1-flash-lite-preview</option>
-                                    </select>
+                                <div class="header-controls-row">
+                                    <div class="model-selector">
+                                        <label for="model-select" class="model-label">Model:</label>
+                                        <select id="model-select" class="model-select">
+                                            <option value="gemini-2.5-flash" selected>gemini-2.5-flash</option>
+                                            <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                                            <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
+                                            <option value="gemini-3-flash-preview">gemini-3-flash-preview</option>
+                                            <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview</option>
+                                            <option value="gemini-3.1-flash-lite-preview">gemini-3.1-flash-lite-preview</option>
+                                        </select>
+                                    </div>
+                                    <div class="chat-mode-control">
+                                        <label class="toggle-switch" title="Enable/Disable conversation history forwarding">
+                                            <input type="checkbox" id="check-chat-mode" checked>
+                                            <span class="toggle-slider"></span>
+                                            <span class="toggle-text">Chat Mode</span>
+                                        </label>
+                                    </div>
+                                    <div class="token-usage-header" title="Session-wide token consumption">
+                                        <span class="token-icon">🪙</span>
+                                        <span id="total-tokens">0</span>
+                                    </div>
                                 </div>
                             </div>
                             <div class="chat-controls">
@@ -232,6 +245,11 @@
                                         <path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
                                     </svg>
                                 </button>
+                            </div>
+                            <div class="chat-context-bar" id="chat-context-bar">
+                                <div class="context-label">Context:</div>
+                                <div class="context-chips" id="context-chips"></div>
+                                <button class="btn-icon" id="btn-add-context" title="Add ATD Context">+</button>
                             </div>
                             <div class="chat-input-footer">
                                 Gemini can make mistakes. Check important info.

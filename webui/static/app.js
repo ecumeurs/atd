@@ -93,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('active'));
     });
 
+    // @spec-link [[mechanic_atd_update]]
     function toggleSelectMode() {
         isSelectionMode = !isSelectionMode;
         document.body.classList.toggle('selection-mode', isSelectionMode);
@@ -117,6 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnBulkApply.disabled = selectedIds.size === 0 || !bulkStatusSelect.value;
     }
 
+    // @spec-link [[mechanic_atd_update]]
     async function applyBulkUpdate() {
         const status = bulkStatusSelect.value;
         const ids = Array.from(selectedIds);
@@ -161,6 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // @spec-link [[module_webui]]
     async function fetchData() {
         try {
             const [treeResp, infoResp] = await Promise.all([
@@ -176,10 +179,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const data = await treeResp.json();
-            currentFlatData = data;
             if (data && data.length > 0) {
                 renderTreemap(data);
                 renderTreeView(data);
+
+                // Handle deep-linking via ?atom=id
+                const params = new URLSearchParams(window.location.search);
+                const atomId = params.get('atom');
+                if (atomId) {
+                    const atom = data.find(a => a.id === atomId);
+                    if (atom) {
+                        // Switch to explorer tab if not already there
+                        const explorerTabBtn = document.querySelector('.tab-btn[data-tab="explorer"]');
+                        if (explorerTabBtn) explorerTabBtn.click();
+                        
+                        // Show details after a small delay to ensure UI is ready
+                        setTimeout(() => showDetails(atom), 50);
+                    }
+                }
             } else {
                 treemapContainer.innerHTML = '<div style="padding: 24px; color: #9aa0a6;">No ATD data found. Try refreshing or check config.</div>';
                 treeviewContainer.innerHTML = '<div style="padding: 24px; color: #9aa0a6;">No ATD data found.</div>';
@@ -224,6 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return root;
     }
 
+    // @spec-link [[ui_webui_traceability_explorer]]
     function renderTreemap(rawData) {
         treemapContainer.innerHTML = ''; // Clear previous
 
@@ -275,6 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .text(d => d.data.type);
     }
 
+    // @spec-link [[ui_webui_traceability_explorer]]
     function renderTreeView(rawData) {
         treeviewContainer.innerHTML = '';
         const hierarchicalData = buildHierarchy(rawData);
@@ -362,6 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return `status-${atom.computed_color || 'grey'}`;
     }
 
+    // @spec-link [[ui_webui_traceability_explorer]]
     function showDetails(atom) {
         if (!atom || atom.id === "root") return;
 
@@ -475,6 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.detail-section').forEach(el => el.style.display = 'block');
     }
 
+    // @spec-link [[mechanic_atd_update]]
     async function saveAtomChanges() {
         if (!currentAtom) return;
 
@@ -520,6 +541,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnSave.textContent = 'Save Changes';
         }
     }
+    // @spec-link [[module_webui]]
     // --- Tab Switching ---
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -540,6 +562,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (tab === 'explorer' && currentFlatData) {
                 // Use setTimeout to ensure container is visible before measuring
                 setTimeout(() => renderTreemap(currentFlatData), 10);
+            }
+
+            // Step 09: Health check on Spec Builder entry
+            if (tab === 'spec-builder' && window.SpecBuilder) {
+                window.SpecBuilder.checkBackendHealth();
             }
         });
     });

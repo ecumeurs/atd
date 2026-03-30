@@ -83,6 +83,8 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
+| [Frontend Monoliths (app.js, spec-builder.js) and Inappropriate ATD Granularity](issues/ISS-057_20260330_webui_frontend_monolith.md) | 2026-03-30 | Open | High | The frontend codebase for the WebUI is distributed across two major files: `a... |
+| [WebUI Monolith and Inappropriate ATD Granularity](issues/ISS-056_20260330_webui_monolith_architecture.md) | 2026-03-30 | Open | High | The `webui` component is currently implemented as a single, bloated `main.go`... |
 | [WebUI Issue Integration](issues/ISS-055_20260330_webui_issue_integration.md) | 2026-03-30 | Open | Medium | The WebUI currently focuses on ATD visualization but lacks visibility into th... |
 | [ATD Summarization Feature for Atoms](issues/ISS-054_20260330_atd_summarization_feature.md) | 2026-03-30 | Open | Medium | Add a new `summary` command to both the ATD CLI and MCP server. This feature ... |
 | [`atd stats` coverage and ancestry reporting](issues/ISS-052_20260325_atd_stats_coverage_ancestry.md) | 2026-03-25 | Open | Medium | `atd stats` currently lacks detailed reporting on implementation and test cov... |

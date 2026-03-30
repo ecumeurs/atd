@@ -7,9 +7,9 @@ version: 1.0
 status: DRAFT
 priority: 3
 tags: [gemini, proxy, backend, atd-context]
-parents:
+parents: [[ui_webui_spec_builder]]
   - [[module_webui]]
-dependents: []
+dependents: [[[rule_webui_context_history_management]]]
 ---
 
 # WebUI Gemini API Proxy
@@ -18,15 +18,7 @@ dependents: []
 Provide a secure, structured backend proxy to the Gemini API using the `google.golang.org/genai` SDK, ensuring all AI interactions are rooted in ATD principles via manifesto injection.
 
 ## THE RULE / LOGIC
-1. **API Keys**: Load `GEMINI_API_KEY` from `.env`. Set `GOOGLE_API_KEY` for the SDK.
-2. **Context Injection**:
-   - Prepend `atdManifesto` as system instruction.
-   - Append `atd_context` (JSON-serialized atoms) to provide localized knowledge.
-   - Append `actions` (action history) to track acceptance/rejection patterns.
-3. **Structured Response**:
-   - Force response format using SDK's `ResponseMIMEType: "application/json"`.
-   - Use `ResponseSchema` to ensure fields: `message` (string) and `proposals` (array of `action`, `atom_id`, `content`, `impact_summary`).
-4. **Model Selection**: Default to `gemini-2.5-flash`, allow overriding via `model` field.
+1. API Keys: Load GEMINI_API_KEY from .env. 2. Context Injection: Manifesto, ATD context, actions, and conditionally history based on OmitHistory flag. 3. Structured Response: message, proposals, and usage metadata. 4. Model Selection: Allow override.
 
 ## TECHNICAL INTERFACE (The Bridge)
 - **Endpoint**: `POST /api/gemini/chat`

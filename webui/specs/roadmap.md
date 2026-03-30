@@ -56,8 +56,8 @@ Render message in chat + render proposals in side panel
 | 4 | [step_04_proposal_panel.md](step_04_proposal_panel.md) | Proposal cards UI: accept/reject, diff preview, apply via `atd update` | Steps 1-3 |
 | 5 | [step_05_atd_context.md](step_05_atd_context.md) | ATD context injection: recommend atoms, user confirmation, dedup | Steps 1-4 |
 | 6 | [step_06_action_history.md](step_06_action_history.md) | Forward accepted/rejected proposal history in chat messages | Steps 4-5 |
-| 7 | [step_07_context_drift.md](step_07_context_drift.md) | 10-exchange drift warning banner + session restart prompt | Steps 1-6 |
-| 8 | [step_08_session_mgmt.md](step_08_session_mgmt.md) | Session reset, conversation export, keyboard shortcuts | Steps 1-7 |
+| 7 | [step_07_context_drift.md](step_07_context_drift.md) | 10-exchange drift warning banner + session restart prompt | Completed |
+| 8 | [step_08_session_mgmt.md](step_08_session_mgmt.md) | Session reset, conversation export, keyboard shortcuts | Completed |
 | 9 | [step_09_polish.md](step_09_polish.md) | Animations, error states, loading skeletons, responsive layout | Steps 1-8 |
 | 10 | [step_10_testing.md](step_10_testing.md) | Manual test plan, edge cases, walkthrough documentation | Steps 1-9 |
 

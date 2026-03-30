@@ -2,6 +2,8 @@
 
 ## Index
 
+| ISS-057 | [ISS-057_20260330_webui_frontend_monolith.md](ISS-057_20260330_webui_frontend_monolith.md) | High | Open | Frontend (app.js, spec-builder.js) monoliths and ATD granularity. |
+| ISS-056 | [ISS-056_20260330_webui_monolith_architecture.md](ISS-056_20260330_webui_monolith_architecture.md) | High | Open | WebUI monolith architecture and inappropriate ATD granularity. |
 | ISS-055 | [ISS-055_20260330_webui_issue_integration.md](ISS-055_20260330_webui_issue_integration.md) | Medium | Open | Add a dedicated Issues tab and list view to the WebUI. |
 | ISS-054 | [ISS-054_20260330_atd_summarization_feature.md](ISS-054_20260330_atd_summarization_feature.md) | Medium | Open | Add a contextual summarization feature for ATD atoms. |
 | ISS-053 | [ISS-053_20260325_atd_atom_link_format_inconsistency.md](ISS-053_20260325_atd_atom_link_format_inconsistency.md) | Medium | Resolved | ATD atom link format inconsistency (triple brackets, VS Code compatibility). |

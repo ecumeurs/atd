@@ -73,6 +73,7 @@ func cleanLinks(raw []interface{}) []string {
 	return cleaned
 }
 
+// @spec-link [[mechanic_vscode_atom_parser]]
 // ParseAtoms traverses the given directory and parses all `.atom.md` files
 func ParseAtoms(dir string) (map[string]*Atom, error) {
 	atoms := make(map[string]*Atom)
@@ -120,6 +121,7 @@ func parseAtomFile(path string) (*Atom, error) {
 	return &atom, nil
 }
 
+// @spec-link [[mechanic_vscode_atom_parser]]
 // FindLinkedCode traverses the project and finds @spec-link references
 func FindLinkedCode(projectPath string, atoms map[string]*Atom) error {
 	// Initialize empty arrays
@@ -177,6 +179,7 @@ func FindLinkedCode(projectPath string, atoms map[string]*Atom) error {
 	return err
 }
 
+// @spec-link [[mechanic_vscode_atom_parser]]
 // CalculateStatuses determines the status and color of an ATD, following specific project rules
 func CalculateStatuses(atoms map[string]*Atom) {
 	// First pass: Calculate status for leaf nodes or nodes without considering children yet
