@@ -6,7 +6,7 @@ layer: ARCHITECTURE
 version: 1.0
 priority: 4
 parents: [[module_webui]]
-dependents: []
+dependents: [[[mechanic_webui_explorer_workflow]], [[ui_webui_explorer_layout]]]
 type: UI
 tags: [webui, ui, traceability]
 ---

@@ -53,6 +53,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentAtom = null;
     let isSelectionMode = false;
     let selectedIds = new Set();
+    let currentViewScope = 'all'; // 'all', 'done', 'almost_done', 'wip', 'jungle'
+
+    const colorScheme = {
+        done: { main: '#2e7d32', light: '#4caf50', label: 'Done' },
+        almost_done: { main: '#fbc02d', light: '#fdd835', label: 'Almost Done' },
+        wip: { main: '#0288d1', light: '#03a9f4', label: 'WIP' },
+        jungle: { main: '#546e7a', light: '#78909c', label: 'Doc Jungle' }
+    };
 
     // Fetch initial data
     fetchData();
@@ -155,15 +163,60 @@ document.addEventListener('DOMContentLoaded', () => {
             viewTreeBtn.classList.remove('active');
             treemapContainer.style.display = 'block';
             treeviewContainer.style.display = 'none';
+            // Render breadcrumb or back button if needed
+            renderBreadcrumb();
         } else {
             viewTreemapBtn.classList.remove('active');
             viewTreeBtn.classList.add('active');
             treemapContainer.style.display = 'none';
             treeviewContainer.style.display = 'block';
+            // Hide breadcrumbs in tree view for now
+            const bc = document.getElementById('breadcrumb-container');
+            if (bc) bc.style.display = 'none';
         }
     }
 
-    // @spec-link [[module_webui]]
+    // @spec-link [[mechanic_webui_breadcrumb_navigation]]
+    function renderBreadcrumb() {
+        let bcContainer = document.getElementById('breadcrumb-container');
+        if (!bcContainer) {
+            bcContainer = document.createElement('div');
+            bcContainer.id = 'breadcrumb-container';
+            bcContainer.className = 'breadcrumb-container';
+            treemapContainer.parentNode.insertBefore(bcContainer, treemapContainer);
+        }
+
+        if (currentViewScope === 'all') {
+            bcContainer.style.display = 'none';
+            return;
+        }
+
+        bcContainer.style.display = 'flex';
+        bcContainer.innerHTML = '';
+
+        const rootLink = document.createElement('span');
+        rootLink.className = 'breadcrumb-link';
+        rootLink.textContent = 'All Atoms';
+        rootLink.onclick = () => {
+            currentViewScope = 'all';
+            renderTreemap(currentFlatData);
+            renderBreadcrumb();
+        };
+
+        const separator = document.createElement('span');
+        separator.className = 'breadcrumb-separator';
+        separator.textContent = ' > ';
+
+        const currentBucket = document.createElement('span');
+        currentBucket.className = 'breadcrumb-current';
+        currentBucket.textContent = colorScheme[currentViewScope].label;
+
+        bcContainer.appendChild(rootLink);
+        bcContainer.appendChild(separator);
+        bcContainer.appendChild(currentBucket);
+    }
+
+    // @spec-link [[mechanic_webui_explorer_workflow]]
     async function fetchData() {
         try {
             const [treeResp, infoResp] = await Promise.all([
@@ -180,6 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const data = await treeResp.json();
             if (data && data.length > 0) {
+                currentFlatData = data;
                 renderTreemap(data);
                 renderTreeView(data);
 
@@ -208,62 +262,127 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function buildHierarchy(flatData) {
-        // D3 Treemap requires a single root usually.
-        // If data has multiple roots, create a virtual root.
+    // @spec-link [[mechanic_webui_health_categorization]]
+    function categorizeAtoms(flatData) {
+        const atomMap = new Map();
+        flatData.forEach(a => atomMap.set(a.id, a));
 
-        let root = { id: "root", name: "Project Chimera", children: [] };
+        const hasAncestorType = (atom, targetType) => {
+            const visited = new Set();
+            const queue = [...(atom.parents || [])];
+            while (queue.length > 0) {
+                const parentId = queue.shift();
+                if (visited.has(parentId)) continue;
+                visited.add(parentId);
+                const parent = atomMap.get(parentId);
+                if (parent) {
+                    if (parent.layer === targetType) return true;
+                    queue.push(...(parent.parents || []));
+                }
+            }
+            return false;
+        };
 
-        // Map elements by ID for quick access
-        const map = new Map();
-        flatData.forEach(node => {
-            map.set(node.id, { ...node, children: [], value: 1 }); // Give each block a nominal size
-        });
+        const buckets = {
+            done: [],
+            almost_done: [],
+            wip: [],
+            jungle: []
+        };
 
-        // Build tree based on parents array
-        map.forEach(node => {
-            if (node.parents && node.parents.length > 0) {
-                // Try to attach to first parent found
-                let parentId = node.parents[0];
-                let parentNode = map.get(parentId);
-                if (parentNode) {
-                    parentNode.children.push(node);
+        flatData.forEach(atom => {
+            const isStable = atom.status === 'STABLE';
+            const hasImpl = atom.linked_codes && atom.linked_codes.length > 0;
+            const hasTests = atom.has_tests;
+
+            if (isStable && hasImpl && hasTests) {
+                buckets.done.push(atom);
+            } else if (isStable && hasImpl && !hasTests) {
+                buckets.almost_done.push(atom);
+            } else if (isStable && !hasImpl) {
+                // WIP: Full doc (implementation ATD has Arch + Customer ancestor, but no impl, and all must be STABLE)
+                // Note: The "all must be STABLE" part is complex to verify here, 
+                // so we focus on the ancestors' layer and current atom being STABLE.
+                const hasArchAncestor = hasAncestorType(atom, 'ARCHITECTURE');
+                const hasCustomerAncestor = hasAncestorType(atom, 'CUSTOMER');
+
+                if (hasArchAncestor && hasCustomerAncestor) {
+                    buckets.wip.push(atom);
                 } else {
-                    // Parent not found in map, attach to root
-                    root.children.push(node);
+                    buckets.jungle.push(atom);
                 }
             } else {
-                // No parents, attach to root
-                root.children.push(node);
+                buckets.jungle.push(atom);
+            }
+        });
+
+        return buckets;
+    }
+
+    // @spec-link [[rule_webui_blob_sizing]]
+    function buildHierarchy(flatData, useCategories = true) {
+        if (!useCategories) {
+            // Build simple hierarchy for within-blob view
+            const root = { id: "root", name: "Cluster", children: [] };
+            const map = new Map();
+            flatData.forEach(node => map.set(node.id, { ...node, children: [], value: 1 }));
+            map.forEach(node => {
+                if (node.parents && node.parents.length > 0) {
+                    let parentId = node.parents[0];
+                    let parentNode = map.get(parentId);
+                    if (parentNode) parentNode.children.push(node);
+                    else root.children.push(node);
+                } else {
+                    root.children.push(node);
+                }
+            });
+            return root;
+        }
+
+        // Build 2nd level hierarchy for Category view
+        const buckets = categorizeAtoms(flatData);
+        let root = { id: "root", name: "Health Map", children: [] };
+
+        Object.keys(buckets).forEach(key => {
+            if (buckets[key].length > 0 || true) { // Show empty buckets? 
+                root.children.push({
+                    id: key,
+                    name: colorScheme[key].label,
+                    type: 'CATEGORY',
+                    children: buckets[key].map(a => ({ ...a, value: 1 }))
+                    // To maintain internal hierarchy within buckets, call buildHierarchy recursively:
+                    // children: buildHierarchy(buckets[key], false).children
+                });
             }
         });
 
         return root;
     }
 
+    // @spec-link [[ui_webui_explorer_layout]]
     // @spec-link [[ui_webui_traceability_explorer]]
+    // @spec-link [[mechanic_webui_explorer_workflow]]
     function renderTreemap(rawData) {
-        treemapContainer.innerHTML = ''; // Clear previous
+        treemapContainer.innerHTML = '';
 
-        const hierarchicalData = buildHierarchy(rawData);
+        let hierarchicalData;
+        if (currentViewScope === 'all') {
+            hierarchicalData = buildHierarchy(rawData, true);
+        } else {
+            const buckets = categorizeAtoms(rawData);
+            hierarchicalData = buildHierarchy(buckets[currentViewScope], false);
+        }
 
         const width = treemapContainer.clientWidth;
         const height = treemapContainer.clientHeight;
 
-        // Create root node
         const root = d3.hierarchy(hierarchicalData)
-            .sum(d => {
-                // Add value based on whether it has children or is a leaf
-                // To give decent sizes, we give everything a base value
-                return d.children && d.children.length > 0 ? 0 : 1;
-            })
-            // Distribute sizing nicely
+            .sum(d => d.value || 0)
             .sort((a, b) => b.value - a.value);
 
-        // Apply Treemap layout
         d3.treemap()
             .size([width, height])
-            .paddingTop(20) // Provide room for headers of grouped blocks
+            .paddingTop(d => d.depth === 1 ? 40 : 10)
             .paddingRight(4)
             .paddingBottom(4)
             .paddingLeft(4)
@@ -271,26 +390,64 @@ document.addEventListener('DOMContentLoaded', () => {
             .round(true)
             (root);
 
-        // Append div containers
-        const nodes = d3.select('#treemap-container')
-            .selectAll('.node')
-            .data(root.leaves())
-            .join('div')
-            .attr('class', d => `node ${getStatusClass(d.data)}`)
-            .style('left', d => `${d.x0}px`)
-            .style('top', d => `${d.y0}px`)
-            .style('width', d => `${d.x1 - d.x0}px`)
-            .style('height', d => `${d.y1 - d.y0}px`)
-            .on('click', (event, d) => showDetails(d.data, nodes));
+        const svg = d3.select('#treemap-container')
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height)
+            .style('border-radius', '12px');
 
-        // Add node contents
-        nodes.append('div')
-            .attr('class', 'node-title')
-            .text(d => d.data.human_name || d.data.id);
+        const nodes = svg.selectAll('g')
+            .data(currentViewScope === 'all' ? root.descendants().filter(d => d.depth > 0) : root.leaves())
+            .join('g')
+            .attr('transform', d => `translate(${d.x0},${d.y0})`)
+            .on('click', (event, d) => {
+                event.stopPropagation();
+                if (d.data.type === 'CATEGORY') {
+                    currentViewScope = d.data.id;
+                    renderTreemap(rawData);
+                    renderBreadcrumb();
+                } else {
+                    showDetails(d.data);
+                }
+            });
 
-        nodes.append('div')
-            .attr('class', 'node-meta')
-            .text(d => d.data.type);
+        nodes.append('rect')
+            .attr('width', d => d.x1 - d.x0)
+            .attr('height', d => d.y1 - d.y0)
+            .attr('class', d => `node-rect status-${d.data.computed_color || 'grey'} ${d.data.type === 'CATEGORY' ? 'category-blob' : ''}`)
+            .attr('fill', d => {
+                if (d.data.type === 'CATEGORY') return colorScheme[d.data.id].main;
+                // Atoms in category view might need generic coloring or specific
+                return getCategoryColor(d.data);
+            })
+            .attr('rx', 8)
+            .style('cursor', 'pointer');
+
+        nodes.append('text')
+            .attr('x', 12)
+            .attr('y', 24)
+            .attr('class', d => d.data.type === 'CATEGORY' ? 'label-category' : 'label-atom')
+            .text(d => d.data.human_name || d.data.id)
+            .attr('fill', d => d.data.type === 'CATEGORY' || d.data.computed_color === 'yellow' ? '#fff' : '#fff');
+
+        if (currentViewScope === 'all') {
+            nodes.filter(d => d.data.type === 'CATEGORY')
+                .append('text')
+                .attr('x', 12)
+                .attr('y', 45)
+                .attr('class', 'label-count')
+                .text(d => `${d.data.children.length} atoms`)
+                .attr('fill', 'rgba(255,255,255,0.7)');
+        }
+    }
+
+    function getCategoryColor(atom) {
+        // Fallback or specific logic
+        const buckets = categorizeAtoms(currentFlatData);
+        if (buckets.done.some(a => a.id === atom.id)) return colorScheme.done.main;
+        if (buckets.almost_done.some(a => a.id === atom.id)) return colorScheme.almost_done.main;
+        if (buckets.wip.some(a => a.id === atom.id)) return colorScheme.wip.main;
+        return colorScheme.jungle.main;
     }
 
     // @spec-link [[ui_webui_traceability_explorer]]
