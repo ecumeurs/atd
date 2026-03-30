@@ -8,7 +8,9 @@ priority: 5
 tags: [atd, config, specification]
 parents:
   - [[module_atd_cli]]
-dependents: [[[service_atd_serve_config]], [[service_atd_tiered_provider]]]
+dependents:
+  - [[service_atd_serve_config]]
+  - [[service_atd_tiered_provider]]
 layer: CUSTOMER
 ---
 

@@ -8,7 +8,9 @@ priority: 5
 tags: [atd, cli, search, semantic, grep]
 parents:
   - [[service_atd_index]]
-dependents: [[[mechanic_search_grep]], [[mechanic_search_semantic]]]
+dependents:
+  - [[mechanic_search_grep]]
+  - [[mechanic_search_semantic]]
 layer: IMPLEMENTATION
 ---
 

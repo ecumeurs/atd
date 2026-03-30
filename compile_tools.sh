@@ -47,6 +47,7 @@ cp lib/logging.sh bin/lib/logging.sh
 
 echo "[Copy] Copying .atd configuration to skill folder..."
 cp "$PROJECT_ROOT/.atd" "$PROJECT_ROOT/atd_management_skill/"
+cp "$PROJECT_ROOT/atd_management_skill/.agent/rules/ATD.md" "$PROJECT_ROOT/.agent/rules/ATD.md"
 
 set +e
 killall atd

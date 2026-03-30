@@ -8,7 +8,13 @@ priority: 5
 tags: [atd, structure, format, yaml]
 parents:
   - [[domain_atd_philosophy]]
-dependents: [[[domain_atd_type_architectural]], [[domain_atd_type_interface]], [[domain_atd_type_logic]], [[domain_atd_type_ops_req]], [[domain_atd_usage_protocol]], [[rule_atd_naming_convention]]]
+dependents:
+  - [[domain_atd_type_architectural]]
+  - [[domain_atd_type_interface]]
+  - [[domain_atd_type_logic]]
+  - [[domain_atd_type_ops_req]]
+  - [[domain_atd_usage_protocol]]
+  - [[rule_atd_naming_convention]]
 layer: CUSTOMER
 ---
 

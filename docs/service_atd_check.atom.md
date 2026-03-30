@@ -8,7 +8,8 @@ priority: 5
 tags: [atd, cli, check, health, environment]
 parents:
   - [[module_atd_cli]]
-dependents: [[[service_atd_serve_check]]]
+dependents:
+  - [[service_atd_serve_check]]
 layer: IMPLEMENTATION
 ---
 

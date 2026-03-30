@@ -520,4 +520,22 @@ document.addEventListener('DOMContentLoaded', () => {
             btnSave.textContent = 'Save Changes';
         }
     }
+    // --- Tab Switching ---
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            const target = document.getElementById(`content-${tab}`);
+            if (target) target.classList.add('active');
+            // Show/hide explorer-only header tools
+            const explorerTools = document.querySelector('.header-tools');
+            if (explorerTools) {
+                explorerTools.style.display = tab === 'explorer' ? 'flex' : 'none';
+            }
+        });
+    });
 });

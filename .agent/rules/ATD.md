@@ -74,8 +74,7 @@ Use this table to determine the correct `type`, `layer`, and expected granularit
 
 ### 4. File Modification & Tool Guardrails
 * **Never rewrite an entire `.atom.md` file.** Always use the `atd_update` tool to surgically modify specific frontmatter fields or H2 sections.
-* **MCP tools auto-configure.** All MCP tools read paths (docs, src, db) and thresholds from `.atd` config. You never need to provide `--docs`, `--src`, `--db`, or `--threshold` via MCP — just call the tool.
-* **Prioritize deterministic tools:** Use `atd_query`, `atd_crawl`, `atd_weave`, and `atd_update` for fast, token-free structural operations.
+* **Prioritize deterministic tools:** Use `atd_query`, `atd_trace`, `atd_crawl`, `atd_weave`, and `atd_update` for fast, token-free structural operations.
 * **Delegate LLM tasks:** When semantic analysis, complex extraction, or auditing is required, do not do the analysis yourself. Instead, use the MCP's LLM-backed tools (`atd_search`, `atd_audit`, `atd_discover`, `atd_dissect`) to offload the work to ATD's configured models and save your own context window.
 
 ### 5. The Day-to-Day Workflow
@@ -83,12 +82,13 @@ When asked to build a feature, fix a bug, or update code, you must follow this l
 * **Plan:** Use `atd_query` or `atd_search` to find existing relevant atoms. Create new `DRAFT` atoms using `atd_update` to capture new requirements before writing code.
 * **Specify:** Ensure every new atom links upward using the `parents` field in the frontmatter. Run `atd_weave` to establish the downward dependency graph (`dependents`).
 * **Implement:** Write the code. You must annotate the source code with `@spec-link [[atom_id]]` to map it to the implementation. Annotate tests with `@test-link [[atom_id]]`.
-* **Verify:** Run `atd_verify` to check if your code changes align with the specification. Use `atd_test_links` to confirm the atom has test coverage.
+* **Verify:** Run atd_trace to get a structured Health Snapshot JSON for the specific atom. Ensure the atom's implementation and test coverage metrics meet the required standards. Always ensure that a new atom has a link toward the upper layers ( Customer <- Architecture <- Implementation). If none are present that fits the need, adresse the issue to the user. 
 * **Evolve:** Before modifying any `STABLE` atom, you must run `atd_crawl` to assess the blast radius and impact on the rest of the system.
 
 ### 6. Surgical Traceability (Tag Placement)
 * **No Global Headers:** Do not place `@spec-link` tags at the top of a source file unless the atom literally represents the entire architectural pattern of that file.
-* **Target Logic Boundaries:** Place `@spec-link` tags directly above the specific class definition, function, decorator, or logical block that implements the rule.
+* **Target Logic Boundaries:** Place `@spec-link` tags directly above the specific class definition, function, decorator, or logical block that implements the atom.
+* **Test Logic Boundaries:** Place `@test-link` tags directly above the specific function, decorator, or logical block that test the atom.
 * **Discovery:** If you are unsure where to place tags in undocumented code, use `atd_discover` to get placement recommendations.
 
 ### 7. Respect the Documentation Hierarchy
@@ -96,3 +96,9 @@ When asked to build a feature, fix a bug, or update code, you must follow this l
 * **ARCHITECTURE Layer (`MODULE`, `API`, etc.):** Treat these as moderate-volatility. Always run an impact analysis (`atd_crawl`) before changing.
 * **IMPLEMENTATION Layer (`MECHANIC`, `BUILD`, etc.):** Treat these as high-volatility. Update these freely as you refactor or write new code.
 
+### 8. Pragmatic Traceability & Health (The Trace Rule)
+When using `atd_trace`, treat the resulting health metrics as a guide rather than a strict blocker. Apply the following logic:
+
+**Top-Down Design is Expected:** It is perfectly acceptable for CUSTOMER and ARCHITECTURE layer atoms to have a 0% implementation_rate or test_coverage_rate. Missing code/tests at this stage simply mean the feature is "on the to-do list." Do not stubbornly attempt to generate tests or code unless the user explicitly asks you to build the implementation.
+
+**Implementations Require Roots:** The only strict warning you must act upon is missing ancestry. If you are creating or modifying an IMPLEMENTATION atom and atd_trace reports has_customer_origin: false, you must stop and ask the user for clarification. Code should not exist without a reason. Let the user define the missing upstream requirement before you proceed.

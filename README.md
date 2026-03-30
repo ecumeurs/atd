@@ -83,11 +83,12 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
-| [Unified Cold-Start and Audit Protocol as MCP Tools](issues/ISS-050_20260325_mcp_protocol_unification.md) | 2026-03-25 | Open | High | The full cold-start and auditing protocols should be exposed as first-class MCP tools. |
-| [Audit Should Request Trace for Coverage Detection](issues/ISS-049_20260325_audit_trace_integration.md) | 2026-03-25 | Open | Medium | Audit should suggest/trigger trace to detect missing doc/impl/test coverage. |
-| [Proof Test Trace with Complex Graph](issues/ISS-047_20260325_trace_proof_test_case.md) | 2026-03-25 | Open | Medium | Proof Test Trace with complex graph and health violations. |
+| [ATD Summarization Feature for Atoms](issues/ISS-054_20260330_atd_summarization_feature.md) | 2026-03-30 | Open | Medium | Add a new `summary` command to both the ATD CLI and MCP server. This feature ... |
+| [`atd stats` coverage and ancestry reporting](issues/ISS-052_20260325_atd_stats_coverage_ancestry.md) | 2026-03-25 | Open | Medium | `atd stats` currently lacks detailed reporting on implementation and test cov... |
+| [atd_verify MCP tool fails with git diff error](issues/ISS-051_20260325_atd_verify_mcp_git_diff_failure.md) | 2026-03-25 | Open | High | The `atd_verify` tool fails when invoked via the MCP server with the error: `... |
+| [Unified Cold-Start and Audit Protocol as MCP Tools](issues/ISS-050_20260325_mcp_protocol_unification.md) | 2026-03-25 | Open | High | The full cold-start and auditing protocols (multi-step pipelines) should be e... |
+| [Audit Should Request Trace for Coverage Detection](issues/ISS-049_20260325_audit_trace_integration.md) | 2026-03-25 | Open | Medium | When running an audit (full or scoped), the system currently focuses on bloat... |
 | [ATD Graph Visualization Improvements](issues/ISS-048_20260325_atd_graph_visualization_improvements.md) | 2026-03-25 | Open | Medium | The current ATD graph visualization in the VS Code extension (`atd.showFullGr... |
-| [Weave Regex Corrupts Dependents Field](issues/ISS-046_20260324_weave_dependents_corruption.md) | 2026-03-24 | Open | Critical | The `atd weave` command corrupts the `dependents` YAML field on every run, pr... |
 | [MCP Tools Review and Parameter Cleanup](issues/ISS-045_20260324_mcp_tools_refactor_and_cleanup.md) | 2026-03-24 | Open | Medium | The current MCP tools expose internal implementation details (like file paths... |
 | [ATD Verify Tool is Hardcoded to Go Testing](issues/ISS-044_20260324_verify_go_dependency.md) | 2026-03-24 | Open | High | The `atd verify` tool currently has a hard dependency on Go, specifically exe... |
 | [WebUI Specification](issues/ISS-041_20260324_webui_specification.md) | 2026-03-24 | Open | Medium | The WebUI currently exists only as the kernel of an idea — basic rendering wi... |

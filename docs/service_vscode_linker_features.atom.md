@@ -7,7 +7,12 @@ priority: 3
 parents: [[specification_vscode_atd_linker]]
 human_name: "VS Code Linker Language Features"
 layer: ARCHITECTURE
-dependents: [[[mechanic_vscode_atd_config]], [[mechanic_vscode_atom_parser]], [[mechanic_vscode_codelens_provider]], [[mechanic_vscode_hover_provider]], [[mechanic_vscode_link_provider]]]
+dependents:
+  - [[mechanic_vscode_atd_config]]
+  - [[mechanic_vscode_atom_parser]]
+  - [[mechanic_vscode_codelens_provider]]
+  - [[mechanic_vscode_hover_provider]]
+  - [[mechanic_vscode_link_provider]]
 ---
 
 # New Atom

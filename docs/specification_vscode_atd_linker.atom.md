@@ -5,7 +5,9 @@ status: STABLE
 priority: 5
 version: 1.0.0
 parents: [atd_philosophy]
-dependents: [[[service_vscode_atd_ui]], [[service_vscode_linker_features]]]
+dependents:
+  - [[service_vscode_atd_ui]]
+  - [[service_vscode_linker_features]]
 layer: CUSTOMER
 ---
 

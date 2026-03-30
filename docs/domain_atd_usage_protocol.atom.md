@@ -9,7 +9,11 @@ tags: [atd, process, lifecycle, workflow]
 parents:
   - [[domain_atd_philosophy]]
   - [[domain_atd_structure]]
-dependents: [[[usage_atd_use_case_auditing]], [[usage_atd_use_case_code_sync]], [[usage_atd_use_case_cold_start]], [[usage_atd_use_case_impact_analysis]]]
+dependents:
+  - [[usage_atd_use_case_auditing]]
+  - [[usage_atd_use_case_code_sync]]
+  - [[usage_atd_use_case_cold_start]]
+  - [[usage_atd_use_case_impact_analysis]]
 layer: CUSTOMER
 ---
 

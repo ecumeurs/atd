@@ -8,7 +8,9 @@ priority: 5
 tags: [atd, cli, audit, integrity]
 parents:
   - [[module_atd_cli]]
-dependents: [[[mechanic_atd_compare]], [[mechanic_atd_fix]]]
+dependents:
+  - [[mechanic_atd_compare]]
+  - [[mechanic_atd_fix]]
 layer: IMPLEMENTATION
 ---
 

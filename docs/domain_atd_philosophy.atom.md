@@ -7,7 +7,10 @@ status: STABLE
 priority: 5
 tags: [atd, philosophy, methodology]
 parents: []
-dependents: [[[domain_atd_structure]], [[domain_atd_usage_protocol]], [[module_atd_cli]]]
+dependents:
+  - [[domain_atd_structure]]
+  - [[domain_atd_usage_protocol]]
+  - [[module_atd_cli]]
 layer: CUSTOMER
 ---
 

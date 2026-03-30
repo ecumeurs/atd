@@ -27,6 +27,7 @@ dependents:
   - [[api_atd_serve_update]]
   - [[api_atd_serve_verify]]
   - [[api_atd_serve_weave]]
+  - [[service_atd_trace]]
 ---
 
 # MCP Operations

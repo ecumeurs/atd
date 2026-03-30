@@ -4,7 +4,7 @@
 **Ref:** `ISS-046`
 **Date:** 2026-03-24
 **Severity:** Critical
-**Status:** Open
+**Status:** Resolved
 **Component:** `scripts/cmd/atd/cmd/weave.go`
 **Affects:** All `.atom.md` files processed by `atd weave`
 
@@ -68,3 +68,5 @@ Using greedy `.*` ensures the match extends to the **last** `]` on the line, cor
 
 - [weave.go](scripts/cmd/atd/cmd/weave.go)
 - [atom/parse.go](scripts/pkg/atom/parse.go)
+## Change Log
+- **2026-03-25**: Fixed the `atd weave` tool by replacing the fragile single-line regex with a robust line-oriented replacement logic. Standardized the output to use bullet-point YAML lists (`- [[id]]`), which eliminates the triple-bracket corruption and ensures VS Code compatibility. Ran a full weave to repair across 17 affected atoms.

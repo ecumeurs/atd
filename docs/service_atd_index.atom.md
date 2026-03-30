@@ -8,7 +8,10 @@ priority: 5
 tags: [atd, cli, index, nomic, embedding]
 parents:
   - [[module_atd_cli]]
-dependents: [[[mechanic_index_chunking]], [[mechanic_index_schema]], [[service_atd_search]]]
+dependents:
+  - [[mechanic_index_chunking]]
+  - [[mechanic_index_schema]]
+  - [[service_atd_search]]
 layer: IMPLEMENTATION
 ---
 

@@ -10,8 +10,7 @@ tags: [mcp, tool, atd_trace]
 parents:
   - [[api_atd_mcp_ops]]
   - [[service_atd_serve]]
-dependents:
-  - [[service_atd_trace]]
+dependents: []
 ---
 
 # MCP Tool: atd_trace

@@ -294,14 +294,24 @@ func runUpdate(filePath string, setArgs []string, intentArg, logicArg, interface
 
 	// Replace existing keys
 	matchedKeys := make(map[string]bool)
-	for _, line := range frontmatterLines {
+	for i := 0; i < len(frontmatterLines); i++ {
+		line := frontmatterLines[i]
 		updated := false
 		for k, v := range updates {
 			prefix := k + ":"
 			if strings.HasPrefix(line, prefix) {
-				newFrontmatter = append(newFrontmatter, fmt.Sprintf("%s: %s", k, v))
+				if k == "parents" || k == "dependents" {
+					newFrontmatter = append(newFrontmatter, formatYAMLList(k, v))
+				} else {
+					newFrontmatter = append(newFrontmatter, fmt.Sprintf("%s: %s", k, v))
+				}
 				matchedKeys[k] = true
 				updated = true
+
+				// Skip multi-line content (e.g. lists)
+				for i+1 < len(frontmatterLines) && strings.HasPrefix(frontmatterLines[i+1], "  -") {
+					i++
+				}
 				break
 			}
 		}
@@ -313,7 +323,11 @@ func runUpdate(filePath string, setArgs []string, intentArg, logicArg, interface
 	// Append new keys
 	for k, v := range updates {
 		if !matchedKeys[k] {
-			newFrontmatter = append(newFrontmatter, fmt.Sprintf("%s: %s", k, v))
+			if k == "parents" || k == "dependents" {
+				newFrontmatter = append(newFrontmatter, formatYAMLList(k, v))
+			} else {
+				newFrontmatter = append(newFrontmatter, fmt.Sprintf("%s: %s", k, v))
+			}
 		}
 	}
 	newFrontmatter = append(newFrontmatter, "---")
@@ -536,4 +550,37 @@ func init() {
 	updateCmd.Flags().String("expectation", "", "New content for ## EXPECTATION section (use '-' for stdin)")
 	updateCmd.Flags().StringSlice("set", []string{}, "Set frontmatter key=value (can be used multiple times)")
 	updateCmd.Flags().StringSlice("spec-link", []string{}, "Inbound ID and source file to tag: --spec-link <id> <file>")
+}
+
+func formatYAMLList(key, val string) string {
+	val = strings.TrimSpace(val)
+	if val == "" || val == "[]" {
+		return fmt.Sprintf("%s: []", key)
+	}
+
+	// Split by comma or newline for lists
+	var items []string
+	if strings.Contains(val, "\n") {
+		items = strings.Split(val, "\n")
+	} else {
+		// Strip outer brackets if present (e.g. from [a, b])
+		val = strings.Trim(val, "[] ")
+		items = strings.Split(val, ",")
+	}
+
+	var result strings.Builder
+	result.WriteString(fmt.Sprintf("%s:", key))
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item == "" || item == "-" {
+			continue
+		}
+		// Robustly strip ALL existing brackets and dashes
+		item = strings.Trim(item, "[]- ")
+		if item == "" {
+			continue
+		}
+		result.WriteString(fmt.Sprintf("\n  - [[%s]]", item))
+	}
+	return result.String()
 }

@@ -1,4 +1,5 @@
 upsilonbattle
+.env
 *.db
 upsilon
 atd_management_skill/.agent/skills/atd/tools
@@ -6,3 +7,4 @@ scripts/bin
 .agent/logs
 bin/*
 scripts/cmd/atd/bin/*
+webui/webui_bin

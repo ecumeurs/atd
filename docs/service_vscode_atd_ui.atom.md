@@ -5,7 +5,10 @@ priority: 3
 human_name: "VS Code ATD UI Components"
 version: 1.0.0
 parents: [[specification_vscode_atd_linker]]
-dependents: [[[mechanic_vscode_atom_parser]], [[mechanic_vscode_sidebar_tree]], [[mechanic_vscode_webview_graph]]]
+dependents:
+  - [[mechanic_vscode_atom_parser]]
+  - [[mechanic_vscode_sidebar_tree]]
+  - [[mechanic_vscode_webview_graph]]
 type: SERVICE
 layer: ARCHITECTURE
 ---

@@ -17,6 +17,7 @@ type Atom struct {
 	ID            string        `json:"id" yaml:"id"`
 	HumanName     string        `json:"human_name" yaml:"human_name"`
 	Type          string        `json:"type" yaml:"type"`
+	Layer         string        `json:"layer" yaml:"layer"`
 	Version       string        `json:"version" yaml:"version"`
 	Status        string        `json:"status" yaml:"status"`
 	Priority      string        `json:"priority" yaml:"priority"`

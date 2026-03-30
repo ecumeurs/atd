@@ -8,7 +8,8 @@ priority: 3
 tags: [atd, cli, lint, validation]
 parents:
   - [[module_atd_cli]]
-dependents: [[[api_atd_serve_lint]]]
+dependents:
+  - [[api_atd_serve_lint]]
 layer: CUSTOMER
 ---
 

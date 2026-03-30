@@ -9,6 +9,7 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/spec-builder.css">
 </head>
 
 <body>
@@ -24,6 +25,14 @@
                         Found</span>
                 </div>
             </div>
+            <div class="header-tabs">
+                <button class="tab-btn active" id="tab-explorer" data-tab="explorer">
+                    <span class="tab-icon">⊞</span> Explorer
+                </button>
+                <button class="tab-btn" id="tab-spec-builder" data-tab="spec-builder">
+                    <span class="tab-icon">💬</span> Spec Builder
+                </button>
+            </div>
             <div class="header-tools">
                 <button class="btn btn-outline" id="toggle-layout" title="Toggle Display Ratio">⬌</button>
                 <button class="btn btn-outline" id="toggle-select-mode">Select Mode</button>
@@ -31,139 +40,217 @@
             </div>
         </header>
 
-        <div class="bulk-bar" id="bulk-bar" style="display: none;">
-            <div class="bulk-info"><span id="selected-count">0</span> ATDs selected</div>
-            <div class="bulk-actions">
-                <select id="bulk-status-select" class="bulk-select">
-                    <option value="" disabled selected>Change Status to...</option>
-                    <option value="DRAFT">DRAFT</option>
-                    <option value="REVIEW">REVIEW</option>
-                    <option value="STABLE">STABLE</option>
-                </select>
-                <button class="btn btn-primary" id="btn-bulk-apply" disabled>Apply Change</button>
-                <button class="btn btn-outline btn-sm" id="btn-bulk-cancel">Cancel</button>
+        <!-- Explorer Tab -->
+        <div class="tab-content active" id="content-explorer">
+            <div class="bulk-bar" id="bulk-bar" style="display: none;">
+                <div class="bulk-info"><span id="selected-count">0</span> ATDs selected</div>
+                <div class="bulk-actions">
+                    <select id="bulk-status-select" class="bulk-select">
+                        <option value="" disabled selected>Change Status to...</option>
+                        <option value="DRAFT">DRAFT</option>
+                        <option value="REVIEW">REVIEW</option>
+                        <option value="STABLE">STABLE</option>
+                    </select>
+                    <button class="btn btn-primary" id="btn-bulk-apply" disabled>Apply Change</button>
+                    <button class="btn btn-outline btn-sm" id="btn-bulk-cancel">Cancel</button>
+                </div>
             </div>
+
+            <main class="main-content">
+                <section class="viz-section">
+                    <div class="viz-header">
+                        <div class="header-main">
+                            <h2>Project Documentation State</h2>
+                            <div class="view-switcher">
+                                <button class="view-btn active" id="view-treemap" title="Treemap View">⊞</button>
+                                <button class="view-btn" id="view-tree" title="Hierarchical Tree">≡</button>
+                            </div>
+                        </div>
+                        <p>Summarized documentation and development status.</p>
+                    </div>
+
+                    <div class="legend">
+                        <span class="legend-item"><span class="color-box green"></span> Implemented</span>
+                        <span class="legend-item"><span class="color-box yellow"></span> Partial / Tested</span>
+                        <span class="legend-item"><span class="color-box red"></span> Unimplemented / Untested</span>
+                        <span class="legend-item"><span class="color-box grey"></span> Informational</span>
+                    </div>
+
+                    <div id="treemap-container"></div>
+                    <div id="treeview-container" style="display: none;"></div>
+                </section>
+
+                <aside class="details-panel" id="details-panel">
+                    <div class="details-empty" id="details-empty">
+                        <p>Select a block to view ATD details.</p>
+                    </div>
+                    <div class="details-content" id="details-content" style="display: none;">
+                        <button class="btn-close" id="close-panel">×</button>
+                        <div class="badge" id="detail-type">TYPE</div>
+                        <div class="badge-status" id="detail-status">STATUS</div>
+                        <h2 id="detail-title">Block Title</h2>
+                        <p class="detail-id" id="detail-id">@id</p>
+
+                        <div class="detail-section">
+                            <h3>Content</h3>
+                            <div class="markdown-body" id="detail-markdown"></div>
+                        </div>
+
+                        <div class="detail-actions">
+                            <button class="btn btn-primary" id="btn-edit">Edit Atom</button>
+                            <button class="btn btn-outline" id="btn-summarize">Generate Summary</button>
+                        </div>
+
+                        <div class="summary-box" id="summary-box" style="display: none;"></div>
+
+                        <div id="edit-form" style="display: none;">
+                            <div class="form-group">
+                                <label>Human Name</label>
+                                <input type="text" id="edit-human-name">
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Type</label>
+                                    <select id="edit-type">
+                                        <option value="MECHANIC">MECHANIC</option>
+                                        <option value="API">API</option>
+                                        <option value="UI">UI</option>
+                                        <option value="DATA">DATA</option>
+                                        <option value="DOMAIN">DOMAIN</option>
+                                        <option value="RULE">RULE</option>
+                                        <option value="USAGE">USAGE</option>
+                                        <option value="BUILD">BUILD</option>
+                                        <option value="SERVICE">SERVICE</option>
+                                        <option value="ENTITY">ENTITY</option>
+                                        <option value="MODULE">MODULE</option>
+                                        <option value="REQUIREMENT">REQUIREMENT</option>
+                                        <option value="SPECIFICATION">SPECIFICATION</option>
+                                        <option value="USECASE">USECASE</option>
+                                        <option value="USER_STORY">USER_STORY</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Status</label>
+                                    <select id="edit-status">
+                                        <option value="DRAFT">DRAFT</option>
+                                        <option value="REVIEW">REVIEW</option>
+                                        <option value="STABLE">STABLE</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Priority</label>
+                                    <select id="edit-priority">
+                                        <option value="CORE">CORE</option>
+                                        <option value="SECONDARY">SECONDARY</option>
+                                        <option value="EXPERIMENTAL">EXPERIMENTAL</option>
+                                        <option value="FLAVOR">FLAVOR</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Tags (comma separated)</label>
+                                <input type="text" id="edit-tags">
+                            </div>
+                            <div class="form-group">
+                                <label>Markdown Content</label>
+                                <textarea id="edit-content" rows="15"></textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button class="btn btn-primary" id="btn-save">Save Changes</button>
+                                <button class="btn btn-outline" id="btn-cancel-edit">Cancel</button>
+                            </div>
+                        </div>
+
+                        <div class="detail-section">
+                            <h3>Code Implementation</h3>
+                            <ul class="code-list" id="detail-code"></ul>
+                        </div>
+
+                        <div class="detail-section">
+                            <h3>Testing</h3>
+                            <div class="test-status" id="detail-test-status"></div>
+                        </div>
+                    </div>
+                </aside>
+            </main>
         </div>
 
-        <main class="main-content">
-            <section class="viz-section">
-                <div class="viz-header">
-                    <div class="header-main">
-                        <h2>Project Documentation State</h2>
-                        <div class="view-switcher">
-                            <button class="view-btn active" id="view-treemap" title="Treemap View">⊞</button>
-                            <button class="view-btn" id="view-tree" title="Hierarchical Tree">≡</button>
-                        </div>
-                    </div>
-                    <p>Summarized documentation and development status.</p>
-                </div>
-
-                <div class="legend">
-                    <span class="legend-item"><span class="color-box green"></span> Implemented</span>
-                    <span class="legend-item"><span class="color-box yellow"></span> Partial / Tested</span>
-                    <span class="legend-item"><span class="color-box red"></span> Unimplemented / Untested</span>
-                    <span class="legend-item"><span class="color-box grey"></span> Informational</span>
-                </div>
-
-                <div id="treemap-container"></div>
-                <div id="treeview-container" style="display: none;"></div>
-            </section>
-
-            <aside class="details-panel" id="details-panel">
-                <div class="details-empty" id="details-empty">
-                    <p>Select a block to view ATD details.</p>
-                </div>
-                <div class="details-content" id="details-content" style="display: none;">
-                    <button class="btn-close" id="close-panel">×</button>
-                    <div class="badge" id="detail-type">TYPE</div>
-                    <div class="badge-status" id="detail-status">STATUS</div>
-                    <h2 id="detail-title">Block Title</h2>
-                    <p class="detail-id" id="detail-id">@id</p>
-
-                    <div class="detail-section">
-                        <h3>Content</h3>
-                        <div class="markdown-body" id="detail-markdown"></div>
-                    </div>
-
-                    <div class="detail-actions">
-                        <button class="btn btn-primary" id="btn-edit">Edit Atom</button>
-                        <button class="btn btn-outline" id="btn-summarize">Generate Summary</button>
-                    </div>
-
-                    <div class="summary-box" id="summary-box" style="display: none;"></div>
-
-                    <div id="edit-form" style="display: none;">
-                        <div class="form-group">
-                            <label>Human Name</label>
-                            <input type="text" id="edit-human-name">
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Type</label>
-                                <select id="edit-type">
-                                    <option value="MECHANIC">MECHANIC</option>
-                                    <option value="API">API</option>
-                                    <option value="UI">UI</option>
-                                    <option value="DATA">DATA</option>
-                                    <option value="DOMAIN">DOMAIN</option>
-                                    <option value="RULE">RULE</option>
-                                    <option value="USAGE">USAGE</option>
-                                    <option value="BUILD">BUILD</option>
-                                    <option value="SERVICE">SERVICE</option>
-                                    <option value="ENTITY">ENTITY</option>
-                                    <option value="MODULE">MODULE</option>
-                                    <option value="REQUIREMENT">REQUIREMENT</option>
-                                    <option value="SPECIFICATION">SPECIFICATION</option>
-                                    <option value="USECASE">USECASE</option>
-                                    <option value="USER_STORY">USER_STORY</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Status</label>
-                                <select id="edit-status">
-                                    <option value="DRAFT">DRAFT</option>
-                                    <option value="REVIEW">REVIEW</option>
-                                    <option value="STABLE">STABLE</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Priority</label>
-                                <select id="edit-priority">
-                                    <option value="CORE">CORE</option>
-                                    <option value="SECONDARY">SECONDARY</option>
-                                    <option value="EXPERIMENTAL">EXPERIMENTAL</option>
-                                    <option value="FLAVOR">FLAVOR</option>
+        <!-- Spec Builder Tab -->
+        <div class="tab-content" id="content-spec-builder">
+            <div class="spec-builder-layout">
+                <!-- Chat Column -->
+                <div class="chat-column">
+                    <div class="chat-header">
+                        <div class="chat-header-left">
+                            <h2>Spec Builder</h2>
+                            <div class="model-selector">
+                                <label for="model-select" class="model-label">Model:</label>
+                                <select id="model-select" class="model-select">
+                                    <option value="gemini-2.5-flash" selected>gemini-2.5-flash</option>
+                                    <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                                    <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
+                                    <option value="gemini-3-flash-preview">gemini-3-flash-preview</option>
+                                    <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview</option>
+                                    <option value="gemini-3.1-flash-lite-preview">gemini-3.1-flash-lite-preview</option>
                                 </select>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label>Tags (comma separated)</label>
-                            <input type="text" id="edit-tags">
-                        </div>
-                        <div class="form-group">
-                            <label>Markdown Content</label>
-                            <textarea id="edit-content" rows="15"></textarea>
-                        </div>
-                        <div class="form-actions">
-                            <button class="btn btn-primary" id="btn-save">Save Changes</button>
-                            <button class="btn btn-outline" id="btn-cancel-edit">Cancel</button>
+                        <div class="chat-controls">
+                            <button class="btn btn-outline btn-sm" id="btn-new-session" title="Start new session">
+                                🔄 New Session
+                            </button>
+                            <button class="btn btn-outline btn-sm" id="btn-export-chat" title="Export conversation">
+                                📥 Export
+                            </button>
                         </div>
                     </div>
-
-                    <div class="detail-section">
-                        <h3>Code Implementation</h3>
-                        <ul class="code-list" id="detail-code"></ul>
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="chat-welcome">
+                            <div class="welcome-icon">🏗️</div>
+                            <h3>ATD Spec Builder</h3>
+                            <p>Describe the feature or system you want to specify. I'll help you create properly structured ATD atoms following the atomic documentation rules.</p>
+                            <div class="welcome-suggestions">
+                                <button class="suggestion-chip" data-prompt="I want to define a new feature for">Define a feature</button>
+                                <button class="suggestion-chip" data-prompt="Help me decompose this requirement:">Decompose a requirement</button>
+                                <button class="suggestion-chip" data-prompt="Review and improve these existing atoms:">Review existing atoms</button>
+                            </div>
+                        </div>
                     </div>
-
-                    <div class="detail-section">
-                        <h3>Testing</h3>
-                        <div class="test-status" id="detail-test-status"></div>
+                    <div class="chat-context-bar" id="chat-context-bar" style="display: none;">
+                        <span class="context-label">📎 ATD Context:</span>
+                        <div class="context-chips" id="context-chips"></div>
+                        <button class="btn-icon" id="btn-add-context" title="Add ATD context">+</button>
+                    </div>
+                    <div class="chat-input-area">
+                        <textarea id="chat-input" placeholder="Describe what you want to specify..." rows="1"></textarea>
+                        <button class="btn btn-send" id="btn-send" title="Send (Ctrl+Enter)">
+                            <span>➤</span>
+                        </button>
                     </div>
                 </div>
-            </aside>
-        </main>
+
+                <!-- Proposals Column -->
+                <div class="proposals-column">
+                    <div class="proposals-header">
+                        <h2>Proposals</h2>
+                        <span class="proposal-count" id="proposal-count">0 pending</span>
+                    </div>
+                    <div class="proposals-list" id="proposals-list">
+                        <div class="proposals-empty">
+                            <p>Proposals from the AI will appear here for your review.</p>
+                            <p class="proposals-hint">You can accept ✓ or reject ✗ each proposal individually.</p>
+                        </div>
+                    </div>
+                    <div class="proposals-actions" id="proposals-actions" style="display: none;">
+                        <button class="btn btn-primary btn-sm" id="btn-accept-all">Accept All</button>
+                        <button class="btn btn-outline btn-sm" id="btn-reject-all">Reject All</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     <script src="/static/app.js"></script>
+    <script src="/static/spec-builder.js"></script>
 </body>
 
 </html>

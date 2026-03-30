@@ -2,10 +2,15 @@
 
 ## Index
 
+| ISS-054 | [ISS-054_20260330_atd_summarization_feature.md](ISS-054_20260330_atd_summarization_feature.md) | Medium | Open | Add a contextual summarization feature for ATD atoms. |
+| ISS-053 | [ISS-053_20260325_atd_atom_link_format_inconsistency.md](ISS-053_20260325_atd_atom_link_format_inconsistency.md) | Medium | Resolved | ATD atom link format inconsistency (triple brackets, VS Code compatibility). |
+| ISS-052 | [ISS-052_20260325_atd_stats_coverage_ancestry.md](ISS-052_20260325_atd_stats_coverage_ancestry.md) | Medium | Open | atd stats coverage and ancestry reporting |
+| ISS-051 | [ISS-051_20260325_atd_verify_mcp_git_diff_failure.md](ISS-051_20260325_atd_verify_mcp_git_diff_failure.md) | High | Open | atd_verify MCP tool fails with git diff error |
 | ISS-050 | [ISS-050_20260325_mcp_protocol_unification.md](ISS-050_20260325_mcp_protocol_unification.md) | High | Open | Unified Cold-Start and Audit Protocol as MCP Tools |
 | ISS-049 | [ISS-049_20260325_audit_trace_integration.md](ISS-049_20260325_audit_trace_integration.md) | Medium | Open | Audit Should Request Trace for Coverage Detection |
 | ISS-048 | [ISS-048_20260325_atd_graph_visualization_improvements.md](ISS-048_20260325_atd_graph_visualization_improvements.md) | Medium | Open | ATD graph visualization improvements (legend, hover, click to center, depth). |
 | ISS-047 | [ISS-047_20260325_trace_proof_test_case.md](ISS-047_20260325_trace_proof_test_case.md) | Medium | Open | Proof Test Trace with complex graph and health violations. |
+| ISS-046 | [ISS-046_20260324_weave_dependents_corruption.md](ISS-046_20260324_weave_dependents_corruption.md) | Critical | Resolved | Weave Regex Corrupts Dependents Field |
 | ISS-045 | [ISS-045_20260324_mcp_tools_refactor_and_cleanup.md](ISS-045_20260324_mcp_tools_refactor_and_cleanup.md) | Medium | Open | MCP Tools Review and Parameter Cleanup |
 | ISS-044 | [ISS-044_20260324_verify_go_dependency.md](ISS-044_20260324_verify_go_dependency.md) | High | Open | ATD Verify Tool is hardcoded to Go. |
 | ISS-043 | [ISS-043_20260324_config_check_tool_missing.md](ISS-043_20260324_config_check_tool_missing.md) | Medium | Resolved | Missing configuration and model availability check tool. |
