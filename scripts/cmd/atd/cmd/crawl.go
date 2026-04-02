@@ -1,32 +1,16 @@
 package cmd
+
 // @spec-link [[service_atd_crawl]]
 
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 
 	"atd-tools/config"
-	"atd-tools/pkg/atom"
+	"atd-tools/pkg/exploration"
+
 	"github.com/spf13/cobra"
 )
-
-type DependencyGraph struct {
-	Atoms map[string]*AtomNode `json:"atoms"`
-}
-
-type AtomNode struct {
-	ID              string   `json:"id"`
-	Type            string   `json:"type"`
-	Layer           string   `json:"layer"`
-	Status          string   `json:"status"`
-	Parents         []string `json:"parents"`
-	Dependents      []string `json:"dependents"`
-	Implementations []string `json:"source_implementations"`
-}
 
 type GapReport struct {
 	OrphanedAtoms []string `json:"orphaned_stable_atoms"`
@@ -56,16 +40,16 @@ If --gaps is provided, identifies STABLE atoms with no implementation.`,
 }
 
 func runCrawl(srcPath, docsDir string, gaps bool) (string, error) {
-	graph := &DependencyGraph{
-		Atoms: make(map[string]*AtomNode),
+	graph := &exploration.DependencyGraph{
+		Atoms: make(map[string]*exploration.AtomNode),
 	}
 
-	if err := crawlDocs(docsDir, graph); err != nil {
+	if err := exploration.CrawlDocs(docsDir, graph); err != nil {
 		return "", err
 	}
 
 	if srcPath != "" {
-		if err := crawlSrc(srcPath, graph); err != nil {
+		if err := exploration.CrawlSrc(srcPath, graph); err != nil {
 			return "", err
 		}
 	}
@@ -88,78 +72,7 @@ func runCrawl(srcPath, docsDir string, gaps bool) (string, error) {
 	return string(output), nil
 }
 
-func crawlDocs(dir string, graph *DependencyGraph) error {
-	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // Skip path on error
-		}
-		if !info.IsDir() && strings.HasSuffix(info.Name(), ".atom.md") {
-			a, err := atom.Parse(path)
-			if err != nil {
-				// Fallback to minimal parse if full parse fails (e.g. malformed sections)
-				id, _, _, metaErr := atom.ParseMeta(path)
-				if metaErr != nil {
-					return nil
-				}
-				if id != "" {
-					graph.Atoms[id] = &AtomNode{
-						ID:              id,
-						Parents:         []string{},
-						Dependents:      []string{},
-						Implementations: []string{},
-					}
-				}
-				return nil
-			}
-
-			graph.Atoms[a.ID] = &AtomNode{
-				ID:              a.ID,
-				Type:            a.Type,
-				Layer:           a.Layer,
-				Status:          a.Status,
-				Parents:         a.Parents,
-				Dependents:      a.Dependents,
-				Implementations: []string{},
-			}
-		}
-		return nil
-	})
-}
-
-func crawlSrc(dir string, graph *DependencyGraph) error {
-	specLinkRegex := regexp.MustCompile(`@spec-link\s+\[?\[?([^\]\s]+)\]?\]?`)
-
-	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		
-		// Skip hidden dirs and atom files
-		if strings.Contains(path, "/.") || strings.HasSuffix(path, ".atom.md") {
-			return nil
-		}
-
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-
-		lines := strings.Split(string(content), "\n")
-		for i, line := range lines {
-			matches := specLinkRegex.FindAllStringSubmatch(line, -1)
-			for _, match := range matches {
-				if len(match) > 1 {
-					atomID := match[1]
-					if node, exists := graph.Atoms[atomID]; exists {
-						location := fmt.Sprintf("%s:%d", path, i+1)
-						node.Implementations = append(node.Implementations, location)
-					}
-				}
-			}
-		}
-		return nil
-	})
-}
+// func crawlDocs and crawlSrc removed
 
 func init() {
 	rootCmd.AddCommand(crawlCmd)

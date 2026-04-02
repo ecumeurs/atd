@@ -37,6 +37,12 @@
                     <button class="view-btn active" id="view-waterfall" title="Waterfall View">▦</button>
                     <button class="view-btn" id="view-tree" title="Tree View">≡</button>
                 </div>
+                <div class="dropdown-container">
+                    <button class="btn btn-outline btn-sm" id="btn-recent-docs" title="Recent Documents">📄 Recent</button>
+                    <div class="dropdown-menu" id="recent-docs-dropdown" style="display: none;">
+                        <ul id="recent-docs-list"></ul>
+                    </div>
+                </div>
                 <button class="btn btn-outline btn-sm search-trigger" id="btn-search" title="Search (Ctrl+K)">
                     🔍 Search
                     <kbd>⌘K</kbd>
@@ -46,6 +52,38 @@
                 <button class="btn btn-outline btn-sm" id="refresh-btn">↻ Refresh</button>
             </div>
         </header>
+
+        <div id="document-setup-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <button class="btn-close" id="close-document-setup">×</button>
+                <h2>Generate Documentation</h2>
+                <div class="form-group" style="margin-top: 10px;">
+                    <label>Intent / Narrative Request</label>
+                    <input type="text" id="doc-setup-intent" class="search-input" placeholder="What should the document cover?">
+                </div>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 5px;">Selected Graph Nodes:</p>
+                <ul id="doc-setup-atoms-list" style="list-style: none; padding: 0; max-height: 200px; overflow-y: auto; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 4px; margin: 0 0 10px 0;"></ul>
+                <button class="btn btn-outline btn-sm" id="btn-doc-setup-add" style="margin-bottom: 15px;">+ Add Specific Atom</button>
+                <div class="form-actions" style="margin-top: auto;">
+                    <button class="btn btn-primary" id="btn-doc-setup-generate">Confirm Generation</button>
+                </div>
+                <div id="doc-setup-loading" style="display: none; align-items: center; gap: 10px; margin-top: 10px; color: var(--color-blue-light);">
+                    <div class="loading-spinner"></div> Assembling Document...
+                </div>
+            </div>
+        </div>
+
+        <div id="document-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content modal-large">
+                <button class="btn-close" id="close-document-modal">×</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2 id="document-modal-title">Generated Document</h2>
+                    <button class="btn btn-primary btn-sm" id="btn-download-document">📥 Download .md</button>
+                </div>
+                <div id="document-modal-meta" style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px;"></div>
+                <div class="markdown-body" id="document-modal-content" style="max-height: 60vh; overflow-y: auto; padding-right: 15px;"></div>
+            </div>
+        </div>
 
         <main class="main-content">
             <!-- Explorer Tab Content -->

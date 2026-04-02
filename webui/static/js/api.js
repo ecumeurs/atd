@@ -107,3 +107,35 @@ export async function sendChat(payload) {
     });
     return resp;
 }
+
+// @spec-link [[mechanic_webui_document_generation]]
+export async function searchDocumentContext(query) {
+    const resp = await fetch('/api/search-document-context', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+    });
+    if (!resp.ok) throw new Error('Failed to search context');
+    return resp.json();
+}
+
+// @spec-link [[mechanic_webui_document_generation]]
+export async function generateDocument(intent, starts) {
+    const resp = await fetch('/api/generate-document', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ intent, starts }),
+    });
+    if (!resp.ok) {
+        const errorData = await resp.json().catch(() => ({error: 'Failed to generate document'}));
+		throw new Error(errorData.error || 'Failed to generate document');
+    }
+    return resp.json();
+}
+
+// @spec-link [[mechanic_webui_document_generation]]
+export async function fetchRecentDocuments() {
+    const resp = await fetch('/api/documents');
+    if (!resp.ok) throw new Error('Failed to fetch recent documents');
+    return resp.json();
+}

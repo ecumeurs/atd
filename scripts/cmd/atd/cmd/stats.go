@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"atd-tools/config"
+	"atd-tools/pkg/exploration"
 	"github.com/spf13/cobra"
 )
 
@@ -40,16 +41,16 @@ var statsCmd = &cobra.Command{
 }
 
 func runStats(srcPath, docsDir string) (string, error) {
-	graph := &DependencyGraph{
-		Atoms: make(map[string]*AtomNode),
+	graph := &exploration.DependencyGraph{
+		Atoms: make(map[string]*exploration.AtomNode),
 	}
 
-	if err := crawlDocs(docsDir, graph); err != nil {
+	if err := exploration.CrawlDocs(docsDir, graph); err != nil {
 		return "", err
 	}
 
 	if srcPath != "" {
-		if err := crawlSrc(srcPath, graph); err != nil {
+		if err := exploration.CrawlSrc(srcPath, graph); err != nil {
 			return "", err
 		}
 	}

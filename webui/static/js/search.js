@@ -43,9 +43,18 @@ function openSearchOverlay() {
     hint.className = 'search-hint';
     hint.textContent = 'Type to search across all atoms';
 
+    const generateBtn = document.createElement('button');
+    generateBtn.className = 'btn btn-outline btn-sm';
+    generateBtn.id = 'btn-generate-doc';
+    generateBtn.style.display = 'none';
+    generateBtn.style.marginTop = '10px';
+    generateBtn.style.width = '100%';
+    generateBtn.style.justifyContent = 'center';
+
     panel.appendChild(input);
     panel.appendChild(results);
     panel.appendChild(hint);
+    panel.appendChild(generateBtn);
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
 
@@ -58,8 +67,16 @@ function openSearchOverlay() {
         if (q.length < 2) {
             results.innerHTML = '';
             hint.textContent = 'Type at least 2 characters to search';
+            generateBtn.style.display = 'none';
             return;
         }
+        generateBtn.style.display = 'flex';
+        generateBtn.innerHTML = `📄 Generate Document for "<span style="font-weight:bold">${escapeHtml(q)}</span>"`;
+        generateBtn.onclick = () => {
+            closeSearchOverlay();
+            emit('document-setup-requested', q);
+        };
+        
         hint.textContent = 'Searching...';
         debounceTimer = setTimeout(() => performSearch(q, results, hint), 250);
     });

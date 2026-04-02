@@ -224,10 +224,12 @@ Supports structured layer-by-layer summarization by the LLM by passing structure
 			"type": "object",
 			"properties": map[string]any{
 				"starts":     map[string]any{"type": "string", "description": "Comma-separated list of root Atom IDs to begin assembly from."},
-				"intent":     map[string]any{"type": "string", "description": "The intent the LLM should focus on (e.g., summarize, executive summary). Defaults to 'Executive Summary'."},
-				"length":     map[string]any{"type": "string", "description": "Length constraint: 'short', 'default', 'extended', 'long'."},
-				"structured": map[string]any{"type": "boolean", "description": "If true, group atoms by layer and perform multi-pass summarization."},
-				"json":       map[string]any{"type": "boolean", "description": "If true, outputs the result as a structured JSON object along with involved atoms metadata."},
+				"intent":          map[string]any{"type": "string", "description": "The intent the LLM should focus on (e.g., summarize, executive summary). Defaults to 'Executive Summary'."},
+				"length":          map[string]any{"type": "string", "description": "Length constraint: 'short', 'default', 'extended', 'long'."},
+				"structured":      map[string]any{"type": "boolean", "description": "If true, group atoms by layer and perform multi-pass summarization."},
+				"json":            map[string]any{"type": "boolean", "description": "If true, outputs the result as a structured JSON object along with involved atoms metadata."},
+				"only_parents":    map[string]any{"type": "boolean", "description": "If true, restricts assembly to the target atom's ancestry only."},
+				"only_dependents": map[string]any{"type": "boolean", "description": "If true, restricts assembly to the target atom's descendants only."},
 			},
 			"required": []string{"starts"},
 		},
@@ -237,7 +239,9 @@ Supports structured layer-by-layer summarization by the LLM by passing structure
 		length := argString(args, "length", "default")
 		structured := argBool(args, "structured")
 		asJSON := argBool(args, "json")
-		return runAssemble(starts, intent, length, structured, asJSON, config.DocsDir())
+		onlyParents := argBool(args, "only_parents")
+		onlyDependents := argBool(args, "only_dependents")
+		return runAssemble(starts, intent, length, structured, asJSON, onlyParents, onlyDependents, config.DocsDir())
 	})
 
 	// @spec-link [[api_atd_serve_trace]]

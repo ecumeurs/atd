@@ -23,6 +23,7 @@ The WebUI operates as a lightweight, decomposed monolith without any heavy build
 - **Traceability Explorer:** Features an interactive Detail Panel that maps an ATD's complete ancestry (Parents upstream, Dependents downstream), implementation links, and real-time coverage signaling. 
 - **AI Context Summarization:** Built-in integration with local LLMs (via Ollama) to generate holistic summaries of an ATD by automatically extracting and synthesizing the contexts of its entire dependency chain.
 - **Global Search:** Fast, server-side search overlay (`Ctrl+K` command palette) covering ATD IDs, names, types, tags, and content.
+- **Ctrl+K Document Generation:** Dynamically assemble and generate comprehensive markdown documentation by semantically selecting ATD nodes and providing an intent narrative, powered by the ATD assembly pipeline. Generates fully synthetic docs directly via an interactive overlay.
 - **Gemini Spec Builder:** An interactive chat interface embedded within the WebUI, specifically tuned to act as an architectural discussion partner for scoping and creating compliant ATDs before code is written.
 
 ## Quick Start

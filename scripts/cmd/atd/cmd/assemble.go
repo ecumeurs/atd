@@ -6,11 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"atd-tools/config"
-	"atd-tools/pkg/atom"
+	"atd-tools/pkg/exploration"
 	"atd-tools/pkg/ollama"
 	"atd-tools/pkg/pipeline"
 	"atd-tools/pkg/prompt"
@@ -43,10 +42,12 @@ assemble their content into a single document. Supports structuring by layer and
 		length, _ := cmd.Flags().GetString("length")
 		structured, _ := cmd.Flags().GetBool("structured")
 		asJSON, _ := cmd.Flags().GetBool("json")
+		onlyParents, _ := cmd.Flags().GetBool("only-parents")
+		onlyDependents, _ := cmd.Flags().GetBool("only-dependents")
 
 		docsDir := config.DocsDir()
 
-		text, err := runAssemble(starts, intent, length, structured, asJSON, docsDir)
+		text, err := runAssemble(starts, intent, length, structured, asJSON, onlyParents, onlyDependents, docsDir)
 		if err != nil {
 			return err
 		}
@@ -64,9 +65,11 @@ func init() {
 	assembleCmd.Flags().String("length", "default", "Length constraint (short, default, extended, long)")
 	assembleCmd.Flags().Bool("structured", false, "Group atoms by layer and perform multi-pass summarization")
 	assembleCmd.Flags().Bool("json", false, "Output results as JSON")
+	assembleCmd.Flags().Bool("only-parents", false, "Restrict traversal to ancestry (upwards) only")
+	assembleCmd.Flags().Bool("only-dependents", false, "Restrict traversal to descendants (downwards) only")
 }
 
-func runAssemble(starts, intent, length string, structured, asJSON bool, docsDir string) (string, error) {
+func runAssemble(starts, intent, length string, structured, asJSON, onlyParents, onlyDependents bool, docsDir string) (string, error) {
 	if starts == "" {
 		return "", fmt.Errorf("--starts parameter is required")
 	}
@@ -76,45 +79,47 @@ func runAssemble(starts, intent, length string, structured, asJSON bool, docsDir
 		startIDs[i] = strings.TrimSpace(startIDs[i])
 	}
 
-	atoms := make(map[string]atom.AtomData)
-	filepath.Walk(docsDir, func(path string, info os.FileInfo, err error) error {
-		if err == nil && !info.IsDir() && strings.HasSuffix(info.Name(), ".atom.md") {
-			a, err := atom.Parse(path)
-			if err == nil {
-				atoms[a.ID] = a
-			}
-		}
-		return nil
-	})
+	graph := &exploration.DependencyGraph{Atoms: make(map[string]*exploration.AtomNode)}
+	if err := exploration.CrawlDocs(docsDir, graph); err != nil {
+		return "", err
+	}
 
 	visited := make(map[string]bool)
-	gatheredAtoms := []atom.AtomData{}
+	gatheredAtoms := []*exploration.AtomNode{}
+	
+	doUp := true
+	doDown := true
+	if onlyParents && !onlyDependents {
+		doDown = false
+	} else if onlyDependents && !onlyParents {
+		doUp = false
+	}
 
-	var gather func(id string) string
-	gather = func(id string) string {
-		id = strings.TrimSpace(strings.Trim(id, "[]"))
-		if visited[id] {
-			return ""
+	for _, startID := range startIDs {
+		startID = strings.TrimSpace(strings.Trim(startID, "[]"))
+		
+		if doUp {
+			graph.WalkUp(startID, visited, func(id string) {
+				if node, ok := graph.Atoms[id]; ok {
+					gatheredAtoms = append(gatheredAtoms, node)
+				}
+			})
 		}
-		visited[id] = true
-		a, ok := atoms[id]
-		if !ok {
-			return ""
+		if doDown {
+			graph.WalkDown(startID, visited, func(id string) {
+				if node, ok := graph.Atoms[id]; ok {
+					gatheredAtoms = append(gatheredAtoms, node)
+				}
+			})
 		}
-
-		gatheredAtoms = append(gatheredAtoms, a)
-
-		content, _ := os.ReadFile(a.FilePath)
-		res := string(content) + "\n\n"
-		for _, dep := range a.Dependents {
-			res += gather(dep)
-		}
-		return res
 	}
 
 	var assembledRaw string
-	for _, startID := range startIDs {
-		assembledRaw += gather(startID)
+	for _, a := range gatheredAtoms {
+		content, err := os.ReadFile(a.FilePath)
+		if err == nil {
+			assembledRaw += string(content) + "\n\n"
+		}
 	}
 
 	var metadata []AssembleMetadata

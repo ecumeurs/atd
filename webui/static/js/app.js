@@ -8,6 +8,7 @@ import { initExplorer, renderWaterfall } from './explorer.js';
 import { initDetails } from './details.js';
 import { initTreeView, renderTreeView } from './treeview.js';
 import { initSearch } from './search.js';
+import { initDocuments } from './documents.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // DOM elements
@@ -27,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initDetails();
     initTreeView();
     initSearch();
+    initDocuments();
 
     // Load Spec Builder lazily when its tab is opened
     let specBuilderLoaded = false;

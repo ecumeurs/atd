@@ -23,7 +23,7 @@ type atomInfo struct {
 }
 
 // registerATDRoutes registers all ATD-related API endpoints.
-// @spec-link [[api_webui_health_stats]]
+// @spec-link [[api_webui_atd_router]]
 func registerATDRoutes(api *gin.RouterGroup) {
 	api.GET("/info", handleInfo)
 	api.GET("/tree", handleTree)
@@ -34,9 +34,16 @@ func registerATDRoutes(api *gin.RouterGroup) {
 	api.POST("/bulk-update", handleBulkUpdate)
 	api.GET("/summary/:id", handleSummary)
 	api.GET("/search", handleSearch)
+	api.GET("/stats", handleStats)
+
+	// Document generation
+	api.POST("/search-document-context", handleSearchDocumentContext)
+	api.POST("/generate-document", handleGenerateDocument)
+	api.GET("/documents", handleListDocuments)
+	api.GET("/documents/:id", handleGetDocument)
 }
 
-// @spec-link [[api_webui_health_stats]]
+// @spec-link [[mechanic_webui_info]]
 func handleInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"project_path": AppConfig.ProjectPath,
@@ -45,7 +52,7 @@ func handleInfo(c *gin.Context) {
 	})
 }
 
-// @spec-link [[api_webui_health_stats]]
+// @spec-link [[mechanic_webui_tree]]
 func handleTree(c *gin.Context) {
 	var slice []*parser.Atom
 	for _, v := range Atoms {
@@ -54,7 +61,7 @@ func handleTree(c *gin.Context) {
 	c.JSON(http.StatusOK, slice)
 }
 
-// @spec-link [[api_webui_health_stats]]
+// @spec-link [[mechanic_webui_atom_detail]]
 func handleAtomDetail(c *gin.Context) {
 	id := c.Param("id")
 	if atom, exists := Atoms[id]; exists {
@@ -64,7 +71,7 @@ func handleAtomDetail(c *gin.Context) {
 	}
 }
 
-// @spec-link [[api_webui_health_stats]]
+// @spec-link [[mechanic_webui_atom_code]]
 func handleAtomCode(c *gin.Context) {
 	id := c.Param("id")
 	if atom, exists := Atoms[id]; exists {
@@ -74,7 +81,7 @@ func handleAtomCode(c *gin.Context) {
 	}
 }
 
-// @spec-link [[api_webui_health_stats]]
+// @spec-link [[mechanic_webui_atom_tests]]
 func handleAtomTests(c *gin.Context) {
 	id := c.Param("id")
 	if atom, exists := Atoms[id]; exists {
@@ -87,7 +94,7 @@ func handleAtomTests(c *gin.Context) {
 	}
 }
 
-// @spec-link [[mechanic_atd_update]]
+// @spec-link [[mechanic_webui_atom_update]]
 func handleAtomUpdate(c *gin.Context) {
 	id := c.Param("id")
 	var req struct {
@@ -180,7 +187,7 @@ func handleAtomUpdate(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Atom updated successfully", "new_id": req.ID})
 }
 
-// @spec-link [[mechanic_atd_update]]
+// @spec-link [[mechanic_webui_bulk_update]]
 func handleBulkUpdate(c *gin.Context) {
 	var req struct {
 		IDs    []string `json:"ids"`
@@ -256,7 +263,7 @@ func handleSummary(c *gin.Context) {
 	})
 }
 
-// @spec-link [[ui_webui_search_overlay]]
+// @spec-link [[mechanic_webui_search_handler]]
 func handleSearch(c *gin.Context) {
 	query := strings.ToLower(c.Query("q"))
 	var results []map[string]interface{}
@@ -292,4 +299,61 @@ func handleSearch(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, results)
+}
+
+// @spec-link [[mechanic_webui_health_stats]]
+func handleStats(c *gin.Context) {
+	var total int
+	var covered int
+	var tested int
+	var orphans int
+
+	for _, atom := range Atoms {
+		total++
+		if len(atom.LinkedCodes) > 0 {
+			covered++
+		}
+		if atom.HasTests {
+			tested++
+		}
+
+		if atom.Layer == "IMPLEMENTATION" || atom.Layer == "ARCHITECTURE" {
+			if !hasCustomerAncestor(atom, Atoms) {
+				orphans++
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"Total":        total,
+		"SpecCoverage": covered,
+		"TestCoverage": tested,
+		"Orphans":      orphans,
+	})
+}
+
+func hasCustomerAncestor(atom *parser.Atom, all map[string]*parser.Atom) bool {
+	visited := make(map[string]bool)
+	var queue []*parser.Atom
+	queue = append(queue, atom)
+	visited[atom.ID] = true
+
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+
+		if curr.Layer == "CUSTOMER" || curr.Type == "DOMAIN" {
+			return true
+		}
+
+		for _, parentID := range curr.Parents {
+			if !visited[parentID] {
+				visited[parentID] = true
+				if parent, exists := all[parentID]; exists {
+					queue = append(queue, parent)
+				}
+			}
+		}
+	}
+	return false
 }

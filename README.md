@@ -84,6 +84,8 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
+| [Refactor ATD Commands to Use Unified Exploration Package with Caching](issues/ISS-060_20260402_refactor_atd_exploration_commands.md) | 2026-04-02 | Open | Medium | This issue is a follow-up to ISS-059. The goal is to refactor all remaining A... |
+| [Update ATD Exploration to Use .gitignore](issues/ISS-059_20260402_refactor_atd_exploration_gitignore.md) | 2026-04-02 | Open | Medium | The current crawler and exploration methods used by the ATD tooling ignore hi... |
 | [WebUI Issue Integration](issues/ISS-055_20260330_webui_issue_integration.md) | 2026-03-30 | Open | Medium | The WebUI currently focuses on ATD visualization but lacks visibility into th... |
 | [`atd stats` coverage and ancestry reporting](issues/ISS-052_20260325_atd_stats_coverage_ancestry.md) | 2026-03-25 | Open | Medium | `atd stats` currently lacks detailed reporting on implementation and test cov... |
 | [atd_verify MCP tool fails with git diff error](issues/ISS-051_20260325_atd_verify_mcp_git_diff_failure.md) | 2026-03-25 | Open | High | The `atd_verify` tool fails when invoked via the MCP server with the error: `... |

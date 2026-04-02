@@ -4,6 +4,7 @@ package cmd
 
 import (
 	"atd-tools/config"
+	"atd-tools/pkg/exploration"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -72,11 +73,11 @@ func init() {
 
 func runTrace(targetID, docsDir, srcPath string) (string, error) {
 	// 1. Build the dependency graph and scan source code for @spec-link
-	graph := &DependencyGraph{Atoms: make(map[string]*AtomNode)}
-	if err := crawlDocs(docsDir, graph); err != nil {
+	graph := &exploration.DependencyGraph{Atoms: make(map[string]*exploration.AtomNode)}
+	if err := exploration.CrawlDocs(docsDir, graph); err != nil {
 		return "", err
 	}
-	if err := crawlSrc(srcPath, graph); err != nil {
+	if err := exploration.CrawlSrc(srcPath, graph); err != nil {
 		return "", err
 	}
 
@@ -112,49 +113,23 @@ func runTrace(targetID, docsDir, srcPath string) (string, error) {
 	// 3. Walk UP
 	ancestryComplete := true
 	visitedUp := make(map[string]bool)
-	var walkUp func(string)
-	walkUp = func(id string) {
-		if visitedUp[id] {
-			return
-		}
-		visitedUp[id] = true
-		node, ok := graph.Atoms[id]
-		if !ok {
-			return
-		}
+	graph.WalkUp(targetID, visitedUp, func(id string) {
 		if id != targetID {
 			snap.GraphSlice.Parents = append(snap.GraphSlice.Parents, id)
+			node := graph.Atoms[id]
 			if node.Status != "STABLE" {
 				ancestryComplete = false
 			}
 		}
-		for _, p := range node.Parents {
-			walkUp(p)
-		}
-	}
-	walkUp(targetID)
+	})
 
 	// 4. Walk DOWN
 	visitedDown := make(map[string]bool)
-	var walkDown func(string)
-	walkDown = func(id string) {
-		if visitedDown[id] {
-			return
-		}
-		visitedDown[id] = true
-		node, ok := graph.Atoms[id]
-		if !ok {
-			return
-		}
-
+	graph.WalkDown(targetID, visitedDown, func(id string) {
 		if id != targetID {
 			snap.GraphSlice.Dependents = append(snap.GraphSlice.Dependents, id)
 		}
-		for _, d := range node.Dependents {
-			walkDown(d)
-		}
-	}
-	walkDown(targetID)
+	})
 
 	// Helper to strip line number from implementation "file.go:12"
 	getFile := func(impl string) string {
