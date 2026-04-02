@@ -1,7 +1,9 @@
 package cmd
+
 // @spec-link [[mechanic_atd_assemble]]
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,23 +17,36 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type AssembleMetadata struct {
+	ID       string `json:"id"`
+	Layer    string `json:"layer"`
+	Type     string `json:"type"`
+	Filepath string `json:"filepath"`
+}
+
+type AssembleJSON struct {
+	CustomerLayer       string             `json:"customer_layer,omitempty"`
+	ArchitectureLayer   string             `json:"architecture_layer,omitempty"`
+	ImplementationLayer string             `json:"implementation_layer,omitempty"`
+	Content             string             `json:"content"`
+	Metadata            []AssembleMetadata `json:"metadata"`
+}
+
 var assembleCmd = &cobra.Command{
 	Use:   "assemble",
 	Short: "Stitch ATD atoms together into a cohesive document",
 	Long: `Recursively gather ATD atoms starting from specified IDs and 
-assemble their content into a single document. Supports narrative snapshots.`,
+assemble their content into a single document. Supports structuring by layer and LLM summarization.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		starts, _ := cmd.Flags().GetString("starts")
-		purpose, _ := cmd.Flags().GetString("purpose")
-		snapshot, _ := cmd.Flags().GetBool("snapshot")
-		theme, _ := cmd.Flags().GetString("theme")
-		docsDir, _ := cmd.Flags().GetString("docs")
+		intent, _ := cmd.Flags().GetString("intent")
+		length, _ := cmd.Flags().GetString("length")
+		structured, _ := cmd.Flags().GetBool("structured")
+		asJSON, _ := cmd.Flags().GetBool("json")
 
-		if docsDir == "" {
-			docsDir = config.DocsDir()
-		}
+		docsDir := config.DocsDir()
 
-		text, err := runAssemble(starts, purpose, snapshot, theme, docsDir)
+		text, err := runAssemble(starts, intent, length, structured, asJSON, docsDir)
 		if err != nil {
 			return err
 		}
@@ -42,7 +57,16 @@ assemble their content into a single document. Supports narrative snapshots.`,
 	},
 }
 
-func runAssemble(starts, purpose string, snapshot bool, theme, docsDir string) (string, error) {
+func init() {
+	rootCmd.AddCommand(assembleCmd)
+	assembleCmd.Flags().String("starts", "", "Comma-separated list of Root Atom IDs")
+	assembleCmd.Flags().String("intent", "Executive Summary", "The intent the LLM should focus on (e.g., summarize, executive summary)")
+	assembleCmd.Flags().String("length", "default", "Length constraint (short, default, extended, long)")
+	assembleCmd.Flags().Bool("structured", false, "Group atoms by layer and perform multi-pass summarization")
+	assembleCmd.Flags().Bool("json", false, "Output results as JSON")
+}
+
+func runAssemble(starts, intent, length string, structured, asJSON bool, docsDir string) (string, error) {
 	if starts == "" {
 		return "", fmt.Errorf("--starts parameter is required")
 	}
@@ -64,6 +88,8 @@ func runAssemble(starts, purpose string, snapshot bool, theme, docsDir string) (
 	})
 
 	visited := make(map[string]bool)
+	gatheredAtoms := []atom.AtomData{}
+
 	var gather func(id string) string
 	gather = func(id string) string {
 		id = strings.TrimSpace(strings.Trim(id, "[]"))
@@ -76,7 +102,8 @@ func runAssemble(starts, purpose string, snapshot bool, theme, docsDir string) (
 			return ""
 		}
 
-		// Read full file content safely
+		gatheredAtoms = append(gatheredAtoms, a)
+
 		content, _ := os.ReadFile(a.FilePath)
 		res := string(content) + "\n\n"
 		for _, dep := range a.Dependents {
@@ -90,39 +117,150 @@ func runAssemble(starts, purpose string, snapshot bool, theme, docsDir string) (
 		assembledRaw += gather(startID)
 	}
 
-	if snapshot {
-		requestPrompt := prompt.SnapshotBuild(theme, assembledRaw)
-		resp, err := ollama.Query("snapshot", requestPrompt, nil)
-		if err == ollama.ErrIDEFallback {
-			taskList, _ := pipeline.WriteTaskList("assemble --snapshot", []pipeline.PendingTask{
-				{
-					PromptFile:   "snapshot_" + startIDs[0] + ".prompt",
-					ResultFile:   "snapshot_" + startIDs[0] + ".result",
-					Instruction:  "generate narrative snapshot: " + theme,
-					OutputSchema: "markdown narrative",
-				},
-			})
-			pipeline.WritePromptFile("snapshot_"+startIDs[0]+".prompt", requestPrompt)
-			return fmt.Sprintf("Task delegated to IDE Agent: %s", taskList), nil
-		}
-		if err != nil {
-			return "", fmt.Errorf("failed to generate snapshot: %v", err)
-		}
-		return resp.Response, nil
+	var metadata []AssembleMetadata
+	for _, a := range gatheredAtoms {
+		metadata = append(metadata, AssembleMetadata{
+			ID:       a.ID,
+			Layer:    a.Layer,
+			Type:     a.Type,
+			Filepath: a.FilePath,
+		})
 	}
 
-	if purpose != "" {
-		return fmt.Sprintf("<System Objective>\nYou are an ATD Assembler. Purpose: %s\n</System Objective>\n\n%s", purpose, assembledRaw), nil
+	if structured {
+		// Multi-pass LLM
+		groupedRaw := map[string]string{
+			"CUSTOMER":       "",
+			"ARCHITECTURE":   "",
+			"IMPLEMENTATION": "",
+		}
+
+		for _, a := range gatheredAtoms {
+			content, _ := os.ReadFile(a.FilePath)
+			layer := strings.ToUpper(a.Layer)
+			if layer == "" {
+				layer = "IMPLEMENTATION"
+			}
+			groupedRaw[layer] += string(content) + "\n\n"
+		}
+
+		useFallback := false
+
+		// Helper to query LLM for layer
+		queryLayer := func(layer string) string {
+			if groupedRaw[layer] == "" || useFallback {
+				return ""
+			}
+			promptLayer := prompt.LayerPassBuild(layer, length, groupedRaw[layer])
+			resp, err := ollama.Query("assemble_layer_"+layer, promptLayer, nil)
+			if err == ollama.ErrIDEFallback {
+				useFallback = true
+				return ""
+			}
+			if err == nil {
+				return resp.Response
+			}
+			return ""
+		}
+
+		customerSummary := queryLayer("CUSTOMER")
+		archSummary := queryLayer("ARCHITECTURE")
+		implSummary := queryLayer("IMPLEMENTATION")
+
+		if useFallback {
+			// fallback without LLM
+			finalText := groupedRaw["CUSTOMER"] + "\n" + groupedRaw["ARCHITECTURE"] + "\n" + groupedRaw["IMPLEMENTATION"]
+			
+			if asJSON {
+				out := AssembleJSON{
+					CustomerLayer:       groupedRaw["CUSTOMER"],
+					ArchitectureLayer:   groupedRaw["ARCHITECTURE"],
+					ImplementationLayer: groupedRaw["IMPLEMENTATION"],
+					Content:             finalText,
+					Metadata:            metadata,
+				}
+				b, _ := json.MarshalIndent(out, "", "  ")
+				return string(b), nil
+			}
+			return finalText + renderMetadata(metadata), nil
+		}
+
+		// Final pass
+		finalPrompt := prompt.FinalAssembleBuild(intent, length, customerSummary, archSummary, implSummary)
+		finalResp, err := ollama.Query("assemble_final", finalPrompt, nil)
+		var finalContent string
+		if err == nil {
+			finalContent = finalResp.Response
+		}
+
+		if asJSON {
+			out := AssembleJSON{
+				CustomerLayer:       customerSummary,
+				ArchitectureLayer:   archSummary,
+				ImplementationLayer: implSummary,
+				Content:             finalContent,
+				Metadata:            metadata,
+			}
+			b, _ := json.MarshalIndent(out, "", "  ")
+			return string(b), nil
+		}
+
+		return finalContent + renderMetadata(metadata), nil
 	}
 
-	return assembledRaw, nil
+	// Unstructured mode (Single-pass)
+	requestPrompt := prompt.AssembleBuild(intent, length, assembledRaw)
+	resp, err := ollama.Query("assemble", requestPrompt, nil)
+	
+	if err == ollama.ErrIDEFallback {
+		taskList, _ := pipeline.WriteTaskList("assemble", []pipeline.PendingTask{
+			{
+				PromptFile:   "assemble_" + startIDs[0] + ".prompt",
+				ResultFile:   "assemble_" + startIDs[0] + ".result",
+				Instruction:  "assemble and achieve intent: " + intent,
+				OutputSchema: "markdown text",
+			},
+		})
+		pipeline.WritePromptFile("assemble_"+startIDs[0]+".prompt", requestPrompt)
+		
+		msg := fmt.Sprintf("Task delegated to IDE Agent: %s", taskList)
+		if asJSON {
+			out := AssembleJSON{
+				Content:  msg,
+				Metadata: metadata,
+			}
+			b, _ := json.MarshalIndent(out, "", "  ")
+			return string(b), nil
+		}
+		return msg + renderMetadata(metadata), nil
+	}
+	
+	if err != nil {
+		return "", fmt.Errorf("LLM query failed: %v", err)
+	}
+
+	finalContent := resp.Response
+
+	if asJSON {
+		out := AssembleJSON{
+			Content:  finalContent,
+			Metadata: metadata,
+		}
+		b, _ := json.MarshalIndent(out, "", "  ")
+		return string(b), nil
+	}
+
+	return finalContent + renderMetadata(metadata), nil
 }
 
-func init() {
-	rootCmd.AddCommand(assembleCmd)
-	assembleCmd.Flags().String("starts", "", "Comma-separated list of Root Atom IDs")
-	assembleCmd.Flags().String("purpose", "", "Purpose of the assembly")
-	assembleCmd.Flags().Bool("snapshot", false, "Generate a narrative snapshot prompt")
-	assembleCmd.Flags().String("theme", "Executive Summary", "Theme for the snapshot")
-	assembleCmd.Flags().String("docs", "", "Override docs directory")
+func renderMetadata(meta []AssembleMetadata) string {
+	if len(meta) == 0 {
+		return ""
+	}
+	var out strings.Builder
+	out.WriteString("\n\n---\n**Metadata Index:**\n")
+	for _, m := range meta {
+		out.WriteString(fmt.Sprintf("- `[[%s]]` (%s, %s)\n", m.ID, m.Layer, m.Type))
+	}
+	return out.String()
 }

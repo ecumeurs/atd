@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Chimera - ATD State Machine</title>
+    <title>Project Chimera - ATD Explorer</title>
+    <meta name="description" content="Atomic Traceable Documentation state machine and specification builder">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="stylesheet" href="/static/spec-builder.css">
@@ -33,9 +33,17 @@
                 </button>
             </div>
             <div class="header-tools">
-                <button class="btn btn-outline" id="toggle-layout" title="Toggle Display Ratio">⬌</button>
-                <button class="btn btn-outline" id="toggle-select-mode">Select Mode</button>
-                <button class="btn btn-outline" id="refresh-btn">Refresh Data</button>
+                <div class="view-switcher">
+                    <button class="view-btn active" id="view-waterfall" title="Waterfall View">▦</button>
+                    <button class="view-btn" id="view-tree" title="Tree View">≡</button>
+                </div>
+                <button class="btn btn-outline btn-sm search-trigger" id="btn-search" title="Search (Ctrl+K)">
+                    🔍 Search
+                    <kbd>⌘K</kbd>
+                </button>
+                <button class="btn btn-outline btn-sm" id="toggle-select-mode">Select Mode</button>
+                <button class="btn btn-outline btn-sm" id="toggle-layout" title="Toggle Display Ratio">⬌</button>
+                <button class="btn btn-outline btn-sm" id="refresh-btn">↻ Refresh</button>
             </div>
         </header>
 
@@ -58,38 +66,43 @@
 
                 <div class="explorer-layout">
                     <section class="viz-section">
-                        <div class="viz-header">
-                            <div class="header-main">
-                                <h2>Project Documentation State</h2>
-                                <div class="view-switcher">
-                                    <button class="view-btn active" id="view-treemap" title="Treemap View">⊞</button>
-                                    <button class="view-btn" id="view-tree" title="Hierarchical Tree">≡</button>
-                                </div>
-                            </div>
-                            <p>Summarized documentation and development status.</p>
-                        </div>
-
-                        <div class="legend">
-                            <span class="legend-item"><span class="color-box green"></span> Implemented</span>
-                            <span class="legend-item"><span class="color-box yellow"></span> Partial / Tested</span>
-                            <span class="legend-item"><span class="color-box red"></span> Unimplemented / Untested</span>
-                            <span class="legend-item"><span class="color-box grey"></span> Informational</span>
-                        </div>
-
-                        <div id="treemap-container"></div>
+                        <!-- Waterfall View (default) -->
+                        <div id="waterfall-container" class="waterfall-container"></div>
+                        <!-- Foundation Section (collapsed by default) -->
+                        <div id="foundation-container" class="foundation-container"></div>
+                        <!-- Tree View (hidden by default) -->
                         <div id="treeview-container" style="display: none;"></div>
                     </section>
 
                     <aside class="details-panel" id="details-panel">
                         <div class="details-empty" id="details-empty">
-                            <p>Select a block to view ATD details.</p>
+                            <div class="details-empty-icon">◇</div>
+                            <p>Select an atom to view details</p>
+                            <p class="details-empty-hint">Click any atom card or use <kbd>Ctrl+K</kbd> to search</p>
                         </div>
                         <div class="details-content" id="details-content" style="display: none;">
                             <button class="btn-close" id="close-panel">×</button>
-                            <div class="badge" id="detail-type">TYPE</div>
-                            <div class="badge-status" id="detail-status">STATUS</div>
+                            <div class="detail-header-group">
+                                <div class="badge" id="detail-type">TYPE</div>
+                                <div class="badge-layer" id="detail-layer">LAYER</div>
+                                <div class="badge-status" id="detail-status">STATUS</div>
+                            </div>
                             <h2 id="detail-title">Block Title</h2>
                             <p class="detail-id" id="detail-id">@id</p>
+
+                            <div class="detail-section detail-nav-section">
+                                <h3>Traceability</h3>
+                                <div class="nav-links-group">
+                                    <div class="nav-link-block">
+                                        <span class="nav-label">↑ Parents</span>
+                                        <div class="nav-links" id="detail-parents"></div>
+                                    </div>
+                                    <div class="nav-link-block">
+                                        <span class="nav-label">↓ Dependents</span>
+                                        <div class="nav-links" id="detail-dependents"></div>
+                                    </div>
+                                </div>
+                            </div>
 
                             <div class="detail-section">
                                 <h3>Content</h3>
@@ -98,7 +111,7 @@
 
                             <div class="detail-actions">
                                 <button class="btn btn-primary" id="btn-edit">Edit Atom</button>
-                                <button class="btn btn-outline" id="btn-summarize">AI Summary</button>
+                                <button class="btn btn-outline" id="btn-summarize">✨ AI Summary</button>
                             </div>
                             <div id="summary-box" class="summary-box" style="display: none;"></div>
 
@@ -140,12 +153,7 @@
                                     </div>
                                     <div class="form-group">
                                         <label>Priority</label>
-                                        <select id="edit-priority">
-                                            <option value="CORE">CORE</option>
-                                            <option value="SECONDARY">SECONDARY</option>
-                                            <option value="EXPERIMENTAL">EXPERIMENTAL</option>
-                                            <option value="FLAVOR">FLAVOR</option>
-                                        </select>
+                                        <input type="number" min="1" max="5" id="edit-priority">
                                     </div>
                                 </div>
                                 <div class="form-group">
@@ -281,7 +289,7 @@
         </main>
     </div>
 
-    <script src="/static/app.js"></script>
+    <script type="module" src="/static/js/app.js"></script>
     <script src="/static/spec-builder.js"></script>
 </body>
 

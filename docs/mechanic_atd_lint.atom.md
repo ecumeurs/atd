@@ -10,7 +10,7 @@ parents:
   - [[module_atd_cli]]
 dependents:
   - [[api_atd_serve_lint]]
-layer: CUSTOMER
+layer: IMPLEMENTATION
 ---
 
 # ATD Structural Linter

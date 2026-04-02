@@ -4,7 +4,7 @@
 **Ref:** `ISS-004`
 **Date:** 2026-03-04
 **Severity:** High
-**Status:** Open
+**Status:** Resolved
 **Component:** `webui`
 **Affects:** `webui/index.html`, `webui/app.js`
 

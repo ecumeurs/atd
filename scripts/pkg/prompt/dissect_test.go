@@ -82,7 +82,7 @@ func TestAllSchemas(t *testing.T) {
 		ReconcileFormat(),
 		CongruenceFormat(),
 		ReconFormat(),
-		SnapshotFormat(),
+		AssembleFormat(),
 		IntentExtractFormat(),
 		DiscoverLinksFormat(),
 	}

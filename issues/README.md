@@ -2,6 +2,7 @@
 
 ## Index
 
+| ISS-058 | [ISS-058_20260401_webui_explorer_readability.md](ISS-058_20260401_webui_explorer_readability.md) | High | Open | WebUI Explorer display readability and redesign. |
 | ISS-057 | [ISS-057_20260330_webui_frontend_monolith.md](ISS-057_20260330_webui_frontend_monolith.md) | High | Open | Frontend (app.js, spec-builder.js) monoliths and ATD granularity. |
 | ISS-056 | [ISS-056_20260330_webui_monolith_architecture.md](ISS-056_20260330_webui_monolith_architecture.md) | High | Open | WebUI monolith architecture and inappropriate ATD granularity. |
 | ISS-055 | [ISS-055_20260330_webui_issue_integration.md](ISS-055_20260330_webui_issue_integration.md) | Medium | Open | Add a dedicated Issues tab and list view to the WebUI. |

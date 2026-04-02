@@ -15,12 +15,16 @@ layer: IMPLEMENTATION
 # ATD Assemble
 
 ## INTENT
-To recursively stitch atoms together following their dependent chains, producing a unified document for human review or an LLM-ready narrative.
+To recursively stitch atoms together following their dependent chains, producing a unified document for human review or an LLM-ready narrative/summarization.
 
 ## THE RULE / LOGIC
-Starting from one or more root atom IDs, recursively gathers content through the dependents graph (preventing cycles via visited set). In default mode, outputs raw assembled fragments. With `--purpose`, prepends a system prompt instructing an LLM to rewrite the fragments into flowing prose. With `--snapshot`, generates a themed narrative rewrite prompt (task `snapshot`) from the assembled content — absorbing the former atd-generate-snapshot functionality.
+Starting from one or more root atom IDs, recursively gathers content through the dependents graph (preventing cycles via visited set). The tool automatically prompts the LLM to process the concatenated fragments according to the provided `--intent` (defaulting to Executive Summary) and `--length`.
+
+If `--structured` is provided, the tool organizes gathered atoms by `Layer` and performs a multi-pass LLM procedure (summarizing Customer, Architecture, and Implementation layers individually before drawing a final intent conclusion). If no LLM is available, this mode falls back gracefully to sequentially grouped concatenation.
+
+With `--json`, the system outputs the raw or LLM-summarized strings along with an array of involved atoms `metadata` for programmatic consumption by the WebUI.
 
 ## TECHNICAL INTERFACE (The Bridge)
-- **Command:** `atd assemble --starts <ids> [--purpose <text>] [--snapshot --theme <text>]`
-- **LLM Task:** `snapshot` (only with --snapshot flag)
+- **Command:** `atd assemble --starts <ids> [--intent <text>] [--length <short|default|extended|long>] [--structured] [--json]`
+- **LLM Task:** `assemble`, `assemble_layer_*`, `assemble_final`
 - **Code Tag:** `@spec-link [[mechanic_atd_assemble]]`

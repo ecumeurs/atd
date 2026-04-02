@@ -4,7 +4,7 @@
 **Ref:** `ISS-006`
 **Date:** 2026-03-04
 **Severity:** High
-**Status:** Open
+**Status:** Resolved
 **Component:** `webui`
 **Affects:** `webui/backend`, `webui/app.js`, `atd_management_skill`
 

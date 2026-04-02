@@ -9,7 +9,7 @@ tags: [atd, llm, provider, tiered]
 parents:
   - [[specification_atd_config]]
 dependents: []
-layer: CUSTOMER
+layer: ARCHITECTURE
 ---
 
 # ATD Tiered LLM Provider

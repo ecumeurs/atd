@@ -4,7 +4,7 @@
 **Ref:** `ISS-057`
 **Date:** 2026-03-30
 **Severity:** High
-**Status:** Open
+**Status:** Resolved
 **Component:** `webui/static/`
 **Affects:** `webui/static/app.js`, `webui/static/spec-builder.js`, ATD index
 

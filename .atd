@@ -18,15 +18,62 @@
   },
   "llm": {
     "providers": [
-      {"name": "remote", "base_url": "http://192.168.1.10:11434", "timeout_ms": 2000},
-      {"name": "local",  "base_url": "http://localhost:11434",    "timeout_ms": 500},
-      {"name": "ide_agent", "type": "passthrough"}
+      {
+        "name": "remote",
+        "base_url": "http://192.168.1.10:11434",
+        "timeout_ms": 2000
+      },
+      {
+        "name": "local",
+        "base_url": "http://localhost:11434",
+        "timeout_ms": 500
+      },
+      {
+        "name": "ide_agent",
+        "type": "passthrough"
+      }
     ],
     "models": {
-      "llama3.2":           {"tasks": ["audit_bloat", "intent_extract", "snapshot"]},
-      "deepseek-r1:7b":     {"tasks": ["audit_code", "compare", "congruence", "reconcile", "fix_split", "audit_bloat", "intent_extract", "snapshot"]},
-      "qwen2.5-coder:14b":  {"tasks": ["dissect", "recon"]},
-      "nomic-embed-text":   {"tasks": ["embed"]}
+      "llama3.2": {
+        "tasks": [
+          "audit_bloat",
+          "intent_extract",
+          "snapshot"
+        ]
+      },
+      "llama3.1:8b": {
+        "tasks": [
+          "audit_bloat",
+          "intent_extract",
+          "snapshot",
+          "dissect",
+          "recon"
+        ]
+      },
+      "deepseek-r1:7b": {
+        "tasks": [
+          "audit_code",
+          "compare",
+          "congruence",
+          "reconcile",
+          "fix_split",
+          "audit_bloat",
+          "intent_extract",
+          "snapshot"
+        ]
+      },
+      "qwen2.5-coder:14b": {
+        "tasks": [
+          "dissect",
+          "recon",
+          "snapshot"
+        ]
+      },
+      "nomic-embed-text": {
+        "tasks": [
+          "embed"
+        ]
+      }
     },
     "fallback_model": "llama3.2"
   }

@@ -217,25 +217,27 @@ Returns the changed code alongside each atom it is linked to, for compliance rev
 
 	r.Register(mcp.Tool{
 		Name: "atd_assemble",
-		Description: `Stitch atoms together into a cohesive narrative document by walking the dependency graph from root atoms.
+		Description: `Stitch atoms together into a cohesive document by walking the dependency graph from root atoms.
 Use during PLAN stage for onboarding documents, architecture overviews, or executive summaries.
-Set snapshot=true to delegate narrative generation to the IDE Agent for polished output.`,
+Supports structured layer-by-layer summarization by the LLM by passing structured=true.`,
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"starts":   map[string]any{"type": "string", "description": "Comma-separated list of root Atom IDs to begin assembly from."},
-				"purpose":  map[string]any{"type": "string", "description": "Optional purpose to wrap the output in <System Objective> tags for LLM consumption."},
-				"snapshot": map[string]any{"type": "boolean", "description": "If true, delegate narrative generation to IDE Agent (returns a task ID). Uses LLM."},
-				"theme":    map[string]any{"type": "string", "description": "Theme for snapshot narrative (defaults to 'Executive Summary')."},
+				"starts":     map[string]any{"type": "string", "description": "Comma-separated list of root Atom IDs to begin assembly from."},
+				"intent":     map[string]any{"type": "string", "description": "The intent the LLM should focus on (e.g., summarize, executive summary). Defaults to 'Executive Summary'."},
+				"length":     map[string]any{"type": "string", "description": "Length constraint: 'short', 'default', 'extended', 'long'."},
+				"structured": map[string]any{"type": "boolean", "description": "If true, group atoms by layer and perform multi-pass summarization."},
+				"json":       map[string]any{"type": "boolean", "description": "If true, outputs the result as a structured JSON object along with involved atoms metadata."},
 			},
 			"required": []string{"starts"},
 		},
 	}, func(args map[string]any) (string, error) {
 		starts := argString(args, "starts", "")
-		purpose := argString(args, "purpose", "")
-		snapshot := argBool(args, "snapshot")
-		theme := argString(args, "theme", "Executive Summary")
-		return runAssemble(starts, purpose, snapshot, theme, config.DocsDir())
+		intent := argString(args, "intent", "Executive Summary")
+		length := argString(args, "length", "default")
+		structured := argBool(args, "structured")
+		asJSON := argBool(args, "json")
+		return runAssemble(starts, intent, length, structured, asJSON, config.DocsDir())
 	})
 
 	// @spec-link [[api_atd_serve_trace]]

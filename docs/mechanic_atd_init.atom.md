@@ -9,7 +9,7 @@ tags: [atd, cli, init, bootstrap]
 parents:
   - [[module_atd_cli]]
 dependents: []
-layer: CUSTOMER
+layer: IMPLEMENTATION
 ---
 
 # ATD Init Command

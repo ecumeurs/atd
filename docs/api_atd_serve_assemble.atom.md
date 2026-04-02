@@ -36,24 +36,26 @@ Stitch ATD atoms together into a single narrative or technical document.
   "properties": {
     "starts": {
       "type": "string",
-      "description": "Comma-separated list of Root Atom IDs (source atoms)."
+      "description": "Comma-separated list of root Atom IDs to begin assembly from."
     },
-    "purpose": {
+    "intent": {
       "type": "string",
-      "description": "Optional purpose to wrap the output in <System Objective> tags."
+      "description": "The intent the LLM should focus on (e.g., summarize, executive summary). Defaults to 'Executive Summary'."
     },
-    "snapshot": {
-      "description": "If true, delegate narrative generation to IDE Agent (returns a task ID)."
-    },
-    "theme": {
+    "length": {
       "type": "string",
-      "description": "Theme for snapshot narrative (defaults to 'Executive Summary')."
+      "description": "Length constraint: 'short', 'default', 'extended', 'long'."
     },
-    "docs": {
-      "type": "string",
-      "description": "Override docs directory path."
+    "structured": {
+      "type": "boolean",
+      "description": "If true, group atoms by layer and perform multi-pass summarization."
+    },
+    "json": {
+      "type": "boolean",
+      "description": "If true, outputs the result as a structured JSON object along with involved atoms metadata."
     }
-  }
+  },
+  "required": ["starts"]
 }
 ```
 
@@ -61,4 +63,4 @@ Stitch ATD atoms together into a single narrative or technical document.
 `starts`
 
 ## EXPECTATION (For Testing)
-When the MCP client sends a `tools/call` request for `atd_assemble`, it must furnish the required arguments above, returning a JSON-RPC response with block texts.
+When the MCP client sends a `tools/call` request for `atd_assemble`, it must furnish the required arguments above. It will receive either plain text or a JSON string (if `--json` is active) containing the gathered and summarized information layer-by-layer.

@@ -14,6 +14,7 @@ Because an ATD is atomic, it describes only one primary rule or concept. This st
 3. **The Link (@spec-link)**: Code objects (functions, classes) are annotated with `@spec-link [[ATOM_ID]]`. The ATD agents and tools trace these links to verify that code implementations align with current architecture definitions. If a developer or an AI agent attempts to violate an ATD rule, the discrepancy is flagged.
 4. **Agent Integration**: The AI assistant (having the ATD skill) operates under specific modes (Architect, Developer, Analyst) to either create/manage Atoms, write compliant code, or audit the system respectively.
 5. **MCP Server**: `atd serve` exposes all 19 ATD operations as [MCP](https://modelcontextprotocol.io) tools over JSON-RPC 2.0, enabling IDE agents (VS Code, Claude Desktop) to invoke ATD commands directly without shell access.
+6. **WebUI Analyzer**: A powerful, graphical explorer (`webui/`) that visualizes the entire documentation graph using a "Waterfall of Intent" layout. It aggregates codebase health, implementation status, and exposes AI tools to query and summarize ATDs interactively.
 
 ## Setup & Tooling
 The ATD system relies on the `atd` unified binary compiled from the Go source.
@@ -83,10 +84,7 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
-| [Frontend Monoliths (app.js, spec-builder.js) and Inappropriate ATD Granularity](issues/ISS-057_20260330_webui_frontend_monolith.md) | 2026-03-30 | Open | High | The frontend codebase for the WebUI is distributed across two major files: `a... |
-| [WebUI Monolith and Inappropriate ATD Granularity](issues/ISS-056_20260330_webui_monolith_architecture.md) | 2026-03-30 | Open | High | The `webui` component is currently implemented as a single, bloated `main.go`... |
 | [WebUI Issue Integration](issues/ISS-055_20260330_webui_issue_integration.md) | 2026-03-30 | Open | Medium | The WebUI currently focuses on ATD visualization but lacks visibility into th... |
-| [ATD Summarization Feature for Atoms](issues/ISS-054_20260330_atd_summarization_feature.md) | 2026-03-30 | Open | Medium | Add a new `summary` command to both the ATD CLI and MCP server. This feature ... |
 | [`atd stats` coverage and ancestry reporting](issues/ISS-052_20260325_atd_stats_coverage_ancestry.md) | 2026-03-25 | Open | Medium | `atd stats` currently lacks detailed reporting on implementation and test cov... |
 | [atd_verify MCP tool fails with git diff error](issues/ISS-051_20260325_atd_verify_mcp_git_diff_failure.md) | 2026-03-25 | Open | High | The `atd_verify` tool fails when invoked via the MCP server with the error: `... |
 | [Unified Cold-Start and Audit Protocol as MCP Tools](issues/ISS-050_20260325_mcp_protocol_unification.md) | 2026-03-25 | Open | High | The full cold-start and auditing protocols (multi-step pipelines) should be e... |
@@ -94,7 +92,6 @@ docker exec -it ollama ollama pull nomic-embed-text
 | [ATD Graph Visualization Improvements](issues/ISS-048_20260325_atd_graph_visualization_improvements.md) | 2026-03-25 | Open | Medium | The current ATD graph visualization in the VS Code extension (`atd.showFullGr... |
 | [MCP Tools Review and Parameter Cleanup](issues/ISS-045_20260324_mcp_tools_refactor_and_cleanup.md) | 2026-03-24 | Open | Medium | The current MCP tools expose internal implementation details (like file paths... |
 | [ATD Verify Tool is Hardcoded to Go Testing](issues/ISS-044_20260324_verify_go_dependency.md) | 2026-03-24 | Open | High | The `atd verify` tool currently has a hard dependency on Go, specifically exe... |
-| [WebUI Specification](issues/ISS-041_20260324_webui_specification.md) | 2026-03-24 | Open | Medium | The WebUI currently exists only as the kernel of an idea — basic rendering wi... |
 | [Crawl Summary and Mermaid Graph Export](issues/ISS-040_20260324_crawl_summary_mermaid.md) | 2026-03-24 | Open | Medium | The dependency graph from `atd crawl` is a raw JSON blob. There is no human-r... |
 | [Reconcile Tool via MCP](issues/ISS-039_20260324_reconcile_mcp.md) | 2026-03-24 | Open | Medium | When new external requirements arrive that semantically overlap with existing... |
 | [Type-Specific Atom Templates](issues/ISS-038_20260324_type_specific_templates.md) | 2026-03-24 | Open | Medium | All atoms use the same generic template regardless of type. `API` atoms would... |
@@ -115,11 +112,7 @@ docker exec -it ollama ollama pull nomic-embed-text
 | [ATD Generation Orchestration and Local Dissection](issues/ISS-011_20260304_atd_generation_orchestration.md) | 2026-03-04 | Open | Medium | There is a lack of orchestration between the IDE agent and the local ATD gene... |
 | [ATD Status Management and Workflow](issues/ISS-010_20260304_atd_status_management.md) | 2026-03-04 | Open | Medium | The `status` attribute is currently ignored. Implementing status-based logic ... |
 | [ATD Version Management Implementation](issues/ISS-009_20260304_atd_version_management.md) | 2026-03-04 | Open | Medium | The `version` attribute in ATD YAML frontmatter is currently ignored. The sys... |
-| [WebUI LLM Integration for Content Iteration](issues/ISS-008_20260304_webui_llm_integration.md) | 2026-03-04 | Open | Medium | Link the WebUI to a "true" LLM (via Ollama or an API) to allow for content it... |
 | [Link WebUI to Project Binaries](issues/ISS-007_20260304_webui_binary_link.md) | 2026-03-04 | Open | Medium | Integrate the WebUI with the project's heavy-duty binaries and scripts (e.g.,... |
-| [WebUI ATD Editing and ID Propagation](issues/ISS-006_20260304_webui_edit_propagation.md) | 2026-03-04 | Open | High | The WebUI needs to allow altering ATDs (all fields). Crucially, changing an A... |
-| [WebUI ATD Preview HTML Rendering](issues/ISS-005_20260304_webui_html_rendering.md) | 2026-03-04 | Open | Low | The ATD preview in the WebUI is not rendered as HTML. It shows plain, trimmed... |
-| [WebUI Navigation and Exploration Improvements](issues/ISS-004_20260304_webui_navigation.md) | 2026-03-04 | Open | High | The WebUI currently fails to allow full exploration of all ATDs. It only show... |
 | [ATD Dissection Granularity Enforcement](issues/ISS-002_20260304_atd_granularity.md) | 2026-03-04 | Open | Medium | Ensure that the dissection of documents and general ATD creation strictly fol... |
 | [Audit Performance Optimization](issues/ISS-001_20260304_audit_performance.md) | 2026-03-04 | Open | Medium | The current auditing process is too slow. It requires access to a more perfor... |
 

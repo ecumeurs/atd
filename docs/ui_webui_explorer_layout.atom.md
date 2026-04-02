@@ -9,7 +9,7 @@ priority: 3
 tags: [ui, layout, explorer]
 parents:
   - [[ui_webui_traceability_explorer]]
-dependents: [[[rule_webui_blob_sizing]]]
+dependents: [[[rule_webui_blob_sizing]], [[ui_webui_explorer_treeview]], [[ui_webui_search_overlay]], [[ui_webui_waterfall_explorer]]]
 ---
 
 # Explorer Tab Layout
