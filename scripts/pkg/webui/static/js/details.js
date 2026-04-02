@@ -90,8 +90,12 @@ export function showDetails(atom) {
     dom.dStatus.style.backgroundColor = colors.bg;
     dom.dStatus.style.color = colors.fg;
 
-    // Markdown content
-    dom.dMarkdown.innerHTML = marked.parse(atom.content || '');
+    // Content Sections Concatenation
+    const fullContent = (atom.intent || "") + "\n\n" + 
+                       (atom.logic ? `## THE RULE / LOGIC\n${atom.logic}\n\n` : "") +
+                       (atom.interface ? `## TECHNICAL INTERFACE\n${atom.interface}\n\n` : "") +
+                       (atom.expectation ? `## EXPECTATION\n${atom.expectation}\n\n` : "");
+    dom.dMarkdown.innerHTML = marked.parse(fullContent || '');
 
     // Parents & Dependents (clickable navigation) — ISS-004
     renderLinks(dom.dParents, 'Parents', atom.parents);
@@ -171,7 +175,11 @@ function enterEditMode() {
     dom.editStatus.value = atom.status || 'DRAFT';
     dom.editPriority.value = atom.priority || 3;
     dom.editTags.value = (atom.tags || []).join(', ');
-    dom.editContent.value = atom.content || '';
+    const fullContent = (atom.intent || "") + "\n\n" + 
+                       (atom.logic ? `## THE RULE / LOGIC\n${atom.logic}\n\n` : "") +
+                       (atom.interface ? `## TECHNICAL INTERFACE\n${atom.interface}\n\n` : "") +
+                       (atom.expectation ? `## EXPECTATION\n${atom.expectation}\n\n` : "");
+    dom.editContent.value = fullContent || '';
 
     dom.editForm.style.display = 'block';
     dom.detailActions.style.display = 'none';
@@ -209,7 +217,7 @@ async function saveAtomChanges() {
         status: dom.editStatus.value,
         priority: parseInt(dom.editPriority.value, 10),
         tags: dom.editTags.value.split(',').map(t => t.trim()).filter(t => t !== ''),
-        content: dom.editContent.value,
+        intent: dom.editContent.value,
     };
 
     dom.btnSave.disabled = true;

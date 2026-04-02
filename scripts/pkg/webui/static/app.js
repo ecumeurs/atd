@@ -584,7 +584,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Markdown content
-        dMarkdown.innerHTML = marked.parse(atom.content || '');
+        const fullContent = (atom.intent || "") + "\n\n" + 
+                           (atom.logic ? `## THE RULE / LOGIC\n${atom.logic}\n\n` : "") +
+                           (atom.interface ? `## TECHNICAL INTERFACE\n${atom.interface}\n\n` : "") +
+                           (atom.expectation ? `## EXPECTATION\n${atom.expectation}\n\n` : "");
+        dMarkdown.innerHTML = marked.parse(fullContent || '');
 
         // Code Links
         dCode.innerHTML = '';
@@ -630,7 +634,11 @@ document.addEventListener('DOMContentLoaded', () => {
         editStatus.value = currentAtom.status || 'DRAFT';
         editPriority.value = currentAtom.priority || 'CORE';
         editTags.value = (currentAtom.tags || []).join(', ');
-        editContent.value = currentAtom.content || '';
+        const fullContent = (currentAtom.intent || "") + "\n\n" + 
+                           (currentAtom.logic ? `## THE RULE / LOGIC\n${currentAtom.logic}\n\n` : "") +
+                           (currentAtom.interface ? `## TECHNICAL INTERFACE\n${currentAtom.interface}\n\n` : "") +
+                           (currentAtom.expectation ? `## EXPECTATION\n${currentAtom.expectation}\n\n` : "");
+        editContent.value = fullContent || '';
 
         editForm.style.display = 'block';
         detailActions.style.display = 'none';
@@ -667,7 +675,7 @@ document.addEventListener('DOMContentLoaded', () => {
             status: editStatus.value,
             priority: editPriority.value,
             tags: editTags.value.split(',').map(t => t.trim()).filter(t => t !== ''),
-            content: editContent.value
+            intent: editContent.value
         };
 
         btnSave.disabled = true;

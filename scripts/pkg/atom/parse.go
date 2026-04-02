@@ -7,23 +7,36 @@ import (
 	"strings"
 )
 
+func stripQuotes(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+		return s[1 : len(s)-1]
+	}
+	if len(s) >= 2 && s[0] == '\'' && s[len(s)-1] == '\'' {
+		return s[1 : len(s)-1]
+	}
+	return s
+}
+
 // AtomData holds parsed atom metadata and content sections.
 type AtomData struct {
-	ID         string
-	HumanName  string
-	Type       string
-	Status     string
-	Priority   string
-	Layer      string
-	Tags       []string
-	Version    string
-	Parents    []string
-	Dependents []string
-	Intent     string // Content of ## INTENT section
-	Logic      string // Content of ## THE RULE / LOGIC section
-	Interface  string // Content of ## TECHNICAL INTERFACE section
-	Expectation string // Content of ## EXPECTATION section
-	FilePath   string // Original file path
+	ID          string   `json:"id"`
+	HumanName   string   `json:"human_name"`
+	Type        string   `json:"type"`
+	Status      string   `json:"status"`
+	Priority    string   `json:"priority"`
+	Layer       string   `json:"layer"`
+	Tags        []string `json:"tags"`
+	Version     string   `json:"version"`
+	Parents     []string `json:"parents"`
+	Dependents  []string `json:"dependents"`
+	Intent      string   `json:"intent"`      // Content of ## INTENT section
+	Logic       string   `json:"logic"`       // Content of ## THE RULE / LOGIC section
+	Interface   string   `json:"interface"`   // Content of ## TECHNICAL INTERFACE section
+	Expectation string   `json:"expectation"` // Content of ## EXPECTATION section
+	FilePath    string   `json:"filepath"`    // Original file path
+	Implementations []string `json:"linked_codes"` // Linked source files
+	HasTests    bool     `json:"has_tests"`    // Detection of @test-link tags
 }
 
 // Parse reads a full .atom.md file and returns all metadata + content sections.
@@ -53,37 +66,37 @@ func Parse(path string) (AtomData, error) {
 			}
 
 			if strings.HasPrefix(line, "id:") {
-				data.ID = strings.TrimSpace(strings.TrimPrefix(line, "id:"))
+				data.ID = stripQuotes(strings.TrimPrefix(line, "id:"))
 				inParents = false
 				continue
 			}
 			if strings.HasPrefix(line, "human_name:") {
-				data.HumanName = strings.TrimSpace(strings.TrimPrefix(line, "human_name:"))
+				data.HumanName = stripQuotes(strings.TrimPrefix(line, "human_name:"))
 				inParents = false
 				continue
 			}
 			if strings.HasPrefix(line, "type:") {
-				data.Type = strings.TrimSpace(strings.TrimPrefix(line, "type:"))
+				data.Type = stripQuotes(strings.TrimPrefix(line, "type:"))
 				inParents = false
 				continue
 			}
 			if strings.HasPrefix(line, "layer:") {
-				data.Layer = strings.TrimSpace(strings.TrimPrefix(line, "layer:"))
+				data.Layer = stripQuotes(strings.TrimPrefix(line, "layer:"))
 				inParents = false
 				continue
 			}
 			if strings.HasPrefix(line, "version:") {
-				data.Version = strings.TrimSpace(strings.TrimPrefix(line, "version:"))
+				data.Version = stripQuotes(strings.TrimPrefix(line, "version:"))
 				inParents = false
 				continue
 			}
 			if strings.HasPrefix(line, "status:") {
-				data.Status = strings.TrimSpace(strings.TrimPrefix(line, "status:"))
+				data.Status = stripQuotes(strings.TrimPrefix(line, "status:"))
 				inParents = false
 				continue
 			}
 			if strings.HasPrefix(line, "priority:") {
-				data.Priority = strings.TrimSpace(strings.TrimPrefix(line, "priority:"))
+				data.Priority = stripQuotes(strings.TrimPrefix(line, "priority:"))
 				inParents = false
 				continue
 			}
@@ -210,11 +223,11 @@ func ParseMeta(path string) (id, humanName, atomType string, err error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "id:") {
-			id = strings.TrimSpace(strings.TrimPrefix(line, "id:"))
+			id = stripQuotes(strings.TrimPrefix(line, "id:"))
 		} else if strings.HasPrefix(line, "human_name:") {
-			humanName = strings.TrimSpace(strings.TrimPrefix(line, "human_name:"))
+			humanName = stripQuotes(strings.TrimPrefix(line, "human_name:"))
 		} else if strings.HasPrefix(line, "type:") {
-			atomType = strings.TrimSpace(strings.TrimPrefix(line, "type:"))
+			atomType = stripQuotes(strings.TrimPrefix(line, "type:"))
 		}
 		if id != "" && humanName != "" && atomType != "" {
 			break

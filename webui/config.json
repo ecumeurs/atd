@@ -1,7 +1,0 @@
-{
-    "host": "localhost",
-    "port": 8081,
-    "project_path": "../",
-    "atd_path": "docs",
-    "toolkit_path": "~/.local/bin"
-}

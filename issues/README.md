@@ -2,6 +2,8 @@
 
 ## Index
 
+| ISS-062 | [ISS-062_20260402_webui_atd_cli_integration.md](ISS-062_20260402_webui_atd_cli_integration.md) | Medium | Open | Integrate WebUI into ATD CLI closer to core logic with dev mode. |
+| ISS-061 | [ISS-061_20260402_webui_document_generation_bugs.md](ISS-061_20260402_webui_document_generation_bugs.md) | High | Open | WebUI Document Generation Failures and UI Regressions |
 | ISS-058 | [ISS-058_20260401_webui_explorer_readability.md](ISS-058_20260401_webui_explorer_readability.md) | High | Open | WebUI Explorer display readability and redesign. |
 | ISS-057 | [ISS-057_20260330_webui_frontend_monolith.md](ISS-057_20260330_webui_frontend_monolith.md) | High | Open | Frontend (app.js, spec-builder.js) monoliths and ATD granularity. |
 | ISS-056 | [ISS-056_20260330_webui_monolith_architecture.md](ISS-056_20260330_webui_monolith_architecture.md) | High | Open | WebUI monolith architecture and inappropriate ATD granularity. |

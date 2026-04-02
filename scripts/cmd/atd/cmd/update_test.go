@@ -5,16 +5,25 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"atd-tools/pkg/atom"
 )
 
 func TestUpdateNewFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "new_atom.atom.md")
 
-	// Create new file via runUpdate
-	_, err := runUpdate(filePath, []string{"type=SERVICE", "human_name=Test Service", "id=test_service"}, "Test Intent", "Test Logic", "Test Interface", "Test Expectation", "", "")
+	// Create new file via atom.Update
+	_, err := atom.Update(atom.UpdateOptions{
+		FilePath:    filePath,
+		SetArgs:     []string{"type=SERVICE", "human_name=Test Service", "id=test_service"},
+		Intent:      "Test Intent",
+		Logic:       "Test Logic",
+		Interface:   "Test Interface",
+		Expectation: "Test Expectation",
+	})
 	if err != nil {
-		t.Fatalf("runUpdate failed: %v", err)
+		t.Fatalf("atom.Update failed: %v", err)
 	}
 
 	// Verify target file exists (it should be renamed based on ID)
@@ -45,7 +54,7 @@ func TestUpdateNewFile(t *testing.T) {
 	}
 
 	// Test newline injection
-	_, err = runUpdate(targetPath, nil, "Line1\\nLine2", "", "", "", "", "")
+	_, err = atom.Update(atom.UpdateOptions{FilePath: targetPath, Intent: "Line1\\nLine2"})
 	content, _ = os.ReadFile(targetPath)
 	if !strings.Contains(string(content), "Line1\nLine2") {
 		t.Errorf("Expected actual newline, got:\n%s", string(content))
@@ -61,7 +70,7 @@ func TestUpdateNamingConvention(t *testing.T) {
 	}
 
 	// Update with new ID that doesn't follow convention
-	_, err = runUpdate(filePath, []string{"id=my_new_module"}, "", "", "", "", "", "")
+	_, err = atom.Update(atom.UpdateOptions{FilePath: filePath, SetArgs: []string{"id=my_new_module"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +97,7 @@ func TestUpdateLinks(t *testing.T) {
 	atomContent := "---\nid: old_id\ntype: RULE\n---\n"
 	os.WriteFile(atomPath, []byte(atomContent), 0644)
 
-	numUpdates := updateLinks(tmpDir, "old_id", "new_id")
+	numUpdates := atom.UpdateLinks(tmpDir, "old_id", "new_id")
 	if numUpdates != 1 {
 		t.Errorf("Expected 1 file updated, got %d", numUpdates)
 	}

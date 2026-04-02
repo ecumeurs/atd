@@ -4,6 +4,7 @@ package cmd
 
 import (
 	"atd-tools/config"
+	"atd-tools/pkg/atom"
 	"atd-tools/pkg/exploration"
 	"encoding/json"
 	"fmt"
@@ -73,7 +74,7 @@ func init() {
 
 func runTrace(targetID, docsDir, srcPath string) (string, error) {
 	// 1. Build the dependency graph and scan source code for @spec-link
-	graph := &exploration.DependencyGraph{Atoms: make(map[string]*exploration.AtomNode)}
+	graph := &exploration.DependencyGraph{Atoms: make(map[string]*atom.AtomData)}
 	if err := exploration.CrawlDocs(docsDir, graph); err != nil {
 		return "", err
 	}

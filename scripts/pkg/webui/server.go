@@ -1,0 +1,68 @@
+package webui
+
+import (
+	"fmt"
+	"log"
+	"net/http"
+
+	"atd-tools/config"
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+)
+
+// Server represents the WebUI server instance.
+type Server struct {
+	Engine   *gin.Engine
+	DevMode  bool
+	StaticPath string
+}
+
+// NewServer creates a new WebUI server.
+func NewServer(devMode bool, staticPath string) *Server {
+	// Load .env if it exists (for GEMINI_API_KEY)
+	if err := godotenv.Load(); err != nil {
+		log.Printf("Warning: .env file not found, relying on environment variables")
+	}
+
+	r := gin.Default()
+	s := &Server{
+		Engine:   r,
+		DevMode:  devMode,
+		StaticPath: staticPath,
+	}
+
+	s.setupRoutes()
+	if err := s.refreshAtoms(); err != nil {
+		log.Printf("Warning: failed to initial refresh atoms: %v", err)
+	}
+	return s
+}
+
+func (s *Server) setupRoutes() {
+	fs := GetFileSystem(s.DevMode, s.StaticPath)
+
+	// Serve static files
+	s.Engine.StaticFS("/static", fs)
+
+	s.Engine.GET("/", func(c *gin.Context) {
+		// Serve index.html from the filesystem or embed
+		content, err := GetFileContent(fs, "index.html")
+		if err != nil {
+			c.String(http.StatusInternalServerError, "Failed to load index.html: %v", err)
+			return
+		}
+		c.Data(http.StatusOK, "text/html; charset=utf-8", content)
+	})
+
+	api := s.Engine.Group("/api")
+	s.registerATDRoutes(api)
+}
+
+func (s *Server) Start() error {
+	addr := fmt.Sprintf("%s:%d", config.ActiveConfig.WebUI.Host, config.ActiveConfig.WebUI.Port)
+	if config.ActiveConfig.WebUI.Port == 0 {
+		addr = ":8080"
+	}
+	fmt.Printf("WebUI server starting on http://%s (DevMode: %v)\n", addr, s.DevMode)
+	return s.Engine.Run(addr)
+}

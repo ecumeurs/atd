@@ -43,7 +43,14 @@ type ATDConfig struct {
 	Logging                 LoggingConfig        `json:"logging"`
 	SupportedExtensions     map[string]bool      `json:"supported_extensions"`
 	LLM                     LLMConfig            `json:"llm"`
+	WebUI                   WebUIConfig          `json:"webui"`
 	loadedFromDir           string
+}
+
+type WebUIConfig struct {
+	Host        string `json:"host"`
+	Port        int    `json:"port"`
+	ToolkitPath string `json:"toolkit_path"`
 }
 
 type LogEntry struct {

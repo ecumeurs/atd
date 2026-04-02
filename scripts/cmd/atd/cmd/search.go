@@ -2,16 +2,11 @@ package cmd
 // @spec-link [[service_atd_search]]
 
 import (
-	"database/sql"
-	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 
 	"atd-tools/config"
-	"atd-tools/pkg/cosine"
+	"atd-tools/pkg/exploration"
 	"atd-tools/pkg/ollama"
 	"github.com/spf13/cobra"
 	_ "github.com/mattn/go-sqlite3"
@@ -60,106 +55,39 @@ Grep mode performs a direct search on the filesystem.`,
 	},
 }
 
-func runGrepSearch(keyword string) error {
-	root := config.ProjectRoot()
-	matches := 0
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		if info.IsDir() || strings.Contains(path, "/.git/") || strings.Contains(path, "/.atd") {
-			return nil
-		}
+func runSemanticSearch(query, dbPath string, limit int, scope string) error {
+	opts := exploration.SearchOptions{
+		Query:  query,
+		DBPath: dbPath,
+		Limit:  limit,
+		Scope:  scope,
+	}
+	results, err := exploration.Search(opts)
+	if err != nil {
+		return err
+	}
 
-		ext := filepath.Ext(path)
-		if !config.ActiveConfig.SupportedExtensions[ext] && !strings.HasSuffix(path, ".atom.md") {
-			return nil
-		}
-
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-
-		if strings.Contains(string(content), keyword) {
-			rel, _ := filepath.Rel(root, path)
-			fmt.Printf("Grep: Found match in %s\n", rel)
-			matches++
-		}
-		return nil
-	})
-
-	fmt.Printf("Sweeping complete. Found %d matches for '%s'.\n", matches, keyword)
-	return err
+	fmt.Printf("--- Top %d Semantic Matches ---\n\n", limit)
+	for i, res := range results {
+		fmt.Printf("[Match %d] File: %s (Similarity: %.4f)\n%s\n\n", i+1, res.FilePath, res.Similarity, res.ChunkText)
+	}
+	return nil
 }
 
-func runSemanticSearch(query, dbPath string, limit int, scope string) error {
-	// 1. Get Query Vector
-	queryEmb, err := ollama.QueryEmbed(query)
+func runGrepSearch(keyword string) error {
+	opts := exploration.SearchOptions{
+		Grep: keyword,
+		Root: config.ProjectRoot(),
+	}
+	results, err := exploration.Search(opts)
 	if err != nil {
-		return fmt.Errorf("failed to embed query: %v", err)
+		return err
 	}
 
-	// 2. Open DB
-	db, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
-		return fmt.Errorf("failed to open db: %v", err)
+	for _, res := range results {
+		fmt.Printf("Grep: Found match in %s\n", res.FilePath)
 	}
-	defer db.Close()
-
-	rows, err := db.Query(`SELECT file_path, chunk_text, embedding FROM atom_index`)
-	if err != nil {
-		return fmt.Errorf("failed to query DB: %v (Did you run 'atd index'?)", err)
-	}
-	defer rows.Close()
-
-	type Result struct {
-		filePath   string
-		chunkText  string
-		similarity float64
-	}
-	var results []Result
-
-	for rows.Next() {
-		var filePath, chunkText string
-		var embJSON []byte
-		if err := rows.Scan(&filePath, &chunkText, &embJSON); err != nil {
-			continue
-		}
-
-		// Filter by scope
-		isAtom := strings.HasSuffix(filePath, ".atom.md")
-		switch scope {
-		case "code":
-			if isAtom { continue }
-		case "docs":
-			if !isAtom { continue }
-		}
-
-		var chunkEmb []float64
-		if err := json.Unmarshal(embJSON, &chunkEmb); err != nil {
-			continue
-		}
-
-		sim := cosine.Similarity(queryEmb, chunkEmb)
-		results = append(results, Result{filePath, chunkText, sim})
-	}
-
-	// Sort results by similarity descending
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].similarity > results[j].similarity
-	})
-
-	// Print top results
-	fmt.Printf("--- Top %d Semantic Matches ---\n\n", limit)
-	max := limit
-	if len(results) < max {
-		max = len(results)
-	}
-	for i := 0; i < max; i++ {
-		fmt.Printf("[Match %d] File: %s (Similarity: %.4f)\n%s\n\n", i+1, results[i].filePath, results[i].similarity, results[i].chunkText)
-	}
-
+	fmt.Printf("Sweeping complete. Found %d matches for '%s'.\n", len(results), keyword)
 	return nil
 }
 

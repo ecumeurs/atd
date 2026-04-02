@@ -172,9 +172,9 @@ function createAtomCard(atom, atomMap) {
     // Intent preview
     const intent = document.createElement('div');
     intent.className = 'card-intent';
-    const intentText = extractIntentFromContent(atom.content);
-    intent.textContent = intentText || '';
-    intent.title = intentText || '';
+    const intentText = atom.intent || '';
+    intent.textContent = intentText;
+    intent.title = intentText;
 
     // Coverage indicator
     const coverage = document.createElement('div');
