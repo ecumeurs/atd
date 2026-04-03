@@ -21,7 +21,8 @@
                 <div class="header-info">
                     <span class="info-badge" title="Project Document path">📁 <span id="info-docs"></span></span>
                     <span class="info-badge" title="Project Target code path">⚙️ <span id="info-project"></span></span>
-                    <span class="info-badge" title="Number of parsed ATDs">🔍 <span id="info-count">0</span> ATDs Found</span>
+                    <span class="info-badge" title="Number of parsed ATDs">🔍 <span id="info-count">0</span> ATDs
+                        Found</span>
                 </div>
             </div>
             <div class="header-tabs">
@@ -38,7 +39,8 @@
                     <button class="view-btn" id="view-tree" title="Tree View">≡</button>
                 </div>
                 <div class="dropdown-container">
-                    <button class="btn btn-outline btn-sm" id="btn-recent-docs" title="Recent Documents">📄 Recent</button>
+                    <button class="btn btn-outline btn-sm" id="btn-recent-docs" title="Recent Documents">📄
+                        Recent</button>
                     <div class="dropdown-menu" id="recent-docs-dropdown" style="display: none;">
                         <ul id="recent-docs-list"></ul>
                     </div>
@@ -59,15 +61,20 @@
                 <h2>Generate Documentation</h2>
                 <div class="form-group" style="margin-top: 10px;">
                     <label>Intent / Narrative Request</label>
-                    <input type="text" id="doc-setup-intent" class="search-input" placeholder="What should the document cover?">
+                    <input type="text" id="doc-setup-intent" class="search-input"
+                        placeholder="What should the document cover?">
                 </div>
                 <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 5px;">Selected Graph Nodes:</p>
-                <ul id="doc-setup-atoms-list" style="list-style: none; padding: 0; max-height: 200px; overflow-y: auto; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 4px; margin: 0 0 10px 0;"></ul>
-                <button class="btn btn-outline btn-sm" id="btn-doc-setup-add" style="margin-bottom: 15px;">+ Add Specific Atom</button>
+                <ul id="doc-setup-atoms-list"
+                    style="list-style: none; padding: 0; max-height: 200px; overflow-y: auto; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 4px; margin: 0 0 10px 0;">
+                </ul>
+                <button class="btn btn-outline btn-sm" id="btn-doc-setup-add" style="margin-bottom: 15px;">+ Add
+                    Specific Atom</button>
                 <div class="form-actions" style="margin-top: auto;">
                     <button class="btn btn-primary" id="btn-doc-setup-generate">Confirm Generation</button>
                 </div>
-                <div id="doc-setup-loading" style="display: none; align-items: center; gap: 10px; margin-top: 10px; color: var(--color-blue-light);">
+                <div id="doc-setup-loading"
+                    style="display: none; align-items: center; gap: 10px; margin-top: 10px; color: var(--color-blue-light);">
                     <div class="loading-spinner"></div> Assembling Document...
                 </div>
             </div>
@@ -80,8 +87,10 @@
                     <h2 id="document-modal-title">Generated Document</h2>
                     <button class="btn btn-primary btn-sm" id="btn-download-document">📥 Download .md</button>
                 </div>
-                <div id="document-modal-meta" style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px;"></div>
-                <div class="markdown-body" id="document-modal-content" style="max-height: 60vh; overflow-y: auto; padding-right: 15px;"></div>
+                <div id="document-modal-meta" style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px;">
+                </div>
+                <div class="markdown-body" id="document-modal-content"
+                    style="max-height: 60vh; overflow-y: auto; padding-right: 15px;"></div>
             </div>
         </div>
 
@@ -239,11 +248,13 @@
                                             <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
                                             <option value="gemini-3-flash-preview">gemini-3-flash-preview</option>
                                             <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview</option>
-                                            <option value="gemini-3.1-flash-lite-preview">gemini-3.1-flash-lite-preview</option>
+                                            <option value="gemini-3.1-flash-lite-preview">gemini-3.1-flash-lite-preview
+                                            </option>
                                         </select>
                                     </div>
                                     <div class="chat-mode-control">
-                                        <label class="toggle-switch" title="Enable/Disable conversation history forwarding">
+                                        <label class="toggle-switch"
+                                            title="Enable/Disable conversation history forwarding">
                                             <input type="checkbox" id="check-chat-mode" checked>
                                             <span class="toggle-slider"></span>
                                             <span class="toggle-text">Chat Mode</span>
@@ -274,7 +285,8 @@
                             <div class="chat-welcome">
                                 <div class="welcome-icon">🏗️</div>
                                 <h3>Gemini Spec Builder</h3>
-                                <p>Describe the logic, rules, or mechanics you want to implement. I will propose ATD atoms for your documentation graph.</p>
+                                <p>Describe the logic, rules, or mechanics you want to implement. I will propose ATD
+                                    atoms for your documentation graph.</p>
                                 <div class="welcome-suggestions">
                                     <button class="suggestion-chip">"Create a payment rule for partial refunds"</button>
                                     <button class="suggestion-chip">"Define a new user entity with auth tags"</button>
@@ -328,7 +340,6 @@
     </div>
 
     <script type="module" src="/static/js/app.js"></script>
-    <script src="/static/spec-builder.js"></script>
 </body>
 
 </html>
