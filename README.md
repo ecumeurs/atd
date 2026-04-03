@@ -84,6 +84,11 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
+| [Dedicated ATD Tree/Graph View](issues/ISS-067_20260403_webui_atd_tree_view.md) | 2026-04-03 | Open | High | The current Explorer view provides a waterfall/lane view, but navigating deep... |
+| [ATD Content Reformulation Modal](issues/ISS-066_20260403_webui_atd_reformulate_modal.md) | 2026-04-03 | Open | High | When an ATD has defined parents and dependents, its logic, technical interfac... |
+| [Force Weaving from ATD Detail Panel](issues/ISS-065_20260403_webui_atd_force_weave.md) | 2026-04-03 | Open | Medium | The ATD Detail side panel currently lacks a direct way to trigger a "force we... |
+| [WebUI Search Regression and Performance](issues/ISS-064_20260403_webui_search_regression_and_perf.md) | 2026-04-03 | Open | High | The "Ctrl+K" command palette in the WebUI is currently failing to reliably fi... |
+| [WebUI Spec Builder Enhancements and Bug Fixes](issues/ISS-063_20260403_webui_spec_builder_enhancements.md) | 2026-04-03 | Open | High | The Gemini Spec Builder tab in the WebUI requires several enhancements to imp... |
 | [Integrate WebUI into ATD CLI](issues/ISS-062_20260402_webui_atd_cli_integration.md) | 2026-04-02 | Open | Medium | The `webui` application currently exists as a separate service that must be r... |
 | [WebUI Document Generation Failures and UI Regressions](issues/ISS-061_20260402_webui_document_generation_bugs.md) | 2026-04-02 | Open | High | The WebUI document generation flow is currently broken and suffers from sever... |
 | [Refactor ATD Commands to Use Unified Exploration Package with Caching](issues/ISS-060_20260402_refactor_atd_exploration_commands.md) | 2026-04-02 | Open | Medium | This issue is a follow-up to ISS-059. The goal is to refactor all remaining A... |
