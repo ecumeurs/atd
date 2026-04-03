@@ -39,12 +39,6 @@ Use the current date. The slug must be lowercase with underscores, describing th
 
 ### Index Maintenance
 
-After creating an issue file, **add a row to `/workspace/issues/README.md`** in the index table:
-
-```markdown
-| [Ref_YYYYMMDD_slug.md](Ref_YYYYMMDD_slug.md) | Severity | Status | One-line summary |
-```
-
 
 Update the root README.md with an active issues table
 issues --update-readme

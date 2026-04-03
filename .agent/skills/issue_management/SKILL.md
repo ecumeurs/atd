@@ -43,7 +43,7 @@ If `/workspace/issues/` does not yet exist, create it along with `README.md`.
 **Ref:** Run the script to determine the next available `ISS-NNN`:
 
 ```bash
-python3 .agent/skills/issue_management/scripts/list_issues.py --next-ref
+issues --next-ref
 # prints: ISS-002
 ```
 
@@ -73,26 +73,9 @@ Copy the template from `templates/issue.md` (path: `.agent/skills/issue_manageme
 
 ## Step 3 — Update the Index
 
-Open `/workspace/issues/README.md` and add a row to the index table:
-
-```markdown
-| ISS-NNN | [YYYYMMDD_slug.md](YYYYMMDD_slug.md) | Severity | Status | One-line summary |
-```
-
-Keep rows in **reverse-chronological order** (newest first).
-
-If the `README.md` does not yet have the index table, create it with this header:
-
-```markdown
-## Index
-
-| Ref | File | Severity | Status | Summary |
-|---|---|---|---|---|
-```
-
 
 ## Update the root README.md with an active issues table
-python3 .agent/skills/issue_management/scripts/list_issues.py --update-readme
+`issues --update-readme`
 
 
 ---
@@ -111,43 +94,37 @@ Example:
 
 ## Listing & Searching Issues
 
-Use `scripts/list_issues.py` to inspect the current state of the issue tracker.  
+Use `issues` to inspect the current state of the issue tracker.  
 The script reads issue files directly — it never relies on the README index — so results are always accurate.
-
-### Script Location
-
-```
-.agent/skills/issue_management/scripts/list_issues.py
-```
 
 ### Usage
 
 ```bash
 # List all issues (newest first, with status breakdown)
-python3 .agent/skills/issue_management/scripts/list_issues.py
+issues
 
 # Filter by status
-python3 .agent/skills/issue_management/scripts/list_issues.py --status open
-python3 .agent/skills/issue_management/scripts/list_issues.py --status resolved
+issues --status open
+issues --status resolved
 
 # Filter by severity
-python3 .agent/skills/issue_management/scripts/list_issues.py --severity high
+issues --severity high
 
 # Keyword search (title, summary, component, affects, filename)
-python3 .agent/skills/issue_management/scripts/list_issues.py --search "actor"
-python3 .agent/skills/issue_management/scripts/list_issues.py --search "deadlock"
+issues --search "actor"
+issues --search "deadlock"
 
 # Combine filters
-python3 .agent/skills/issue_management/scripts/list_issues.py --status open --severity medium
+issues --status open --severity medium
 
 # Print full file content for matching issues
-python3 .agent/skills/issue_management/scripts/list_issues.py --search "queue" --full
+issues --search "queue" --full
 
 # Update the root README.md with an active issues table
-python3 .agent/skills/issue_management/scripts/list_issues.py --update-readme
+issues --update-readme
 
 # Override issues directory (useful in non-standard setups)
-python3 .agent/skills/issue_management/scripts/list_issues.py --dir /path/to/issues
+issues --dir /path/to/issues
 ```
 
 ### When the Agent Should Run This
@@ -208,7 +185,7 @@ Optionally add a final change log entry explaining the resolution.
 ## Quick Reference Checklist
 
 ```
-[ ] --next-ref run to determine ISS-NNN
+[ ] --next-ref run to determine ISS-NNN, replace Ref from the filename with the new ISS-NNN
 [ ] Date + slug chosen
 [ ] Issue file created from template
 [ ] All mandatory fields filled (ID, Ref, Date, Severity, Status, Component, Affects)
