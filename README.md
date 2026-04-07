@@ -84,6 +84,8 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
+| [WebUI Explorer Global Health Dashboard](issues/ISS-069_20260407_webui_explorer_global_health.md) | 2026-04-07 | Open | Medium | The current Explorer view provides a "Waterfall of Intent" but lacks a high-l... |
+| [Enhance WebUI ATD Health Indicators](issues/ISS-068_20260403_webui_atd_health_indicators.md) | 2026-04-03 | Open | Medium | This issue track the enhancement of the ATD cards in the WebUI Explorer view ... |
 | [Dedicated ATD Tree/Graph View](issues/ISS-067_20260403_webui_atd_tree_view.md) | 2026-04-03 | Open | High | The current Explorer view provides a waterfall/lane view, but navigating deep... |
 | [ATD Content Reformulation Modal](issues/ISS-066_20260403_webui_atd_reformulate_modal.md) | 2026-04-03 | Open | High | When an ATD has defined parents and dependents, its logic, technical interfac... |
 | [Force Weaving from ATD Detail Panel](issues/ISS-065_20260403_webui_atd_force_weave.md) | 2026-04-03 | Open | Medium | The ATD Detail side panel currently lacks a direct way to trigger a "force we... |

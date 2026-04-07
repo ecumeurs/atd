@@ -4,7 +4,8 @@ status: STABLE
 human_name: WebUI Bulk Update API
 parents: [[api_webui_atd_router]]
 tags: webui,api,bulk
-dependents: [[[mechanic_webui_bulk_update]]]
+dependents:
+  - [[mechanic_webui_bulk_update]]
 type: API
 layer: ARCHITECTURE
 priority: 3

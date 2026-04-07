@@ -16,10 +16,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var (
-	atomsMap   map[string]*atom.AtomData
-	atomsMutex sync.RWMutex
-)
+
 
 func (s *Server) registerATDRoutes(api *gin.RouterGroup) {
 	api.GET("/info", s.handleInfo)
@@ -30,6 +27,7 @@ func (s *Server) registerATDRoutes(api *gin.RouterGroup) {
 	api.GET("/summary/:id", s.handleSummary)
 	api.GET("/search", s.handleSearch)
 	api.GET("/stats", s.handleStats)
+	api.POST("/atd/weave", s.handleWeave)
 
 	// Document generation
 	api.POST("/search-document-context", s.handleSearchDocumentContext)
@@ -42,26 +40,19 @@ func (s *Server) registerATDRoutes(api *gin.RouterGroup) {
 }
 
 func (s *Server) refreshAtoms() error {
-	docsDir := config.DocsDir()
-	graph := &exploration.DependencyGraph{Atoms: make(map[string]*atom.AtomData)}
-	if err := exploration.CrawlDocs(docsDir, graph); err != nil {
-		return err
-	}
-	// Also crawl source for implementations
-	if err := exploration.CrawlSrc(config.ProjectRoot(), graph); err != nil {
-		return err
-	}
-
-	atomsMutex.Lock()
-	atomsMap = graph.Atoms
-	atomsMutex.Unlock()
-	return nil
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	return s.explorer.Load(true)
 }
 
 func (s *Server) handleInfo(c *gin.Context) {
-	atomsMutex.RLock()
-	count := len(atomsMap)
-	atomsMutex.RUnlock()
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	count := 0
+	if s.explorer.Graph != nil {
+		count = len(s.explorer.Graph.Atoms)
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"project_path": config.ProjectRoot(),
@@ -71,22 +62,29 @@ func (s *Server) handleInfo(c *gin.Context) {
 }
 
 func (s *Server) handleTree(c *gin.Context) {
-	atomsMutex.RLock()
-	defer atomsMutex.RUnlock()
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 
 	var slice []*atom.AtomData
-	for _, v := range atomsMap {
-		slice = append(slice, v)
+	if s.explorer.Graph != nil {
+		for _, v := range s.explorer.Graph.Atoms {
+			slice = append(slice, v)
+		}
 	}
 	c.JSON(http.StatusOK, slice)
 }
 
 func (s *Server) handleAtomDetail(c *gin.Context) {
 	id := c.Param("id")
-	atomsMutex.RLock()
-	data, exists := atomsMap[id]
-	atomsMutex.RUnlock()
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 
+	if s.explorer.Graph == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Graph not loaded"})
+		return
+	}
+
+	data, exists := s.explorer.Graph.Atoms[id]
 	if !exists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Atom not found"})
 		return
@@ -97,10 +95,15 @@ func (s *Server) handleAtomDetail(c *gin.Context) {
 
 func (s *Server) handleAtomCode(c *gin.Context) {
 	id := c.Param("id")
-	atomsMutex.RLock()
-	node, exists := atomsMap[id]
-	atomsMutex.RUnlock()
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 
+	if s.explorer.Graph == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Graph not loaded"})
+		return
+	}
+
+	node, exists := s.explorer.Graph.Atoms[id]
 	if exists {
 		c.JSON(http.StatusOK, gin.H{"linked_codes": node.Implementations})
 	} else {
@@ -120,15 +123,16 @@ func (s *Server) handleAtomUpdate(c *gin.Context) {
 		Logic       string `json:"logic"`
 		Interface   string `json:"interface"`
 		Expectation string `json:"expectation"`
+		Layer       string `json:"layer"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	atomsMutex.RLock()
-	node, exists := atomsMap[id]
-	atomsMutex.RUnlock()
+	s.mutex.RLock()
+	node, exists := s.explorer.Graph.Atoms[id]
+	s.mutex.RUnlock()
 
 	if !exists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Atom not found"})
@@ -157,6 +161,9 @@ func (s *Server) handleAtomUpdate(c *gin.Context) {
 	}
 	if req.Priority != "" {
 		opts.SetArgs = append(opts.SetArgs, "priority="+req.Priority)
+	}
+	if req.Layer != "" {
+		opts.SetArgs = append(opts.SetArgs, "layer="+req.Layer)
 	}
 
 	res, err := atom.Update(opts)
@@ -214,23 +221,23 @@ func (s *Server) handleSearch(c *gin.Context) {
 }
 
 func (s *Server) handleStats(c *gin.Context) {
-	atomsMutex.RLock()
-	defer atomsMutex.RUnlock()
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 
 	var total, covered, tested, orphans int
-	for _, node := range atomsMap {
-		total++
-		if len(node.Implementations) > 0 {
-			covered++
+	if s.explorer.Graph != nil {
+		for _, node := range s.explorer.Graph.Atoms {
+			total++
+			if len(node.Implementations) > 0 {
+				covered++
+			}
 		}
-		// Note: has_tests logic would require crawling tests too, which CrawlSrc should do if @test-link is used.
-		// For now simple stats.
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"Total":        total,
 		"SpecCoverage": covered,
-		"TestCoverage": tested,
+		"TestCoverage": tested, // @todo: implement from Explorer.TestLinks
 		"Orphans":      orphans,
 	})
 }
@@ -343,3 +350,16 @@ func (s *Server) handleGetDocument(c *gin.Context) {
 }
 
 
+// @spec-link [[mechanic_webui_atd_weave_handler]]
+func (s *Server) handleWeave(c *gin.Context) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	res, err := s.explorer.Weave()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Weaving failed", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": res})
+}

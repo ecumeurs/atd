@@ -1,7 +1,8 @@
 ---
 id: api_webui_tree
 status: STABLE
-dependents: [[[mechanic_webui_tree]]]
+dependents:
+  - [[mechanic_webui_tree]]
 human_name: WebUI Tree API
 type: API
 layer: ARCHITECTURE

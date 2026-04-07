@@ -9,7 +9,8 @@ priority: 3
 tags: [ui, navigation, tab]
 parents:
   - [[module_webui]]
-dependents: [[[mechanic_webui_breadcrumb_navigation]]]
+dependents:
+  - [[mechanic_webui_breadcrumb_navigation]]
 ---
 
 # Tab Navigation System

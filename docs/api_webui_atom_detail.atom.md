@@ -5,7 +5,8 @@ layer: ARCHITECTURE
 priority: 3
 parents: [[api_webui_atd_router]]
 version: 1.0
-dependents: [[[mechanic_webui_atom_detail]]]
+dependents:
+  - [[mechanic_webui_atom_detail]]
 human_name: WebUI Atom Detail API
 type: API
 tags: webui,api,detail

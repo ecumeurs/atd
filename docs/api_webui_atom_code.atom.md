@@ -8,7 +8,8 @@ layer: ARCHITECTURE
 priority: 3
 parents: [[api_webui_atd_router]]
 tags: webui,api,code
-dependents: [[[mechanic_webui_atom_code]]]
+dependents:
+  - [[mechanic_webui_atom_code]]
 ---
 
 # New Atom

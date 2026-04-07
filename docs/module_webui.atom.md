@@ -9,7 +9,16 @@ priority: 4
 tags: [webui, atd, visualization, gemini]
 parents:
   - [[requirement_webui_platform]]
-dependents: [[[api_webui_atd_router]], [[api_webui_health_stats]], [[mechanic_webui_gemini_proxy]], [[ui_webui_global_theme]], [[ui_webui_spec_builder]], [[ui_webui_spec_builder]], [[ui_webui_tab_system]], [[ui_webui_traceability_explorer]]]
+dependents:
+  - [[api_webui_atd_router]]
+  - [[api_webui_health_stats]]
+  - [[mechanic_webui_gemini_proxy]]
+  - [[ui_webui_document_viewer]]
+  - [[ui_webui_global_theme]]
+  - [[ui_webui_spec_builder]]
+  - [[ui_webui_spec_builder]]
+  - [[ui_webui_tab_system]]
+  - [[ui_webui_traceability_explorer]]
 ---
 
 # ATD WebUI Module

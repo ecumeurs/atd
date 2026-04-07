@@ -139,3 +139,12 @@ export async function fetchRecentDocuments() {
     if (!resp.ok) throw new Error('Failed to fetch recent documents');
     return resp.json();
 }
+
+// @spec-link [[api_webui_atd_weave]]
+export async function weave() {
+    const resp = await fetch('/api/atd/weave', {
+        method: 'POST',
+    });
+    if (!resp.ok) throw new Error('Weaving failed');
+    return resp.json();
+}

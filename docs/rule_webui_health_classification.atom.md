@@ -9,7 +9,8 @@ priority: 3
 tags: [logic, classification, health]
 parents:
   - [[domain_atd_structure]]
-dependents: [[[mechanic_webui_health_categorization]]]
+dependents:
+  - [[mechanic_webui_health_categorization]]
 ---
 
 # Health Classification Rules

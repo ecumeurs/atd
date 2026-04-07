@@ -415,10 +415,16 @@ function activate(context) {
             // 1. Update the Sidebar
             atdGraphProvider.refresh(atomId);
 
-            // 2. Update the Webview Graph (Will auto-open if you want it to always appear)
-            updateGraphPanel(editor);
+            // 2. Update the Webview Graph (Will auto-open if enabled)
+            const config = vscode.workspace.getConfiguration('atd');
+            const autoShow = config.get('autoShowGraph', true);
+            
+            if (autoShow || graphPanel) {
+                updateGraphPanel(editor);
+            }
         }
     });
+
 
     context.subscriptions.push(
         watcher, codeLensProvider, hoverProvider, linkProvider, definitionProvider, showDetailsCommand, showGraphCommand

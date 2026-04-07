@@ -5,7 +5,8 @@ version: 1.0
 layer: ARCHITECTURE
 parents: [[api_webui_atd_router]]
 tags: webui,api,tests
-dependents: [[[mechanic_webui_atom_tests]]]
+dependents:
+  - [[mechanic_webui_atom_tests]]
 human_name: WebUI Atom Tests API
 type: API
 priority: 3

@@ -4,7 +4,8 @@ status: STABLE
 type: API
 priority: 3
 tags: webui,api,update
-dependents: [[[mechanic_webui_atom_update]]]
+dependents:
+  - [[mechanic_webui_atom_update]]
 human_name: WebUI Atom Update API
 layer: ARCHITECTURE
 parents: [[api_webui_atd_router]]

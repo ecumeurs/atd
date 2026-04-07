@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
+	"time"
 )
 
 // Resolution holds the result of provider resolution.
@@ -16,46 +18,93 @@ type Resolution struct {
 	Provider string // Provider name for logging
 }
 
+type providerCacheEntry struct {
+	lastChecked time.Time
+	isOffline   bool
+	models      []string
+}
+
+var (
+	cacheMu    sync.Mutex
+	globalCache = make(map[string]providerCacheEntry)
+)
+
 // ResolveProvider determines which provider and model to use for a given task type.
 func ResolveProvider(taskType string) (Resolution, error) {
+	return ResolveProviderEx(taskType, false)
+}
+
+// ResolveProviderEx is like ResolveProvider but allows forcing a refresh of the cache.
+func ResolveProviderEx(taskType string, force bool) (Resolution, error) {
 	cfg := config.ActiveConfig.LLM
 	candidateModels := config.ModelForTask(taskType)
 
 	type providerModels struct {
 		provider config.LLMProvider
 		models   []string
+		offline  bool
 	}
-	var cachedProviders []providerModels
+	var providersToTry []providerModels
 
-	// 1. Try all preferred candidate models across all providers
+	// 1. Gather all providers and their available models (with caching)
+	for _, provider := range cfg.Providers {
+		if provider.Type == "passthrough" {
+			continue
+		}
+
+		cacheMu.Lock()
+		entry, found := globalCache[provider.BaseURL]
+		cacheMu.Unlock()
+
+		var serverModels []string
+		var offline bool
+		var err error
+
+		healthTTL := time.Duration(cfg.HealthTTLMs) * time.Millisecond
+		modelTTL := time.Duration(cfg.ModelTTLMs) * time.Millisecond
+
+		useCache := found && !force
+		if useCache {
+			if entry.isOffline && time.Since(entry.lastChecked) < healthTTL {
+				offline = true
+			} else if !entry.isOffline && time.Since(entry.lastChecked) < modelTTL {
+				serverModels = entry.models
+			}
+		}
+
+		if !useCache || (!offline && serverModels == nil) {
+			serverModels, err = ListModels(provider.BaseURL, provider.TimeoutMs)
+			
+			cacheMu.Lock()
+			if err != nil {
+				globalCache[provider.BaseURL] = providerCacheEntry{
+					lastChecked: time.Now(),
+					isOffline:   true,
+				}
+				offline = true
+			} else {
+				globalCache[provider.BaseURL] = providerCacheEntry{
+					lastChecked: time.Now(),
+					isOffline:   false,
+					models:      serverModels,
+				}
+			}
+			cacheMu.Unlock()
+		}
+
+		providersToTry = append(providersToTry, providerModels{provider, serverModels, offline})
+	}
+
+	// 2. Try all preferred candidate models across all reachable providers
 	for _, desired := range candidateModels {
 		hasTag := strings.Contains(desired, ":")
 
-		for i, provider := range cfg.Providers {
-			// IDE passthrough handled separately if no Ollama matches
-			if provider.Type == "passthrough" {
+		for _, pt := range providersToTry {
+			if pt.offline || pt.models == nil {
 				continue
 			}
 
-			// Cache models per provider to avoid repeated API calls
-			var serverModels []string
-			if len(cachedProviders) > i {
-				serverModels = cachedProviders[i].models
-			} else {
-				var err error
-				serverModels, err = ListModels(provider.BaseURL, provider.TimeoutMs)
-				// Cache even if it's nil (error) to avoid re-trying
-				cachedProviders = append(cachedProviders, providerModels{provider, serverModels})
-				if err != nil {
-					continue
-				}
-			}
-
-			if serverModels == nil {
-				continue
-			}
-
-			for _, m := range serverModels {
+			for _, m := range pt.models {
 				matched := false
 				if hasTag {
 					matched = (m == desired)
@@ -65,9 +114,9 @@ func ResolveProvider(taskType string) (Resolution, error) {
 
 				if matched {
 					res := Resolution{
-						BaseURL:  provider.BaseURL,
+						BaseURL:  pt.provider.BaseURL,
 						Model:    m,
-						Provider: provider.Name,
+						Provider: pt.provider.Name,
 					}
 					fmt.Fprintf(os.Stderr, "[LLM] Task=%s Model=%s Provider=%s\n", taskType, res.Model, res.Provider)
 					return res, nil
@@ -76,15 +125,15 @@ func ResolveProvider(taskType string) (Resolution, error) {
 		}
 	}
 
-	// 2. Try fallback if none of the preferred models were found
+	// 3. Try fallback
 	if cfg.FallbackModel != "" {
 		fallbackHasTag := strings.Contains(cfg.FallbackModel, ":")
-		for _, cp := range cachedProviders {
-			if cp.provider.Type == "passthrough" || cp.models == nil {
+		for _, pt := range providersToTry {
+			if pt.offline || pt.models == nil {
 				continue
 			}
 
-			for _, m := range cp.models {
+			for _, m := range pt.models {
 				matched := false
 				if fallbackHasTag {
 					matched = (m == cfg.FallbackModel)
@@ -94,9 +143,9 @@ func ResolveProvider(taskType string) (Resolution, error) {
 
 				if matched {
 					res := Resolution{
-						BaseURL:  cp.provider.BaseURL,
+						BaseURL:  pt.provider.BaseURL,
 						Model:    m,
-						Provider: cp.provider.Name,
+						Provider: pt.provider.Name,
 					}
 					fmt.Fprintf(os.Stderr, "[LLM] Task=%s Model=%s Provider=%s (Fallback)\n", taskType, res.Model, res.Provider)
 					return res, nil
@@ -105,7 +154,7 @@ func ResolveProvider(taskType string) (Resolution, error) {
 		}
 	}
 
-	// 3. Last resort: IDE passthrough
+	// 4. Last resort: IDE passthrough
 	for _, provider := range cfg.Providers {
 		if provider.Type == "passthrough" {
 			res := Resolution{IsIDE: true, Provider: provider.Name}

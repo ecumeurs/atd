@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"atd-tools/config"
+	"atd-tools/pkg/exploration"
 	"atd-tools/pkg/mcp"
 )
 
@@ -76,15 +77,17 @@ Returns a JSON array of matching atoms with full frontmatter.`,
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"field":  map[string]any{"type": "string", "description": "Frontmatter field to search (e.g. 'type', 'status', 'id', 'layer', 'tags'). Omit to search all fields."},
-				"search": map[string]any{"type": "string", "description": "Value to match (case-insensitive substring)."},
+				"field":       map[string]any{"type": "string", "description": "Frontmatter field to search (e.g. 'type', 'status', 'id', 'layer', 'tags'). Omit to search all fields."},
+				"search":      map[string]any{"type": "string", "description": "Value to match (case-insensitive substring)."},
+				"paths_only":  map[string]any{"type": "boolean", "description": "If true, return only a JSON array of absolute file paths."},
 			},
 			"required": []string{"search"},
 		},
 	}, func(args map[string]any) (string, error) {
-		field := argString(args, "field", "id")
+		field := argString(args, "field", "")
 		search := argString(args, "search", "")
-		return runQuery(config.DocsDir(), field, search)
+		pathsOnly := argBool(args, "paths_only")
+		return runQuery(field, search, pathsOnly)
 	})
 
 	r.Register(mcp.Tool{
@@ -113,7 +116,8 @@ This is mandatory after any atom creation to keep the dependency graph consisten
 			"properties": map[string]any{},
 		},
 	}, func(args map[string]any) (string, error) {
-		return runWeave(config.DocsDir())
+		explorer := exploration.NewExplorer("", config.DocsDir())
+		return explorer.Weave()
 	})
 
 	r.Register(mcp.Tool{
@@ -323,16 +327,18 @@ Use during PLAN stage to find related code or atoms by meaning, or to locate imp
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"query": map[string]any{"type": "string", "description": "Semantic search query (uses Nomic embeddings). Provide this OR grep, not both."},
-				"grep":  map[string]any{"type": "string", "description": "Literal keyword search across project files. Provide this OR query, not both."},
-				"scope": map[string]any{"type": "string", "description": "Search scope: 'code' (source files only), 'docs' (ATD atoms only), or 'all' (both). Defaults to 'all'."},
-				"limit": map[string]any{"type": "integer", "description": "Number of semantic results to return. Defaults to 5."},
+				"query":      map[string]any{"type": "string", "description": "Semantic search query (uses Nomic embeddings). Provide this OR grep, not both."},
+				"grep":       map[string]any{"type": "string", "description": "Literal keyword search across project files. Provide this OR query, not both."},
+				"scope":      map[string]any{"type": "string", "description": "Search scope: 'code' (source files only), 'docs' (ATD atoms only), or 'all' (both). Defaults to 'all'."},
+				"limit":      map[string]any{"type": "integer", "description": "Number of semantic results to return. Defaults to 5."},
+				"paths_only": map[string]any{"type": "boolean", "description": "If true, return only a list of unique absolute file paths."},
 			},
 		},
 	}, func(args map[string]any) (string, error) {
 		query := argString(args, "query", "")
 		grep := argString(args, "grep", "")
 		scope := argString(args, "scope", "all")
+		pathsOnly := argBool(args, "paths_only")
 		limitRaw, _ := args["limit"]
 		limit := 5
 		if f, ok := limitRaw.(float64); ok {
@@ -341,11 +347,11 @@ Use during PLAN stage to find related code or atoms by meaning, or to locate imp
 		db := config.DocsDir() + "/.atd_index.db"
 		if grep != "" {
 			return captureStdout(func() error {
-				return runGrepSearch(grep)
+				return runGrepSearch(grep, pathsOnly)
 			})
 		}
 		return captureStdout(func() error {
-			return runSemanticSearch(query, db, limit, scope)
+			return runSemanticSearch(query, db, limit, scope, pathsOnly)
 		})
 	})
 
@@ -433,7 +439,7 @@ Use to diagnose 'Connection Refused' or 'Model Not Found' errors, or to verify a
 			"properties": map[string]any{},
 		},
 	}, func(args map[string]any) (string, error) {
-		return runCheck()
+		return runCheck(false)
 	})
 
 	r.Register(mcp.Tool{

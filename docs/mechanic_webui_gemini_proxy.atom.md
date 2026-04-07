@@ -9,7 +9,10 @@ priority: 3
 tags: [gemini, proxy, backend, atd-context]
 parents: [[ui_webui_spec_builder]]
   - [[module_webui]]
-dependents: [[[mechanic_webui_gemini_chat_orchestration]], [[mechanic_webui_gemini_model_list]], [[rule_webui_context_history_management]]]
+dependents:
+  - [[mechanic_webui_gemini_chat_orchestration]]
+  - [[mechanic_webui_gemini_model_list]]
+  - [[rule_webui_context_history_management]]
 ---
 
 # WebUI Gemini API Proxy

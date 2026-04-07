@@ -24,6 +24,7 @@ This atom describes the JSON schema and functionality as exposed to the MCP clie
 ## THE RULE / LOGIC
 - **JSON-RPC Method**: `tools/call` with name `atd_search`.
 - **Endpoint Responsibility**: Acts as a bridge between the MCP protocol and the internal ATD CLI functionality.
+- **Paths Only Mode**: If `paths_only` is true, the response is a string containing absolute file paths of the matching files, one per line.
 
 ## TECHNICAL INTERFACE (The Bridge)
 ### Description
@@ -42,16 +43,17 @@ Search the indexed codebase semantically (requires a built index) or via keyword
       "type": "string",
       "description": "Literal keyword search across project files."
     },
-    "db": {
-      "type": "string",
-      "description": "Path to SQLite index database."
-    },
     "limit": {
+      "type": "integer",
       "description": "Number of semantic results to return. Defaults to 5."
     },
     "scope": {
       "type": "string",
       "description": "Search scope: 'code', 'docs', or 'all'. Defaults to 'all'."
+    },
+    "paths_only": {
+      "type": "boolean",
+      "description": "If true, return only a list of unique absolute file paths."
     }
   }
 }
@@ -61,4 +63,4 @@ Search the indexed codebase semantically (requires a built index) or via keyword
 None
 
 ## EXPECTATION (For Testing)
-When the MCP client sends a `tools/call` request for `atd_search`, it must furnish the required arguments above, returning a JSON-RPC response with block texts.
+When the MCP client sends a `tools/call` request for `atd_search`, it must return matching chunks and metadata, or just a list of absolute file paths if `paths_only` is true.

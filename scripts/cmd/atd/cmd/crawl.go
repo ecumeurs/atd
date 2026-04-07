@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"atd-tools/config"
-	"atd-tools/pkg/atom"
 	"atd-tools/pkg/exploration"
 
 	"github.com/spf13/cobra"
@@ -41,19 +40,12 @@ If --gaps is provided, identifies STABLE atoms with no implementation.`,
 }
 
 func runCrawl(srcPath, docsDir string, gaps bool) (string, error) {
-	graph := &exploration.DependencyGraph{
-		Atoms: make(map[string]*atom.AtomData),
-	}
-
-	if err := exploration.CrawlDocs(docsDir, graph); err != nil {
+	explorer := exploration.NewExplorer(config.ProjectRoot(), docsDir)
+	if err := explorer.Load(false); err != nil {
 		return "", err
 	}
 
-	if srcPath != "" {
-		if err := exploration.CrawlSrc(srcPath, graph); err != nil {
-			return "", err
-		}
-	}
+	graph := explorer.GetGraph()
 
 	var output []byte
 	if gaps {

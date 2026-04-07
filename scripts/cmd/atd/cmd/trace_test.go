@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"atd-tools/config"
+	"atd-tools/pkg/exploration"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -10,6 +12,7 @@ import (
 func TestTraceRecursiveTraversal(t *testing.T) {
 	// 1. Setup temp environment
 	tmpDir := t.TempDir()
+	config.LoadFromDir(tmpDir)
 	docsDir := filepath.Join(tmpDir, "docs")
 	srcDir := filepath.Join(tmpDir, "src")
 	err := os.MkdirAll(docsDir, 0755)
@@ -60,12 +63,12 @@ parents:
 	os.WriteFile(filepath.Join(srcDir, "logic.go"), []byte(srcContent), 0644)
 
 	// 4. Run Trace on A1
-	resultJSON, err := runTrace("a1", docsDir, srcDir)
+	resultJSON, err := runTrace("a1", docsDir, tmpDir)
 	if err != nil {
 		t.Fatalf("runTrace failed: %v", err)
 	}
 
-	var snap TraceSnapshot
+	var snap exploration.TraceSnapshot
 	err = json.Unmarshal([]byte(resultJSON), &snap)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal result: %v", err)

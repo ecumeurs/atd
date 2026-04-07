@@ -2,23 +2,13 @@ package cmd
 // @spec-link [[specification_atd_test_links]]
 
 import (
+	"atd-tools/config"
+	"atd-tools/pkg/exploration"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
-
-	"atd-tools/config"
 
 	"github.com/spf13/cobra"
 )
-
-type TestLink struct {
-	AtomID   string `json:"atom_id"`
-	TestFile string `json:"test_file"`
-	Line     int    `json:"line"`
-}
 
 var testLinksCmd = &cobra.Command{
 	Use:   "test-links",
@@ -30,9 +20,6 @@ report the mapping between atoms and their verification tests.`,
 		targetAtom, _ := cmd.Flags().GetString("atom")
 		docsDir, _ := cmd.Flags().GetString("docs")
 
-		if srcPath == "" {
-			srcPath = "."
-		}
 		if docsDir == "" {
 			docsDir = config.DocsDir()
 		}
@@ -47,43 +34,16 @@ report the mapping between atoms and their verification tests.`,
 }
 
 func runTestLinks(srcPath, targetAtom, docsDir string) (string, error) {
-	links := []TestLink{}
-	testLinkRegex := regexp.MustCompile(`@test-link\s+\[?\[?([^\]\s]+)\]?\]?`)
-
-	// 1. Walk source files looking for tags
-	err := filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || strings.Contains(path, "/.") {
-			return nil
-		}
-
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-
-		lines := strings.Split(string(content), "\n")
-		for i, line := range lines {
-			matches := testLinkRegex.FindAllStringSubmatch(line, -1)
-			for _, match := range matches {
-				if len(match) > 1 {
-					links = append(links, TestLink{
-						AtomID:   match[1],
-						TestFile: path,
-						Line:     i + 1,
-					})
-				}
-			}
-		}
-		return nil
-	})
-
-	if err != nil {
+	explorer := exploration.NewExplorer(config.ProjectRoot(), docsDir)
+	if err := explorer.Load(false); err != nil {
 		return "", err
 	}
 
-	// 2. Filter or expand if --atom is specified
+	links := explorer.GetTestLinks()
+
+	// Filter if --atom is specified
 	if targetAtom != "" {
-		filtered := []TestLink{}
+		filtered := []exploration.TestLink{}
 		for _, l := range links {
 			if l.AtomID == targetAtom {
 				filtered = append(filtered, l)

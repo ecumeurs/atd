@@ -64,4 +64,5 @@ The detail side panel logic is primarily in `webui/static/js/details.js`.
 
 ## References
 
-- [details.js](file:///home/bastien/work/skill/webui/static/js/details.js)
+- [details.js](file:///home/bastien/work/skill/scripts/pkg/webui/static/js/details.js)
+- [README.md](file:///home/bastien/work/skill/scripts/pkg/webui/README.md)

@@ -42,9 +42,9 @@ Various commands within `scripts/cmd/atd/cmd`.
 
 ## Recommended Fix
 
-**Short term:** Identify all ATD commands not currently utilizing `pkg/exploration`.
-**Medium term:** Refactor those commands to use `pkg/exploration`. Update the exploration package with whatever new filtering/query options those commands need to work.
-**Long term:** Implement an internal caching method within `pkg/exploration` so that multiple requests for the graph or file sets can reuse previously parsed results, improving speed across the tooling ecosystem.
+**Short term:** Implement an internal caching method within `pkg/exploration` so that multiple requests for the graph or file sets can reuse previously parsed results, improving speed across the tooling ecosystem.
+**Medium term:** Identify all ATD commands not currently utilizing `pkg/exploration`. With priority to trace and health-related commands.
+**Long term:** Refactor those commands to use `pkg/exploration`. Update the exploration package with whatever new filtering/query options those commands need to work.
 
 ---
 

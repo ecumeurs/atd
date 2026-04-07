@@ -6,7 +6,11 @@ layer: ARCHITECTURE
 version: 1.0
 priority: 4
 parents: [[module_webui]]
-dependents: [[[mechanic_webui_ancestry_validator]], [[mechanic_webui_coverage_mapper]], [[mechanic_webui_health_stats]], [[mechanic_webui_summary_aggregation]]]
+dependents:
+  - [[mechanic_webui_ancestry_validator]]
+  - [[mechanic_webui_coverage_mapper]]
+  - [[mechanic_webui_health_stats]]
+  - [[mechanic_webui_summary_aggregation]]
 type: API
 tags: [webui, api, stats]
 ---

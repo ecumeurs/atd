@@ -21,6 +21,5 @@ To propagate bidirectional parent↔dependent links across all ATD atoms, ensuri
 Reads all `.atom.md` files, builds a map of parent→dependent relationships from the `parents:` frontmatter field, then rewrites each atom's `dependents:` field to include all atoms that declare it as a parent. Only modifies files where the dependents list actually changes.
 
 ## TECHNICAL INTERFACE (The Bridge)
-- **Command:** `atd weave`
-- **LLM Task:** None (deterministic)
-- **Code Tag:** `@spec-link [[mechanic_atd_weave]]`
+@spec-link [[mechanic_atd_weave]]
+Code location: `scripts/pkg/atom/weave.go`

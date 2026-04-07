@@ -2,7 +2,8 @@
 id: requirement_webui_documentation_management
 status: STABLE
 tags: webui,documentation,search,summarize
-dependents: [[[api_webui_atd_router]]]
+dependents:
+  - [[api_webui_atd_router]]
 human_name: WebUI Documentation Management
 layer: CUSTOMER
 priority: 5

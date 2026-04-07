@@ -20,6 +20,7 @@ dependents:
   - [[mechanic_atd_reconcile]]
   - [[mechanic_atd_update]]
   - [[mechanic_atd_weave]]
+  - [[module_atd_exploration]]
   - [[service_atd_audit]]
   - [[service_atd_check]]
   - [[service_atd_crawl]]

@@ -36,6 +36,16 @@
                     "icon": "type-hierarchy"
                 }
             ]
+        },
+        "configuration": {
+            "title": "ATD Linker",
+            "properties": {
+                "atd.autoShowGraph": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Automatically show the ATD graph when opening an .atom.md file."
+                }
+            }
         }
     }
 }

@@ -30,9 +30,11 @@ type ModelConfig struct {
 }
 
 type LLMConfig struct {
-	Providers     []LLMProvider          `json:"providers"`
-	Models        map[string]ModelConfig `json:"models"`
-	FallbackModel string                `json:"fallback_model"`
+	Providers      []LLMProvider          `json:"providers"`
+	Models         map[string]ModelConfig `json:"models"`
+	FallbackModel  string                 `json:"fallback_model"`
+	HealthTTLMs    int                    `json:"health_ttl_ms,omitempty"`
+	ModelTTLMs     int                    `json:"model_ttl_ms,omitempty"`
 }
 
 type ATDConfig struct {
@@ -85,6 +87,10 @@ func LoadFromDir(dir string) error {
 			".h": true, ".hpp": true, ".cs": true, ".php": true,
 			".rb": true, ".swift": true, ".kt": true, ".scala": true,
 		},
+		LLM: LLMConfig{
+			HealthTTLMs: 300000, // 5 minutes
+			ModelTTLMs:  300000, // 5 minutes
+		},
 	}
 
 	var configPath string
@@ -106,8 +112,14 @@ func LoadFromDir(dir string) error {
 		data, err := os.ReadFile(configPath)
 		if err == nil {
 			json.Unmarshal(data, &ActiveConfig)
-			ActiveConfig.loadedFromDir = filepath.Dir(configPath)
+			abs, _ := filepath.Abs(filepath.Dir(configPath))
+			ActiveConfig.loadedFromDir = abs
+			// fmt.Printf("Config loaded from: %s\n", ActiveConfig.loadedFromDir)
 		}
+	} else {
+		// No config found, default to CWD
+		cwd, _ := os.Getwd()
+		ActiveConfig.loadedFromDir = cwd
 	}
 	return nil
 }

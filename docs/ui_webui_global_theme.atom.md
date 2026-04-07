@@ -9,7 +9,8 @@ priority: 3
 tags: [ui, theme, glassmorphism]
 parents:
   - [[module_webui]]
-dependents: [[[rule_webui_color_palette]]]
+dependents:
+  - [[rule_webui_color_palette]]
 ---
 
 # Global UI Look and Feel

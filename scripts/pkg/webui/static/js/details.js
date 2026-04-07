@@ -3,7 +3,7 @@
  * @spec-link [[ui_webui_traceability_explorer]]
  */
 import { state, setCurrentAtom, on, emit } from './state.js';
-import { updateAtom, fetchSummary } from './api.js';
+import { updateAtom, fetchSummary, weave } from './api.js';
 
 let dom = {};
 
@@ -30,17 +30,20 @@ export function initDetails() {
         summaryBox: document.getElementById('summary-box'),
         editHumanName: document.getElementById('edit-human-name'),
         editType: document.getElementById('edit-type'),
+        editLayer: document.getElementById('edit-layer'),
         editStatus: document.getElementById('edit-status'),
         editPriority: document.getElementById('edit-priority'),
         editTags: document.getElementById('edit-tags'),
         editContent: document.getElementById('edit-content'),
         detailActions: document.querySelector('.detail-actions'),
+        btnWeave: document.getElementById('btn-weave'),
     };
 
     dom.closeBtn.addEventListener('click', closePanel);
     dom.btnEdit.addEventListener('click', enterEditMode);
     dom.btnCancelEdit.addEventListener('click', exitEditMode);
     dom.btnSave.addEventListener('click', saveAtomChanges);
+    dom.btnWeave.addEventListener('click', triggerWeave);
 
     on('atom-selected', showDetails);
 }
@@ -172,6 +175,7 @@ function enterEditMode() {
 
     dom.editHumanName.value = atom.human_name || '';
     dom.editType.value = atom.type || 'MECHANIC';
+    dom.editLayer.value = atom.layer || 'IMPLEMENTATION';
     dom.editStatus.value = atom.status || 'DRAFT';
     dom.editPriority.value = atom.priority || 3;
     dom.editTags.value = (atom.tags || []).join(', ');
@@ -214,6 +218,7 @@ async function saveAtomChanges() {
         id: newId,
         human_name: newHumanName,
         type: newType,
+        layer: dom.editLayer.value,
         status: dom.editStatus.value,
         priority: parseInt(dom.editPriority.value, 10),
         tags: dom.editTags.value.split(',').map(t => t.trim()).filter(t => t !== ''),
@@ -237,5 +242,23 @@ async function saveAtomChanges() {
     } finally {
         dom.btnSave.disabled = false;
         dom.btnSave.textContent = 'Save Changes';
+    }
+}
+
+// @spec-link [[ui_webui_details_weave_button]]
+async function triggerWeave() {
+    dom.btnWeave.disabled = true;
+    const originalText = dom.btnWeave.textContent;
+    dom.btnWeave.textContent = 'Weaving...';
+
+    try {
+        const res = await weave();
+        alert(res.message || 'Weaving complete!');
+        emit('data-refresh-needed');
+    } catch (error) {
+        alert('Weaving failed: ' + error.message);
+    } finally {
+        dom.btnWeave.disabled = false;
+        dom.btnWeave.textContent = originalText;
     }
 }

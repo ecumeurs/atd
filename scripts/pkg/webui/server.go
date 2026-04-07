@@ -1,20 +1,24 @@
 package webui
 
 import (
+	"atd-tools/config"
+	"atd-tools/pkg/exploration"
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 
-	"atd-tools/config"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
 // Server represents the WebUI server instance.
 type Server struct {
-	Engine   *gin.Engine
-	DevMode  bool
+	Engine     *gin.Engine
+	DevMode    bool
 	StaticPath string
+	explorer   *exploration.Explorer
+	mutex      sync.RWMutex
 }
 
 // NewServer creates a new WebUI server.
@@ -26,9 +30,10 @@ func NewServer(devMode bool, staticPath string) *Server {
 
 	r := gin.Default()
 	s := &Server{
-		Engine:   r,
-		DevMode:  devMode,
+		Engine:     r,
+		DevMode:    devMode,
 		StaticPath: staticPath,
+		explorer:   exploration.NewExplorer("", ""),
 	}
 
 	s.setupRoutes()

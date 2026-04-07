@@ -159,6 +159,8 @@
                             <div class="detail-actions">
                                 <button class="btn btn-primary" id="btn-edit">Edit Atom</button>
                                 <button class="btn btn-outline" id="btn-summarize">✨ AI Summary</button>
+                                <!-- @spec-link [[ui_webui_details_weave_button]] -->
+                                <button class="btn btn-outline" id="btn-weave" title="Synchronize parent/dependent links">🔗 Force Weave</button>
                             </div>
                             <div id="summary-box" class="summary-box" style="display: none;"></div>
 
@@ -191,16 +193,20 @@
                                 </div>
                                 <div class="form-row">
                                     <div class="form-group">
+                                        <label>Layer</label>
+                                        <select id="edit-layer">
+                                            <option value="CUSTOMER">CUSTOMER</option>
+                                            <option value="ARCHITECTURE">ARCHITECTURE</option>
+                                            <option value="IMPLEMENTATION">IMPLEMENTATION</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
                                         <label>Status</label>
                                         <select id="edit-status">
                                             <option value="DRAFT">DRAFT</option>
                                             <option value="REVIEW">REVIEW</option>
                                             <option value="STABLE">STABLE</option>
                                         </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Priority</label>
-                                        <input type="number" min="1" max="5" id="edit-priority">
                                     </div>
                                 </div>
                                 <div class="form-group">

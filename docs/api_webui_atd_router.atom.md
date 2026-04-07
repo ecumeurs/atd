@@ -8,7 +8,16 @@ priority: 4
 parents: [[module_webui]], [[requirement_webui_documentation_management]]
 tags: webui,router,api
 version: 1.0
-dependents: [[[api_webui_atom_code]], [[api_webui_atom_detail]], [[api_webui_atom_tests]], [[api_webui_atom_update]], [[api_webui_bulk_update]], [[api_webui_info]], [[api_webui_search]], [[api_webui_summary]], [[api_webui_tree]]]
+dependents:
+  - [[api_webui_atom_code]]
+  - [[api_webui_atom_detail]]
+  - [[api_webui_atom_tests]]
+  - [[api_webui_atom_update]]
+  - [[api_webui_bulk_update]]
+  - [[api_webui_info]]
+  - [[api_webui_search]]
+  - [[api_webui_summary]]
+  - [[api_webui_tree]]
 ---
 
 # New Atom

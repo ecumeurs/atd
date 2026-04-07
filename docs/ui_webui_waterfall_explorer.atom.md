@@ -7,7 +7,8 @@ type: UI
 tags: webui,explorer,visualization
 version: 1.0
 parents: [[ui_webui_explorer_layout]]
-dependents: [[[mechanic_webui_connector_lines]]]
+dependents:
+  - [[mechanic_webui_connector_lines]]
 layer: ARCHITECTURE
 ---
 

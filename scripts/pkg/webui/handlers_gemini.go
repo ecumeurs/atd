@@ -155,20 +155,22 @@ func (s *Server) handleGeminiModels(c *gin.Context) {
 // @spec-link [[mechanic_webui_gemini_proxy]]
 func (s *Server) handleGeminiAtoms(c *gin.Context) {
 	query := strings.ToLower(c.Query("q"))
-	atomsMutex.RLock()
-	defer atomsMutex.RUnlock()
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 
 	var results []map[string]interface{}
-	for _, a := range atomsMap {
-		if query == "" || strings.Contains(strings.ToLower(a.ID), query) || strings.Contains(strings.ToLower(a.HumanName), query) {
-			results = append(results, map[string]interface{}{
-				"id":         a.ID,
-				"human_name": a.HumanName,
-				"type":       a.Type,
-				"layer":      a.Layer,
-				"status":     a.Status,
-				"intent":     a.Intent,
-			})
+	if s.explorer.Graph != nil {
+		for _, a := range s.explorer.Graph.Atoms {
+			if query == "" || strings.Contains(strings.ToLower(a.ID), query) || strings.Contains(strings.ToLower(a.HumanName), query) {
+				results = append(results, map[string]interface{}{
+					"id":         a.ID,
+					"human_name": a.HumanName,
+					"type":       a.Type,
+					"layer":      a.Layer,
+					"status":     a.Status,
+					"intent":     a.Intent,
+				})
+			}
 		}
 	}
 	c.JSON(http.StatusOK, results)
@@ -177,10 +179,15 @@ func (s *Server) handleGeminiAtoms(c *gin.Context) {
 // @spec-link [[mechanic_webui_gemini_proxy]]
 func (s *Server) handleGeminiAtomDetail(c *gin.Context) {
 	id := c.Param("id")
-	atomsMutex.RLock()
-	a, exists := atomsMap[id]
-	atomsMutex.RUnlock()
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 
+	if s.explorer.Graph == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Graph not loaded"})
+		return
+	}
+
+	a, exists := s.explorer.Graph.Atoms[id]
 	if !exists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Atom not found"})
 		return
@@ -205,12 +212,12 @@ func (s *Server) handleApplyProposal(c *gin.Context) {
 	}
 
 	if proposal.Action == "UPDATE" || proposal.Action == "DELETE" {
-		atomsMutex.RLock()
-		node, ok := atomsMap[proposal.AtomID]
+		s.mutex.RLock()
+		node, ok := s.explorer.Graph.Atoms[proposal.AtomID]
 		if ok {
 			opts.FilePath = node.FilePath
 		}
-		atomsMutex.RUnlock()
+		s.mutex.RUnlock()
 
 		if !ok {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Atom not found: " + proposal.AtomID})

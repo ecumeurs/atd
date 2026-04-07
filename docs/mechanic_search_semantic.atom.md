@@ -26,7 +26,10 @@ To describe how `atd search` performs semantic similarity search against the vec
    - `all`: No filtering.
 4. **Cosine Similarity:** Each chunk's stored embedding is compared to the query embedding using `cosine.Similarity()`. This produces a score between 0.0 (no similarity) and 1.0 (identical).
 5. **Ranking:** Results are sorted by descending similarity score.
-6. **Top-N:** Only the top `limit` results are returned (default: 5).
+6. **Top-N:** Only the top `limit` results are kept (default: 5).
+7. **Result Formatting:**
+   - Default: Returns chunks with metadata and similarity scores.
+   - Paths Only: Returns unique absolute file paths of the matching files, one per line.
 
 ## TECHNICAL INTERFACE (The Bridge)
 - **Code Tag:** `@spec-link [[mechanic_search_semantic]]`
@@ -34,7 +37,8 @@ To describe how `atd search` performs semantic similarity search against the vec
 - **Depends on:** `cosine.Similarity()`, `ollama.QueryEmbed()`, `atom_index` table
 
 ## EXPECTATION (For Testing)
-- A query semantically similar to a documented atom should return that atom's chunks with high similarity scores (>0.7).
+- A query semantically similar to a documented atom should return that atom's chunks with high similarity scores (>0.7), or its absolute file path if `paths_only` is true.
 - `scope=code` must never return `.atom.md` file results.
 - `scope=docs` must only return `.atom.md` file results.
 - Results must be sorted by descending similarity.
+- When `paths_only` is true, the response must contain only unique absolute file paths.

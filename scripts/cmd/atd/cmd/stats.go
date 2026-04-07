@@ -2,12 +2,11 @@ package cmd
 // @spec-link [[service_atd_stats]]
 
 import (
+	"atd-tools/config"
+	"atd-tools/pkg/exploration"
 	"encoding/json"
 	"fmt"
 
-	"atd-tools/config"
-	"atd-tools/pkg/atom"
-	"atd-tools/pkg/exploration"
 	"github.com/spf13/cobra"
 )
 
@@ -42,19 +41,12 @@ var statsCmd = &cobra.Command{
 }
 
 func runStats(srcPath, docsDir string) (string, error) {
-	graph := &exploration.DependencyGraph{
-		Atoms: make(map[string]*atom.AtomData),
-	}
-
-	if err := exploration.CrawlDocs(docsDir, graph); err != nil {
+	explorer := exploration.NewExplorer(config.ProjectRoot(), docsDir)
+	if err := explorer.Load(false); err != nil {
 		return "", err
 	}
 
-	if srcPath != "" {
-		if err := exploration.CrawlSrc(srcPath, graph); err != nil {
-			return "", err
-		}
-	}
+	graph := explorer.GetGraph()
 
 	report := &StatsReport{
 		TotalAtoms: len(graph.Atoms),

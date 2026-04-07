@@ -10,10 +10,7 @@ tags: [webui, ui, spec-builder, gemini, chat]
 parents: [[module_webui]]
   - [[module_webui]]
 dependents:
-  - [[requirement_webui_llm_aided_decomposition]]
-  - [[requirement_webui_token_transparency]]
-  - [[requirement_webui_conversational_control]]
-  - [[rule_webui_context_history_management]]
+  - [[mechanic_webui_gemini_proxy]]
 ---
 
 # Spec Builder UI

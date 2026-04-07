@@ -2,7 +2,8 @@
 id: ui_webui_document_viewer
 status: DRAFT
 priority: 3
-dependents: []
+dependents:
+  - [[mechanic_webui_document_generation]]
 human_name: Document Generation UI
 type: UI
 layer: CUSTOMER

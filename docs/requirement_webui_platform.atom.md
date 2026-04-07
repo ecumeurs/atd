@@ -8,7 +8,12 @@ priority: 5
 tags: [webui, spec-builder, platform, vision]
 parents:
   - [[domain_atd_philosophy]]
-dependents: [[[module_webui]], [[requirement_webui_completion_audit]], [[requirement_webui_conversational_control]], [[requirement_webui_llm_aided_decomposition]], [[requirement_webui_token_transparency]]]
+dependents:
+  - [[module_webui]]
+  - [[requirement_webui_completion_audit]]
+  - [[requirement_webui_conversational_control]]
+  - [[requirement_webui_llm_aided_decomposition]]
+  - [[requirement_webui_token_transparency]]
 type: REQUIREMENT
 ---
 

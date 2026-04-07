@@ -16,7 +16,9 @@ var checkCmd = &cobra.Command{
 	Long: `Validates the .atd configuration file, checks connectivity to LLM providers,
 and verifies that required models are available for configured tasks.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		output, err := runCheck()
+		force, _ := cmd.Flags().GetBool("force")
+		// In CLI, check always probes, but we could use this to clear persistent cache if any.
+		output, err := runCheck(force)
 		if err != nil {
 			return err
 		}
@@ -46,7 +48,7 @@ type CheckReport struct {
 	Tasks     []TaskResolution `json:"tasks"`
 }
 
-func runCheck() (string, error) {
+func runCheck(force bool) (string, error) {
 	report := CheckReport{}
 	cfg := config.ActiveConfig.LLM
 
@@ -61,6 +63,7 @@ func runCheck() (string, error) {
 		if p.Type == "passthrough" {
 			status.Status = "Passthrough"
 		} else {
+			// Bypass cache if force is true, otherwise ListModels is direct but we could check ResolveProviderEx later
 			models, err := ollama.ListModels(p.BaseURL, p.TimeoutMs)
 			if err != nil {
 				status.Status = "Offline"
@@ -97,80 +100,21 @@ func runCheck() (string, error) {
 			Candidates: config.ModelForTask(t),
 		}
 
-		// Simulate ResolveProvider logic
-		resolved := false
+		// Use the actual ResolveProviderEx logic to ensure consistency and cache usage
+		resolvedRes, _ := ollama.ResolveProviderEx(t, force)
 		
-		// Try candidates
-		for _, desired := range res.Candidates {
-			hasTag := strings.Contains(desired, ":")
-			for _, p := range cfg.Providers {
-				if p.Type == "passthrough" {
-					continue
-				}
-				
-				models := providerModels[p.Name]
-				for _, m := range models {
-					matched := false
-					if hasTag {
-						matched = (m == desired)
-					} else {
-						matched = (m == desired || strings.HasPrefix(m, desired+":"))
-					}
-					
-					if matched {
-						res.Resolved = m
-						res.Provider = p.Name
-						res.Status = "Ready"
-						resolved = true
-						break
-					}
-				}
-				if resolved { break }
-			}
-			if resolved { break }
-		}
-
-		// Try Fallback
-		if !resolved && cfg.FallbackModel != "" {
-			fallback := cfg.FallbackModel
-			hasTag := strings.Contains(fallback, ":")
-			for _, p := range cfg.Providers {
-				if p.Type == "passthrough" {
-					continue
-				}
-				models := providerModels[p.Name]
-				for _, m := range models {
-					matched := false
-					if hasTag {
-						matched = (m == fallback)
-					} else {
-						matched = (m == fallback || strings.HasPrefix(m, fallback+":"))
-					}
-					if matched {
-						res.Resolved = m
-						res.Provider = p.Name
-						res.Status = "Ready (Fallback)"
-						resolved = true
-						break
-					}
-				}
-				if resolved { break }
-			}
-		}
-
-		// IDE Fallback
-		if !resolved {
-			for _, p := range cfg.Providers {
-				if p.Type == "passthrough" {
-					res.Provider = p.Name
+		if resolvedRes.Provider != "" {
+			res.Resolved = resolvedRes.Model
+			res.Provider = resolvedRes.Provider
+			if strings.Contains(resolvedRes.Model, "Fallback") || resolvedRes.IsIDE {
+				res.Status = "Ready (Fallback)"
+				if resolvedRes.IsIDE {
 					res.Status = "IDE Fallback"
-					resolved = true
-					break
 				}
+			} else {
+				res.Status = "Ready"
 			}
-		}
-
-		if !resolved {
+		} else {
 			res.Status = "Missing"
 		}
 
@@ -227,4 +171,5 @@ func runCheck() (string, error) {
 
 func init() {
 	rootCmd.AddCommand(checkCmd)
+	checkCmd.Flags().BoolP("force", "f", false, "Force re-probing of all providers, bypassing health cache")
 }

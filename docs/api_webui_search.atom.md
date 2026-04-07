@@ -5,7 +5,8 @@ tags: webui,api,search
 layer: ARCHITECTURE
 priority: 3
 version: 1.0
-dependents: [[[mechanic_webui_search_handler]]]
+dependents:
+  - [[mechanic_webui_search_handler]]
 human_name: WebUI Search API
 type: API
 parents: [[api_webui_atd_router]]

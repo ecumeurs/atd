@@ -38,24 +38,25 @@ Grep mode performs a direct search on the filesystem.`,
 		dbPath, _ := cmd.Flags().GetString("db")
 		limit, _ := cmd.Flags().GetInt("limit")
 		scope, _ := cmd.Flags().GetString("scope")
+		pathsOnly, _ := cmd.Flags().GetBool("paths-only")
 
 		if query == "" && keyword == "" {
 			return fmt.Errorf("either --query (semantic) or --grep (keyword) must be specified")
 		}
 
 		if keyword != "" {
-			return runGrepSearch(keyword)
+			return runGrepSearch(keyword, pathsOnly)
 		}
 
 		if dbPath == "" {
 			dbPath = filepath.Join(config.DocsDir(), ".atd_index.db")
 		}
 
-		return runSemanticSearch(query, dbPath, limit, scope)
+		return runSemanticSearch(query, dbPath, limit, scope, pathsOnly)
 	},
 }
 
-func runSemanticSearch(query, dbPath string, limit int, scope string) error {
+func runSemanticSearch(query, dbPath string, limit int, scope string, pathsOnly bool) error {
 	opts := exploration.SearchOptions{
 		Query:  query,
 		DBPath: dbPath,
@@ -67,6 +68,21 @@ func runSemanticSearch(query, dbPath string, limit int, scope string) error {
 		return err
 	}
 
+	if pathsOnly {
+		uniquePaths := make(map[string]bool)
+		for _, res := range results {
+			abs := res.FilePath
+			if !filepath.IsAbs(abs) {
+				abs = filepath.Join(config.ProjectRoot(), abs)
+			}
+			uniquePaths[abs] = true
+		}
+		for path := range uniquePaths {
+			fmt.Println(path)
+		}
+		return nil
+	}
+
 	fmt.Printf("--- Top %d Semantic Matches ---\n\n", limit)
 	for i, res := range results {
 		fmt.Printf("[Match %d] File: %s (Similarity: %.4f)\n%s\n\n", i+1, res.FilePath, res.Similarity, res.ChunkText)
@@ -74,7 +90,7 @@ func runSemanticSearch(query, dbPath string, limit int, scope string) error {
 	return nil
 }
 
-func runGrepSearch(keyword string) error {
+func runGrepSearch(keyword string, pathsOnly bool) error {
 	opts := exploration.SearchOptions{
 		Grep: keyword,
 		Root: config.ProjectRoot(),
@@ -82,6 +98,21 @@ func runGrepSearch(keyword string) error {
 	results, err := exploration.Search(opts)
 	if err != nil {
 		return err
+	}
+
+	if pathsOnly {
+		uniquePaths := make(map[string]bool)
+		for _, res := range results {
+			abs := res.FilePath
+			if !filepath.IsAbs(abs) {
+				abs = filepath.Join(config.ProjectRoot(), abs)
+			}
+			uniquePaths[abs] = true
+		}
+		for path := range uniquePaths {
+			fmt.Println(path)
+		}
+		return nil
 	}
 
 	for _, res := range results {
@@ -98,4 +129,5 @@ func init() {
 	searchCmd.Flags().IntP("limit", "l", 5, "Number of results to return")
 	searchCmd.Flags().StringP("grep", "g", "", "Literal keyword search (grep mode)")
 	searchCmd.Flags().String("scope", "all", "Search scope: code|docs|all")
+	searchCmd.Flags().BoolP("paths-only", "p", false, "Return only a list of file paths")
 }
