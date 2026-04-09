@@ -64,10 +64,18 @@ func (s *Server) setupRoutes() {
 }
 
 func (s *Server) Start() error {
-	addr := fmt.Sprintf("%s:%d", config.ActiveConfig.WebUI.Host, config.ActiveConfig.WebUI.Port)
-	if config.ActiveConfig.WebUI.Port == 0 {
-		addr = ":8080"
+	host := config.ActiveConfig.WebUI.Host
+	port := config.ActiveConfig.WebUI.Port
+	if port == 0 {
+		port = 8080
 	}
-	fmt.Printf("WebUI server starting on http://%s (DevMode: %v)\n", addr, s.DevMode)
+	addr := fmt.Sprintf("%s:%d", host, port)
+
+	displayAddr := addr
+	if host == "" {
+		displayAddr = fmt.Sprintf("localhost:%d", port)
+	}
+
+	fmt.Printf("WebUI server starting on http://%s (DevMode: %v)\n", displayAddr, s.DevMode)
 	return s.Engine.Run(addr)
 }

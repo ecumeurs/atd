@@ -25,6 +25,17 @@ By default, it uses embedded static files. Use --dev for local development.`,
 		}
 
 		s := webui.NewServer(devMode, staticPath)
+
+		// Override config with flags if provided
+		if cmd.Flags().Changed("host") {
+			host, _ := cmd.Flags().GetString("host")
+			config.ActiveConfig.WebUI.Host = host
+		}
+		if cmd.Flags().Changed("port") {
+			port, _ := cmd.Flags().GetInt("port")
+			config.ActiveConfig.WebUI.Port = port
+		}
+
 		return s.Start()
 	},
 }
@@ -33,4 +44,6 @@ func init() {
 	rootCmd.AddCommand(webuiCmd)
 	webuiCmd.Flags().Bool("dev", false, "Enable development mode (serve from filesystem instead of embed)")
 	webuiCmd.Flags().String("static-path", "", "Override path to static files (useful for local development)")
+	webuiCmd.Flags().String("host", "", "Host to listen on (default is all interfaces)")
+	webuiCmd.Flags().IntP("port", "p", 0, "Port to listen on (default 8080)")
 }

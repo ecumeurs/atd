@@ -50,6 +50,7 @@ The hardcoded dependency resides in the execution logic within `scripts/cmd/atd/
 **Medium/Long term:**
 - Introduce a `tests` structure within the root `.atd` config file.
 - Store commands mappings to handle complex, multi-language/framework projects (e.g., `*.go` triggers `go test`, `*.php` triggers `php artisan test`).
+- allow `.atd` configuration file to store multiple test commands and strategies for file types & langages. 
 - Modify `atd verify` to either test these means sequentially or rely on tags to dynamically discover which testing methodology to apply based on the files being verified.
 - Ensure the MCP tool `atd_verify` is updated to allow the agent to specify the testing methodology to apply based on the files being verified.
 
