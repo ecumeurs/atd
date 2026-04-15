@@ -7,7 +7,8 @@ version: 1.0
 dependents: []
 human_name: WebUI Atom Tests Mechanic
 type: MECHANIC
-parents: [[api_webui_atom_tests]]
+parents:
+  - [[api_webui_atom_tests]]
 tags: webui,mechanic,tests
 ---
 

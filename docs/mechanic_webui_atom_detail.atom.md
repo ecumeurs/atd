@@ -3,7 +3,8 @@ id: mechanic_webui_atom_detail
 status: STABLE
 human_name: WebUI Atom Detail Mechanic
 priority: 3
-parents: [[api_webui_atom_detail]]
+parents:
+  - [[api_webui_atom_detail]]
 tags: webui,mechanic,detail
 version: 1.0
 dependents: []

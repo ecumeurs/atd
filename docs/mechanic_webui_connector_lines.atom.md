@@ -6,7 +6,8 @@ type: MECHANIC
 layer: IMPLEMENTATION
 priority: 4
 tags: webui,svg,visualization
-parents: [[ui_webui_waterfall_explorer]]
+parents:
+  - [[ui_webui_waterfall_explorer]]
 version: 1.0
 dependents: []
 ---

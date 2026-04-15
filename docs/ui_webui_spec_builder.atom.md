@@ -7,7 +7,8 @@ version: 1.0
 status: DRAFT
 priority: 4
 tags: [webui, ui, spec-builder, gemini, chat]
-parents: [[module_webui]]
+parents:
+  - [[module_webui]]
   - [[module_webui]]
 dependents:
   - [[mechanic_webui_gemini_proxy]]

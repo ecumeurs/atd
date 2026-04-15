@@ -5,7 +5,8 @@ human_name: Traceability Explorer UI
 layer: ARCHITECTURE
 version: 1.0
 priority: 4
-parents: [[module_webui]]
+parents:
+  - [[module_webui]]
 dependents:
   - [[mechanic_webui_explorer_workflow]]
   - [[ui_webui_explorer_layout]]

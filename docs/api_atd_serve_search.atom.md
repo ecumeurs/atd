@@ -10,7 +10,8 @@ tags:
   - mcp
   - tool
   - atd_search
-parents: [[api_atd_mcp_ops]]
+parents:
+  - [[api_atd_mcp_ops]]
   - [[service_atd_serve]]
 dependents: []
 layer: ARCHITECTURE

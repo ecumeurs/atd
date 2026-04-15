@@ -9,10 +9,14 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
+	"text/template"
 
 	"atd-tools/config"
 	"github.com/spf13/cobra"
 )
+
+
 
 var verifyCmd = &cobra.Command{
 	Use:   "verify",
@@ -59,6 +63,11 @@ func runVerify(docsDir string) (string, error) {
 			continue
 		}
 
+		if strings.HasSuffix(file, ".atom.md") || strings.HasSuffix(file, ".md") {
+			// Atoms don't have tests to execute on them
+			continue
+		}
+
 		content, err := os.ReadFile(file)
 		if err != nil {
 			continue
@@ -75,8 +84,12 @@ func runVerify(docsDir string) (string, error) {
 		}
 	}
 
+	if len(fileContents) == 0 {
+		return "No source code modifications found (only documentation or untracked changes).", nil
+	}
+
 	if len(atomIDs) == 0 {
-		return "No @spec-link tags found in modified files. Nothing to audit.", nil
+		return "No @spec-link tags found in modified source files. Nothing to audit.", nil
 	}
 
 	// 3. Read the relevant Atoms
@@ -91,31 +104,120 @@ func runVerify(docsDir string) (string, error) {
 		}
 	}
 
-	// 4. Run native tests for the changed directories
-	testResults := ""
-	testFilesContent := ""
-	for dir := range changedDirs {
-		cmdTest := exec.Command("go", "test", "-v", "./"+dir)
-		var testOut bytes.Buffer
-		cmdTest.Stdout = &testOut
-		cmdTest.Stderr = &testOut
-		err := cmdTest.Run()
-
-		status := "PASSED"
-		if err != nil {
-			status = "FAILED"
-		}
-		testResults += fmt.Sprintf("=== Test Execution for %s ===\nStatus: %s\nOutput:\n%s\n\n", dir, status, testOut.String())
-
-		files, _ := os.ReadDir(dir)
-		for _, f := range files {
-			if strings.HasSuffix(f.Name(), "_test.go") {
-				testPath := filepath.Join(dir, f.Name())
-				tc, _ := os.ReadFile(testPath)
-				testFilesContent += fmt.Sprintf("--- Test File: %s ---\n%s\n\n", testPath, string(tc))
+	// 4. Resolve Verify Command and Test Pattern
+	dominantExt := ""
+	extCounts := make(map[string]int)
+	for file := range fileContents {
+		ext := filepath.Ext(file)
+		if ext != "" {
+			extCounts[ext]++
+			if dominantExt == "" || extCounts[ext] > extCounts[dominantExt] {
+				dominantExt = ext
 			}
 		}
 	}
+
+	cmdTpl, patternTpl := config.GetVerifyDefaults(dominantExt)
+	if config.ActiveConfig.Verify.Command != "" {
+		cmdTpl = config.ActiveConfig.Verify.Command
+	}
+	if config.ActiveConfig.Verify.TestPattern != "" {
+		patternTpl = config.ActiveConfig.Verify.TestPattern
+	}
+
+	if cmdTpl == "" {
+		return "", fmt.Errorf("no verify command found for extension %s and no override in .atd config", dominantExt)
+	}
+
+	patterns := strings.Split(patternTpl, ",")
+	for i := range patterns {
+		patterns[i] = strings.TrimSpace(patterns[i])
+	}
+
+	// 5. Run native tests for the changed directories (Concurrency Limited)
+	maxParallel := config.ActiveConfig.Verify.MaxParallelism
+	if maxParallel <= 0 {
+		maxParallel = 1
+	}
+
+	type result struct {
+		dir    string
+		output string
+		status string
+		files  string
+	}
+
+	numDirs := len(changedDirs)
+	resChan := make(chan result, numDirs)
+	dirChan := make(chan string, numDirs)
+	var wg sync.WaitGroup
+
+	for w := 0; w < maxParallel; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for dir := range dirChan {
+				var firstFile string
+				for f := range fileContents {
+					if filepath.Dir(f) == dir {
+						firstFile = f
+						break
+					}
+				}
+
+				res, err := executeTestCommand(cmdTpl, dir, firstFile)
+				status := "PASSED"
+				if err != nil {
+					status = "FAILED"
+				}
+
+				// Discover test files
+				testFilesContent := ""
+				files, _ := os.ReadDir(dir)
+				for _, f := range files {
+					if f.IsDir() {
+						continue
+					}
+					matched := false
+					for _, p := range patterns {
+						if ok, _ := filepath.Match(p, f.Name()); ok {
+							matched = true
+							break
+						}
+					}
+
+					if matched {
+						testPath := filepath.Join(dir, f.Name())
+						tc, _ := os.ReadFile(testPath)
+						testFilesContent += fmt.Sprintf("--- Test File: %s ---\n%s\n\n", testPath, string(tc))
+					}
+				}
+
+				resChan <- result{
+					dir:    dir,
+					output: res,
+					status: status,
+					files:  testFilesContent,
+				}
+			}
+		}()
+	}
+
+	for dir := range changedDirs {
+		dirChan <- dir
+	}
+	close(dirChan)
+	wg.Wait()
+	close(resChan)
+
+	testResults := ""
+	testFilesContent := ""
+	for r := range resChan {
+		testResults += fmt.Sprintf("=== Test Execution for %s ===\nStatus: %s\nOutput:\n%s\n\n", r.dir, r.status, r.output)
+		testFilesContent += r.files
+	}
+
+
 
 	// 5. Generate LLM Prompt (Return string)
 	var b strings.Builder
@@ -149,7 +251,41 @@ func runVerify(docsDir string) (string, error) {
 	return b.String(), nil
 }
 
+func executeTestCommand(tpl, dir, file string) (string, error) {
+	t, err := template.New("cmd").Parse(tpl)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse command template: %v", err)
+	}
+
+	var buf bytes.Buffer
+	data := struct {
+		Dir  string
+		File string
+	}{
+		Dir:  dir,
+		File: file,
+	}
+
+	if err := t.Execute(&buf, data); err != nil {
+		return "", fmt.Errorf("failed to execute command template: %v", err)
+	}
+
+	cmdStr := buf.String()
+	parts := strings.Fields(cmdStr)
+	if len(parts) == 0 {
+		return "", fmt.Errorf("empty command generated")
+	}
+
+	cmd := exec.Command(parts[0], parts[1:]...)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	err = cmd.Run()
+	return out.String(), err
+}
+
 func init() {
+
 	rootCmd.AddCommand(verifyCmd)
 	verifyCmd.Flags().String("docs", "", "Override docs directory")
 }

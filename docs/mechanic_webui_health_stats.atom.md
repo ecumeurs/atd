@@ -5,7 +5,8 @@ human_name: WebUI Health Stats Mechanic
 type: MECHANIC
 layer: IMPLEMENTATION
 priority: 3
-parents: [[api_webui_health_stats]]
+parents:
+  - [[api_webui_health_stats]]
 tags: webui,mechanic,stats
 dependents: []
 version: 1.0

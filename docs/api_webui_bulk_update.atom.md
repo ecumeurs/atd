@@ -2,7 +2,8 @@
 id: api_webui_bulk_update
 status: STABLE
 human_name: WebUI Bulk Update API
-parents: [[api_webui_atd_router]]
+parents:
+  - [[api_webui_atd_router]]
 tags: webui,api,bulk
 dependents:
   - [[mechanic_webui_bulk_update]]

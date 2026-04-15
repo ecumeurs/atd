@@ -5,7 +5,8 @@ human_name: Conversational History Control
 type: REQUIREMENT
 layer: CUSTOMER
 priority: 3
-parents: [[requirement_webui_platform]]
+parents:
+  - [[requirement_webui_platform]]
 version: 1.0
 dependents: []
 ---

@@ -2,7 +2,8 @@
 id: mechanic_webui_bulk_update
 status: STABLE
 priority: 3
-parents: [[api_webui_bulk_update]]
+parents:
+  - [[api_webui_bulk_update]]
 dependents: []
 type: MECHANIC
 layer: IMPLEMENTATION

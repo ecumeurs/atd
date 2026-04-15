@@ -3,7 +3,8 @@ id: mechanic_webui_atom_code
 status: STABLE
 type: MECHANIC
 layer: IMPLEMENTATION
-parents: [[api_webui_atom_code]]
+parents:
+  - [[api_webui_atom_code]]
 version: 1.0
 dependents: []
 human_name: WebUI Atom Code Mechanic

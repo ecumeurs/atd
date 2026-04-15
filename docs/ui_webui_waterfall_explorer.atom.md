@@ -6,7 +6,8 @@ human_name: WebUI Waterfall of Intent Explorer
 type: UI
 tags: webui,explorer,visualization
 version: 1.0
-parents: [[ui_webui_explorer_layout]]
+parents:
+  - [[ui_webui_explorer_layout]]
 dependents:
   - [[mechanic_webui_connector_lines]]
 layer: ARCHITECTURE

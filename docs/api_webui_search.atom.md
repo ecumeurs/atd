@@ -9,7 +9,8 @@ dependents:
   - [[mechanic_webui_search_handler]]
 human_name: WebUI Search API
 type: API
-parents: [[api_webui_atd_router]]
+parents:
+  - [[api_webui_atd_router]]
 ---
 
 # New Atom

@@ -3,7 +3,8 @@ id: api_webui_atom_tests
 status: STABLE
 version: 1.0
 layer: ARCHITECTURE
-parents: [[api_webui_atd_router]]
+parents:
+  - [[api_webui_atd_router]]
 tags: webui,api,tests
 dependents:
   - [[mechanic_webui_atom_tests]]

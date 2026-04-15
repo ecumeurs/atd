@@ -7,9 +7,10 @@ version: 1.0
 status: DRAFT
 priority: 3
 tags: [test]
-parents:
+parents: []
  []
-dependents: [[[no_cust_impl]]]
+dependents:
+  - [[no_cust_impl]]
 ---
 
 # No Customer Arch

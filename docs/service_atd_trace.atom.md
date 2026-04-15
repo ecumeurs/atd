@@ -4,7 +4,8 @@ status: REVIEW
 type: SERVICE
 layer: IMPLEMENTATION
 priority: 3
-parents: [[api_atd_mcp_ops]]
+parents:
+  - [[api_atd_mcp_ops]]
 version: 1.0
 dependents:
   - [[atd_health_snapshot_schema]]

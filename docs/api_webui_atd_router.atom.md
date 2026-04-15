@@ -5,7 +5,9 @@ human_name: WebUI ATD Router
 type: API
 layer: ARCHITECTURE
 priority: 4
-parents: [[module_webui]], [[requirement_webui_documentation_management]]
+parents:
+  - [[module_webui]]
+  - [[requirement_webui_documentation_management]]
 tags: webui,router,api
 version: 1.0
 dependents:

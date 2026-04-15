@@ -7,7 +7,8 @@ layer: ARCHITECTURE
 priority: 3
 tags: webui,explorer,treeview
 version: 1.0
-parents: [[ui_webui_explorer_layout]]
+parents:
+  - [[ui_webui_explorer_layout]]
 dependents: []
 ---
 

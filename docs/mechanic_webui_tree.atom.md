@@ -6,7 +6,8 @@ priority: 3
 version: 1.0
 human_name: WebUI Tree Mechanic
 layer: IMPLEMENTATION
-parents: [[api_webui_tree]]
+parents:
+  - [[api_webui_tree]]
 tags: webui,mechanic,tree
 dependents: []
 ---

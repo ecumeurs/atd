@@ -4,7 +4,8 @@ status: DRAFT
 type: MECHANIC
 version: 1.0.0
 priority: 3
-parents: [[service_vscode_linker_features]]
+parents:
+  - [[service_vscode_linker_features]]
 dependents: []
 human_name: "ATD Config Loader"
 layer: IMPLEMENTATION

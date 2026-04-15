@@ -2,7 +2,8 @@
 id: api_webui_info
 status: STABLE
 priority: 3
-parents: [[api_webui_atd_router]]
+parents:
+  - [[api_webui_atd_router]]
 tags: webui,api,info
 dependents:
   - [[mechanic_webui_info]]

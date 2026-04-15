@@ -3,7 +3,8 @@ id: api_webui_atom_detail
 status: STABLE
 layer: ARCHITECTURE
 priority: 3
-parents: [[api_webui_atd_router]]
+parents:
+  - [[api_webui_atd_router]]
 version: 1.0
 dependents:
   - [[mechanic_webui_atom_detail]]

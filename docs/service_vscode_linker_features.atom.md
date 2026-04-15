@@ -4,7 +4,8 @@ status: DRAFT
 type: SERVICE
 version: 1.0.0
 priority: 3
-parents: [[specification_vscode_atd_linker]]
+parents:
+  - [[specification_vscode_atd_linker]]
 human_name: "VS Code Linker Language Features"
 layer: ARCHITECTURE
 dependents:

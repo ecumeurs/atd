@@ -6,7 +6,8 @@ layer: IMPLEMENTATION
 priority: 2
 tags: webui,gemini,chat
 version: 1.0
-parents: [[mechanic_webui_gemini_proxy]]
+parents:
+  - [[mechanic_webui_gemini_proxy]]
 human_name: WebUI Gemini Chat Orchestration
 dependents: []
 ---

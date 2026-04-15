@@ -7,9 +7,10 @@ version: 1.0
 status: DRAFT
 priority: 3
 tags: [test]
-parents:
+parents: []
  []
-dependents: [[[jump_impl]]]
+dependents:
+  - [[jump_impl]]
 ---
 
 # Jump Customer

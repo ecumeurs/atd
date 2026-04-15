@@ -7,8 +7,9 @@ version: 1.0
 status: DRAFT
 priority: 3
 tags: [gemini, proxy, backend, atd-context]
-parents: [[ui_webui_spec_builder]]
+parents:
   - [[module_webui]]
+  - [[ui_webui_spec_builder]]
 dependents:
   - [[mechanic_webui_gemini_chat_orchestration]]
   - [[mechanic_webui_gemini_model_list]]

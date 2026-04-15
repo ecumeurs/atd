@@ -8,7 +8,8 @@ type: API
 layer: ARCHITECTURE
 priority: 3
 tags: webui,api,tree
-parents: [[api_webui_atd_router]]
+parents:
+  - [[api_webui_atd_router]]
 version: 1.0
 ---
 

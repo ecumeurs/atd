@@ -5,7 +5,8 @@ human_name: LLM Aided Decomposition
 layer: CUSTOMER
 version: 1.0
 priority: 3
-parents: [[requirement_webui_platform]]
+parents:
+  - [[requirement_webui_platform]]
 dependents: []
 type: REQUIREMENT
 tags: [webui, gemini, spec-builder]

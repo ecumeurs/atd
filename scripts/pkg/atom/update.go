@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"atd-tools/config"
+	"sort"
 )
 
 // UpdateOptions holds the parameters for updating an atom.
@@ -392,13 +393,23 @@ func FormatYAMLList(key, val string) string {
 		items = strings.Split(val, ",")
 	}
 
-	var result strings.Builder
-	result.WriteString(fmt.Sprintf("%s:", key))
+	var processed []string
 	for _, item := range items {
 		item = strings.TrimSpace(item)
-		if item == "" || item == "-" { continue }
+		if item == "" || item == "-" {
+			continue
+		}
 		item = strings.Trim(item, "[]- ")
-		if item == "" { continue }
+		if item == "" {
+			continue
+		}
+		processed = append(processed, item)
+	}
+	sort.Strings(processed)
+
+	var result strings.Builder
+	result.WriteString(fmt.Sprintf("%s:", key))
+	for _, item := range processed {
 		result.WriteString(fmt.Sprintf("\n  - [[%s]]", item))
 	}
 	return result.String()

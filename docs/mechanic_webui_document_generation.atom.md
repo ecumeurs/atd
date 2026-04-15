@@ -5,7 +5,8 @@ tags: [webui, llm, generation, caching]
 human_name: Document Generation Pipeline
 version: 1.0
 priority: 4
-parents: [[[ui_webui_document_viewer]]]
+parents:
+  - [[ui_webui_document_viewer]]
 dependents: []
 type: MECHANIC
 layer: IMPLEMENTATION

@@ -5,7 +5,8 @@ human_name: WebUI Gemini Model List
 layer: IMPLEMENTATION
 priority: 3
 version: 1.0
-parents: [[mechanic_webui_gemini_proxy]]
+parents:
+  - [[mechanic_webui_gemini_proxy]]
 type: MECHANIC
 tags: webui,gemini
 dependents: []

@@ -7,8 +7,8 @@ status: DRAFT
 priority: 5
 tags: [atd, mcp, check, health]
 parents:
-  - [[service_atd_serve]]
   - [[service_atd_check]]
+  - [[service_atd_serve]]
 dependents: []
 layer: IMPLEMENTATION
 ---

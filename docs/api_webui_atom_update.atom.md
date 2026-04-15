@@ -8,7 +8,8 @@ dependents:
   - [[mechanic_webui_atom_update]]
 human_name: WebUI Atom Update API
 layer: ARCHITECTURE
-parents: [[api_webui_atd_router]]
+parents:
+  - [[api_webui_atd_router]]
 version: 1.0
 ---
 

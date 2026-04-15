@@ -46,8 +46,17 @@ type ATDConfig struct {
 	SupportedExtensions     map[string]bool      `json:"supported_extensions"`
 	LLM                     LLMConfig            `json:"llm"`
 	WebUI                   WebUIConfig          `json:"webui"`
+	Verify                  VerifyConfig         `json:"verify"`
 	loadedFromDir           string
 }
+
+type VerifyConfig struct {
+	Command        string `json:"command"`         // e.g. "go test -v ./{{.Dir}}"
+	TestPattern    string `json:"test_pattern"`    // e.g. "*_test.go"
+	MaxParallelism int    `json:"max_parallelism"` // number of concurrent checks
+}
+
+
 
 type WebUIConfig struct {
 	Host        string `json:"host"`
@@ -174,6 +183,23 @@ func GetBloatingStrictness(atomType string) float64 {
 	}
 	return 0.8
 }
+
+// GetVerifyDefaults returns seeded defaults for common languages.
+func GetVerifyDefaults(ext string) (string, string) {
+	switch ext {
+	case ".go":
+		return "go test -v ./{{.Dir}}", "*_test.go"
+	case ".py":
+		return "pytest {{.File}}", "test_*.py"
+	case ".js", ".ts":
+		return "npm test {{.File}}", "*.test.js,*.test.ts"
+	case ".rs":
+		return "cargo test", "*"
+	default:
+		return "", ""
+	}
+}
+
 
 func ProjectRoot() string {
 	return ActiveConfig.loadedFromDir

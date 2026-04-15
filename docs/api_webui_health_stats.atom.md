@@ -5,7 +5,8 @@ human_name: WebUI Health Stats API
 layer: ARCHITECTURE
 version: 1.0
 priority: 4
-parents: [[module_webui]]
+parents:
+  - [[module_webui]]
 dependents:
   - [[mechanic_webui_ancestry_validator]]
   - [[mechanic_webui_coverage_mapper]]

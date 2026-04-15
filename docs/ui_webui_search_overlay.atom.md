@@ -8,7 +8,8 @@ version: 1.0
 dependents: []
 priority: 2
 tags: webui,search
-parents: [[ui_webui_explorer_layout]]
+parents:
+  - [[ui_webui_explorer_layout]]
 ---
 
 # New Atom

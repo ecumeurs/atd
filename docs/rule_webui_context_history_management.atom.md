@@ -5,7 +5,8 @@ human_name: Context History Management Logic
 type: RULE
 layer: ARCHITECTURE
 priority: 3
-parents: [[mechanic_webui_gemini_proxy]]
+parents:
+  - [[mechanic_webui_gemini_proxy]]
 version: 1.0
 dependents: []
 ---

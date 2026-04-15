@@ -2,7 +2,8 @@
 id: mechanic_webui_info
 status: STABLE
 layer: IMPLEMENTATION
-parents: [[api_webui_info]]
+parents:
+  - [[api_webui_info]]
 priority: 3
 tags: webui,mechanic,info
 version: 1.0

@@ -3,7 +3,8 @@ id: mechanic_vscode_webview_graph
 status: DRAFT
 type: MECHANIC
 priority: 3
-parents: [[service_vscode_atd_ui]]
+parents:
+  - [[service_vscode_atd_ui]]
 dependents: []
 human_name: "Vis.js Graph Webview"
 layer: IMPLEMENTATION

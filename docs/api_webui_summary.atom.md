@@ -5,7 +5,8 @@ version: 1.0
 human_name: WebUI Summary API
 type: API
 priority: 3
-parents: [[api_webui_atd_router]]
+parents:
+  - [[api_webui_atd_router]]
 dependents: []
 layer: ARCHITECTURE
 tags: webui,api,summary

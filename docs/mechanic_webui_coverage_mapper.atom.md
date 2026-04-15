@@ -5,7 +5,8 @@ human_name: Coverage Mapper Mechanic
 layer: IMPLEMENTATION
 version: 1.0
 priority: 3
-parents: [[api_webui_health_stats]]
+parents:
+  - [[api_webui_health_stats]]
 dependents: []
 type: MECHANIC
 tags: [webui, mechanic, coverage]

@@ -8,7 +8,8 @@ tags: webui,mechanic,update
 version: 1.0
 human_name: WebUI Atom Update Mechanic
 priority: 3
-parents: [[api_webui_atom_update]]
+parents:
+  - [[api_webui_atom_update]]
 ---
 
 # New Atom

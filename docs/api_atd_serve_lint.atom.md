@@ -6,7 +6,8 @@ version: 0.1.0
 status: STABLE
 priority: 3
 tags: [atd, mcp, lint, validation]
-parents: [[api_atd_mcp_ops]]
+parents:
+  - [[api_atd_mcp_ops]]
   - [[mechanic_atd_lint]]
   - [[service_atd_serve]]
 dependents: []

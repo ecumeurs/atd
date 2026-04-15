@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -242,7 +243,7 @@ func BuildContent(a AtomData) string {
 	if len(a.Parents) == 0 {
 		parentsStr.WriteString(" []")
 	} else {
-		parentsStr.WriteString("\n")
+		sort.Strings(a.Parents)
 		for _, p := range a.Parents {
 			parentsStr.WriteString(fmt.Sprintf("  - [[%s]]\n", p))
 		}

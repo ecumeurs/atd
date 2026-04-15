@@ -3,7 +3,8 @@ id: mechanic_vscode_codelens_provider
 status: DRAFT
 layer: IMPLEMENTATION
 priority: 3
-parents: [[service_vscode_linker_features]]
+parents:
+  - [[service_vscode_linker_features]]
 human_name: "Health CodeLens Provider"
 type: MECHANIC
 version: 1.0.0

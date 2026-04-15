@@ -1,7 +1,8 @@
 ---
 id: mechanic_webui_summary_aggregation
 status: REVIEW
-parents: [[api_webui_health_stats]]
+parents:
+  - [[api_webui_health_stats]]
 dependents: []
 human_name: WebUI Summary Aggregation
 priority: 2

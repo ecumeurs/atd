@@ -6,7 +6,8 @@ type: MECHANIC
 version: 1.0.0
 priority: 3
 layer: IMPLEMENTATION
-parents: [[service_vscode_atd_ui]]
+parents:
+  - [[service_vscode_atd_ui]]
 dependents: []
 ---
 

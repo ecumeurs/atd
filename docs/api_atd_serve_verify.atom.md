@@ -10,7 +10,8 @@ tags:
   - mcp
   - tool
   - atd_verify
-parents: [[api_atd_mcp_ops]]
+parents:
+  - [[api_atd_mcp_ops]]
   - [[service_atd_serve]]
 dependents: []
 layer: ARCHITECTURE

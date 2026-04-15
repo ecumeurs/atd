@@ -7,7 +7,8 @@ dependents:
 human_name: Document Generation UI
 type: UI
 layer: CUSTOMER
-parents: [[[module_webui]]]
+parents:
+  - [[module_webui]]
 tags: [webui, modal, ui, documentation]
 version: 1.0
 ---

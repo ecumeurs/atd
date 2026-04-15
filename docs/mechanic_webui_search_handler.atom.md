@@ -4,7 +4,8 @@ status: STABLE
 version: 1.0
 dependents: []
 type: MECHANIC
-parents: [[api_webui_search]]
+parents:
+  - [[api_webui_search]]
 tags: webui,mechanic,search
 human_name: WebUI Search Handler Mechanic
 layer: IMPLEMENTATION

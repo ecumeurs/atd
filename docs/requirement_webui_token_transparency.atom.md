@@ -1,7 +1,8 @@
 ---
 id: requirement_webui_token_transparency
 status: DRAFT
-parents: [[requirement_webui_platform]]
+parents:
+  - [[requirement_webui_platform]]
 human_name: Token Usage Transparency
 priority: 3
 version: 1.0

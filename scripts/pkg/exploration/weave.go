@@ -4,6 +4,7 @@ import (
 	"atd-tools/config"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -40,10 +41,12 @@ func (e *Explorer) Weave() (string, error) {
 		var newLines []string
 		inFrontmatter := false
 		frontmatterEnd := -1
+		parentsLineIdx := -1
+		parentsEndIdx := -1
 		dependentsLineIdx := -1
 		dependentsEndIdx := -1
 
-		// Find frontmatter and dependents section
+		// Find frontmatter and sections
 		for i, line := range lines {
 			if line == "---" {
 				if !inFrontmatter && i == 0 {
@@ -55,9 +58,16 @@ func (e *Explorer) Weave() (string, error) {
 				}
 			}
 			if inFrontmatter {
+				if strings.HasPrefix(line, "parents:") {
+					parentsLineIdx = i
+					j := i + 1
+					for j < len(lines) && strings.HasPrefix(lines[j], "  -") {
+						j++
+					}
+					parentsEndIdx = j - 1
+				}
 				if strings.HasPrefix(line, "dependents:") {
 					dependentsLineIdx = i
-					// Check if it's a multi-line list
 					j := i + 1
 					for j < len(lines) && strings.HasPrefix(lines[j], "  -") {
 						j++
@@ -71,7 +81,38 @@ func (e *Explorer) Weave() (string, error) {
 			continue
 		}
 
+		// 3. Handle Parents sorting
+		if parentsLineIdx != -1 {
+			parents := a.Parents
+			sort.Strings(parents)
+			var newParentsLines []string
+			if len(parents) == 0 {
+				newParentsLines = append(newParentsLines, "parents: []")
+			} else {
+				newParentsLines = append(newParentsLines, "parents:")
+				for _, p := range parents {
+					newParentsLines = append(newParentsLines, fmt.Sprintf("  - [[%s]]", p))
+				}
+			}
+
+			// Slice and replace parents
+			tmpLines := append([]string{}, lines[:parentsLineIdx]...)
+			tmpLines = append(tmpLines, newParentsLines...)
+			tmpLines = append(tmpLines, lines[parentsEndIdx+1:]...)
+			lines = tmpLines
+
+			// Offset other indices if they were after parents
+			diff := len(newParentsLines) - (parentsEndIdx - parentsLineIdx + 1)
+			if dependentsLineIdx > parentsLineIdx {
+				dependentsLineIdx += diff
+				dependentsEndIdx += diff
+			}
+			frontmatterEnd += diff
+		}
+
+		// 4. Handle Dependents
 		deps := parentToDependents[id]
+		sort.Strings(deps)
 		var newDepsLines []string
 		if len(deps) == 0 {
 			newDepsLines = append(newDepsLines, "dependents: []")

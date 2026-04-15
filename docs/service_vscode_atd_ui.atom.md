@@ -4,7 +4,8 @@ status: DRAFT
 priority: 3
 human_name: "VS Code ATD UI Components"
 version: 1.0.0
-parents: [[specification_vscode_atd_linker]]
+parents:
+  - [[specification_vscode_atd_linker]]
 dependents:
   - [[mechanic_vscode_sidebar_tree]]
   - [[mechanic_vscode_webview_graph]]
