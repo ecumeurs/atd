@@ -6,11 +6,13 @@ import (
 	"path/filepath"
 	"strings"
 	"sync/atomic"
+
+	"github.com/bastien/skill/atd/pkg/config"
 )
 
 // DiscoverFiles discovers all source files in a directory tree,
 // providing comprehensive coverage for indexing, not just git-tracked files.
-func DiscoverFiles(root string, config *config.ActiveConfig, mode string) ([]string, error) {
+func DiscoverFiles(root string, config *config.Config, mode string) ([]string, error) {
 	var files []string
 	var count uint32
 
@@ -31,7 +33,7 @@ func DiscoverFiles(root string, config *config.ActiveConfig, mode string) ([]str
 
 		switch mode {
 		case "code":
-			shouldIndex = config.ActiveConfig.SupportedExtensions[ext]
+			shouldIndex = config.SupportedExtensions[ext]
 		case "docs":
 			shouldIndex = true
 		case "all":
@@ -81,7 +83,7 @@ func isGitIgnored(relPath, root string) bool {
 }
 
 // GetFileList provides a list of discovered files for processing
-func GetFileList(root string, config *config.ActiveConfig, mode string) ([]string, error) {
+func GetFileList(root string, config *config.Config, mode string) ([]string, int, error) {
 	var files []string
 	var count uint32
 
@@ -102,7 +104,7 @@ func GetFileList(root string, config *config.ActiveConfig, mode string) ([]strin
 
 		switch mode {
 		case "code":
-			shouldIndex = config.ActiveConfig.SupportedExtensions[ext]
+			shouldIndex = config.SupportedExtensions[ext]
 		case "docs":
 			shouldIndex = true
 		case "all":
@@ -124,5 +126,5 @@ func GetFileList(root string, config *config.ActiveConfig, mode string) ([]strin
 		return nil
 	})
 
-	return files, count, nil
+	return files, int(count), err
 }
