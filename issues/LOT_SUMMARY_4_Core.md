@@ -25,6 +25,7 @@
 | [ISS-017](file:///home/bastien/work/skill/issues/ISS-017_20260304_cold_start_audit_replacement.md) | Replace mass gen with audit loop | Medium | Open | `scripts/atd-cold-start.sh` |
 | [ISS-002](file:///home/bastien/work/skill/issues/ISS-002_20260304_atd_granularity.md) | ATD Dissection Granularity Enforcement | Medium | Open | `scripts/atd-ollama-generate` |
 | [ISS-001](file:///home/bastien/work/skill/issues/ISS-001_20260304_audit_performance.md) | Audit Performance Optimization | Medium | Open | `scripts/atd-audit` |
+| [ISS-070](file:///home/bastien/work/skill/issues/ISS-070_20260415_linter_noise_and_parser_bug.md) | Linter Noise & Parser Bug | Medium | Open | `scripts/pkg/atom/` |
 
 ---
 
@@ -37,10 +38,10 @@
 > - **Smart Caching**: `atd audit` uses a SQLite-based fallback (`.atd_audit.db`) that skips unmodified atoms based on `mtime`.
 
 ### Theme 2: Language Agnostic Tooling
-> [!IMPORTANT]
-> **Status: EVOLVED (Pending Verification Fix)**
-> - **Universal Discovery**: The Go engine now uses `git ls-files` and project-level `.gitignore` detection, making file discovery language-agnostic.
-> - **Blocker**: `atd verify` remains hardcoded to `go test`. We need to implement a configurable `test_command` in `.atd` config to support non-Go projects.
+> [!NOTE]
+> **Status: COMPLETED**
+> - **Universal Discovery**: The Go engine uses `git ls-files` and project-level `.gitignore` detection, making file discovery language-agnostic.
+> - **Verification**: `atd verify` now supports configurable `command` and `test_pattern` in `.atd` config, with defaults for Go, Python, JS/TS, and Rust.
 
 ### Theme 3: Auditing, Verify & WebUI Integration
 > [!WARNING]
@@ -49,17 +50,23 @@
 > - **CI/CD Integration**: Need to finalize machine-readable outputs for `atd verify` to allow blocking merges on spec violations.
 > - **Stats Gap**: WebUI `/api/stats` currently lacks implementation for Test Coverage and Orphan detection.
 
-### Theme 4: Ollama JSON Schema Migration
-> [!TIP]
+### Theme 4: Ollama JSON Schema Migration & Standardization
+> [!NOTE]
+> **Status: COMPLETED**
+> - **Strict JSON**: The core Ollama client supports the `format: "json"` property.
+> - **Standardized Prompts**: Every LLM query now uses a JSON-formatted prompt for both input and output.
+> - **Mandatory Schema Field**: All JSON output schemas now explicitly include the `required` field for all properties.
+
+### Theme 5: Quality & Compliance (New)
+> [!IMPORTANT]
 > **Status: IN PROGRESS**
-> - **Strict JSON**: The core Ollama client now supports the `format: "json"` property.
-> - **Required Fields**: Most tools (dissect, recon, generate) have been migrated to strict JSON schemas.
-> - **To Do**: Migrate `audit_bloat` and `intent_extract` (used in `atd discover`) to use structured JSON schemas instead of raw string parsing.
+> - **Linter Noise**: Identified significant false-positive rates in `atd lint` due to aggressive mandatory section enforcement on non-rule atoms (MODULE, DOMAIN).
+> - **Parser Robustness**: Sub-headers (###) currently break the Go parser's state machine, leading to empty section extraction.
 
 ---
 
 ## Strategic Roadmap
 
-- **Short Term**: Refactor `audit_bloat` to use JSON schemas; implement configurable `verify_command` in `config.go`.
-- **Medium Term**: Implement the `TestLinks` lookup in the Go `Explorer` to surface real metrics in the WebUI.
+- **Short Term**: Implement the `TestLinks` lookup in the Go `Explorer` to surface real metrics in the WebUI.
+- **Medium Term**: Deliver the `map-impact` (blast radius) analysis and full Mermaid graph exports.
 - **Long Term**: Deliver the `map-impact` (blast radius) analysis and full Mermaid graph exports.

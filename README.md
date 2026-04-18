@@ -84,6 +84,7 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
+| [ATD Linter Aggressive Noise and Parsing Bug](issues/ISS-070_20260415_linter_noise_and_parser_bug.md) | 2026-04-15 | Open | Medium | The `atd lint` tool currently produces a high volume of false positives and i... |
 | [WebUI Explorer Global Health Dashboard](issues/ISS-069_20260407_webui_explorer_global_health.md) | 2026-04-07 | Open | Medium | The current Explorer view provides a "Waterfall of Intent" but lacks a high-l... |
 | [Enhance WebUI ATD Health Indicators](issues/ISS-068_20260403_webui_atd_health_indicators.md) | 2026-04-03 | Open | Medium | This issue track the enhancement of the ATD cards in the WebUI Explorer view ... |
 | [Dedicated ATD Tree/Graph View](issues/ISS-067_20260403_webui_atd_tree_view.md) | 2026-04-03 | Open | High | The current Explorer view provides a waterfall/lane view, but navigating deep... |

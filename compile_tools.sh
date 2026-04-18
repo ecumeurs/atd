@@ -3,7 +3,7 @@ set -e
 
 # Base directories
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPTS_DIR="$PROJECT_ROOT/scripts"
+SCRIPTS_DIR="$PROJECT_ROOT/atd"
 SKILL_TOOLS_DIR="$PROJECT_ROOT/atd_management_skill/.agent/skills/atd/tools"
 DEST_BIN_DIR="$SCRIPTS_DIR/bin"
 
