@@ -1,20 +1,18 @@
 package indexer
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 
-	"github.com/bastien/skill/atd/pkg/config"
+	"atd-tools/config"
 )
 
 // DiscoverFiles discovers all source files in a directory tree,
 // providing comprehensive coverage for indexing, not just git-tracked files.
-func DiscoverFiles(root string, config *config.Config, mode string) ([]string, error) {
+func DiscoverFiles(root string, cfg *config.Config, mode string) ([]string, error) {
 	var files []string
-	var count uint32
+	var count int
 
 	walker := func(path string, info os.FileInfo, err error) error {
 		// Skip directories and special files
@@ -33,7 +31,7 @@ func DiscoverFiles(root string, config *config.Config, mode string) ([]string, e
 
 		switch mode {
 		case "code":
-			shouldIndex = config.SupportedExtensions[ext]
+			shouldIndex = cfg.SupportedExtensions[ext]
 		case "docs":
 			shouldIndex = true
 		case "all":
@@ -55,19 +53,29 @@ func DiscoverFiles(root string, config *config.Config, mode string) ([]string, e
 		return nil
 	}
 
+	// Execute the walk
+	err := filepath.Walk(root, walker)
+	return files, err
+}
+
 // isGitIgnored checks if a path should be excluded based on .gitignore
 func isGitIgnored(relPath, root string) bool {
-	// Check against common ignore patterns
-	ignorePatterns := []string{
-		"vendor/",
-		"node_modules/",
-		".git/",
-		"dist/",
-		"build/",
-		"target/",
-		".vscode/",
-		"*.test.go",
-		"*_test.go",
+	// Check against configured ignore patterns or defaults
+	ignorePatterns := []string{}
+	if len(config.ActiveConfig.GitignorePatterns) > 0 {
+		ignorePatterns = config.ActiveConfig.GitignorePatterns
+	} else {
+		ignorePatterns = []string{
+			"vendor/",
+			"node_modules/",
+			".git/",
+			"dist/",
+			"build/",
+			"target/",
+			".vscode/",
+			"*.test.go",
+			"*_test.go",
+		}
 	}
 
 	// Convert to absolute path for comparison
@@ -83,9 +91,9 @@ func isGitIgnored(relPath, root string) bool {
 }
 
 // GetFileList provides a list of discovered files for processing
-func GetFileList(root string, config *config.Config, mode string) ([]string, int, error) {
+func GetFileList(root string, cfg *config.Config, mode string) ([]string, int, error) {
 	var files []string
-	var count uint32
+	var count int
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		// Skip directories and special files
@@ -104,7 +112,7 @@ func GetFileList(root string, config *config.Config, mode string) ([]string, int
 
 		switch mode {
 		case "code":
-			shouldIndex = config.SupportedExtensions[ext]
+			shouldIndex = cfg.SupportedExtensions[ext]
 		case "docs":
 			shouldIndex = true
 		case "all":

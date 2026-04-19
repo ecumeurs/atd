@@ -2,15 +2,52 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"time"
 )
 
+var ActiveConfig Config
+
+type DiscoveryMethod string
+
+const (
+	DiscoveryMethodWalk   = "walk"
+	DiscoveryMethodGit    = "git-ls-files"
+	DiscoveryMethodHybrid = "hybrid"
+)
+
+type Config struct {
+	DocsDir          string
+	CodePaths        []string
+	SupportedExtensions map[string]bool
+	DiscoveryMethod   DiscoveryMethod
+	OrphanExcludedTypes map[string]bool
+	HierarchicalOrphanCheck bool
+	CustomerLayerException bool
+	GitignorePatterns []string
+	MaxDepth         int
+
+	// Legacy fields for backward compatibility
+	DocsPath                string               `json:"docs_path,omitempty"`
+	DiffSimilarityThreshold  float64              `json:"diff_similarity_threshold"`
+	BloatingFactor          BloatingFactorConfig `json:"bloating_factor"`
+	Model                   string               `json:"model"` // kept for backward compat
+	Logging                 LoggingConfig        `json:"logging"`
+	LLM                     LLMConfig            `json:"llm"`
+	WebUI                   WebUIConfig          `json:"webui"`
+	Verify                  VerifyConfig         `json:"verify"`
+
+	// Internal tracking
+	loadedFromDir string
+}
+
+// Legacy types for backward compatibility
 type BloatingFactorConfig struct {
-	Default       float64            `json:"default"`
-	TypeOverrides map[string]float64 `json:"type_overrides"`
+	Default        float64            `json:"default"`
+	TypeOverrides   map[string]float64 `json:"type_overrides"`
 }
 
 type LoggingConfig struct {
@@ -30,24 +67,11 @@ type ModelConfig struct {
 }
 
 type LLMConfig struct {
-	Providers      []LLMProvider          `json:"providers"`
-	Models         map[string]ModelConfig `json:"models"`
-	FallbackModel  string                 `json:"fallback_model"`
-	HealthTTLMs    int                    `json:"health_ttl_ms,omitempty"`
-	ModelTTLMs     int                    `json:"model_ttl_ms,omitempty"`
-}
-
-type ATDConfig struct {
-	DocsPath                string               `json:"docs_path"`
-	DiffSimilarityThreshold float64              `json:"diff_similarity_threshold"`
-	BloatingFactor          BloatingFactorConfig `json:"bloating_factor"`
-	Model                   string               `json:"model"` // kept for backward compat
-	Logging                 LoggingConfig        `json:"logging"`
-	SupportedExtensions     map[string]bool      `json:"supported_extensions"`
-	LLM                     LLMConfig            `json:"llm"`
-	WebUI                   WebUIConfig          `json:"webui"`
-	Verify                  VerifyConfig         `json:"verify"`
-	loadedFromDir           string
+	Providers     []LLMProvider          `json:"providers"`
+	Models        map[string]ModelConfig `json:"models"`
+	FallbackModel string                 `json:"fallback_model"`
+	HealthTTLs   int                    `json:"health_ttl_ms,omitempty"`
+	ModelTTLs    int                    `json:"model_ttl_ms,omitempty"`
 }
 
 type VerifyConfig struct {
@@ -55,8 +79,6 @@ type VerifyConfig struct {
 	TestPattern    string `json:"test_pattern"`    // e.g. "*_test.go"
 	MaxParallelism int    `json:"max_parallelism"` // number of concurrent checks
 }
-
-
 
 type WebUIConfig struct {
 	Host        string `json:"host"`
@@ -70,36 +92,144 @@ type LogEntry struct {
 	Msg  string `json:"msg"`
 }
 
-var ActiveConfig ATDConfig
-
-// Load looks for .atd in the current directory and up to the root.
 func Load() error {
 	dir, err := os.Getwd()
 	if err != nil {
 		return err
 	}
-	return LoadFromDir(dir)
+	return LoadFromDirLegacy(dir)
 }
 
-// LoadFromDir looks for .atd starting from dir and up to the root.
+// LoadFromDir is an alias for LoadFromDirLegacy for backward compatibility
 func LoadFromDir(dir string) error {
+	return LoadFromDirLegacy(dir)
+}
+
+func findATDConfigFile() string {
+	// Search upward from current directory for .atd file
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+
+	dir := cwd
+	for {
+		configPath := filepath.Join(dir, ".atd")
+		if info, err := os.Stat(configPath); err == nil && !info.IsDir() {
+			return configPath
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// Reached root without finding .atd
+			break
+		}
+		dir = parent
+	}
+
+	return ""
+}
+
+func GetCodePaths() []string {
+	if len(ActiveConfig.CodePaths) == 0 {
+		// Default to current directory
+		cwd, _ := os.Getwd()
+		return []string{cwd}
+	}
+	return ActiveConfig.CodePaths
+}
+
+func DocsDir() string {
+	return DocsDirLegacy()
+}
+
+func GetDiscoveryMethod() DiscoveryMethod {
+	if ActiveConfig.DiscoveryMethod == "" {
+		return DiscoveryMethodWalk
+	}
+	return ActiveConfig.DiscoveryMethod
+}
+
+func GetOrphanExcludedTypes() map[string]bool {
+	if ActiveConfig.OrphanExcludedTypes == nil {
+		return map[string]bool{
+			"MODULE":         true,
+			"SPECIFICATION":  true,
+			"USECASE":        true,
+			"USER_STORY":    true,
+		}
+	}
+	return ActiveConfig.OrphanExcludedTypes
+}
+
+func SetHierarchicalOrphanCheck(enabled bool) {
+	ActiveConfig.HierarchicalOrphanCheck = enabled
+}
+
+func SetCustomerLayerException(enabled bool) {
+	ActiveConfig.CustomerLayerException = enabled
+}
+
+func GetGitignorePatterns() []string {
+	return ActiveConfig.GitignorePatterns
+}
+
+func SetMaxDepth(depth int) error {
+	if depth < 1 || depth > 50 {
+		return fmt.Errorf("max_depth must be between 1 and 50")
+	}
+	ActiveConfig.MaxDepth = depth
+	return nil
+}
+
+// Legacy functions for backward compatibility
+
+// LoadLegacy loads configuration with backward compatibility
+func LoadLegacy() error {
+	dir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	return LoadFromDirLegacy(dir)
+}
+
+// LoadFromDirLegacy looks for .atd starting from dir and up to root.
+func LoadFromDirLegacy(dir string) error {
 	// Defaults
-	ActiveConfig = ATDConfig{
+	ActiveConfig = Config{
 		DiffSimilarityThreshold: 0.85,
 		BloatingFactor: BloatingFactorConfig{
 			Default:       0.8,
 			TypeOverrides: make(map[string]float64),
 		},
 		SupportedExtensions: map[string]bool{
-			".go": true, ".py": true, ".ts": true, ".js": true,
-			".rs": true, ".java": true, ".c": true, ".cpp": true,
-			".h": true, ".hpp": true, ".cs": true, ".php": true,
-			".rb": true, ".swift": true, ".kt": true, ".scala": true,
+			".go":  true, ".py": true, ".ts": true, ".js": true,
+			".rs":  true, ".java": true, ".c": true, ".cpp": true,
+			".h":   true, ".hpp": true, ".cs": true, ".php": true,
+			".rb":  true, ".swift": true, ".kt": true, ".scala": true, ".vue": true,
 		},
 		LLM: LLMConfig{
-			HealthTTLMs: 300000, // 5 minutes
-			ModelTTLMs:  300000, // 5 minutes
+			HealthTTLs: 300000, // 5 minutes
+			ModelTTLs:  300000, // 5 minutes
 		},
+		DiscoveryMethod: DiscoveryMethodWalk,
+		OrphanExcludedTypes: map[string]bool{
+			"MODULE":        true,
+			"SPECIFICATION": true,
+			"USECASE":       true,
+			"USER_STORY":   true,
+		},
+		HierarchicalOrphanCheck: true,
+		CustomerLayerException: true,
+		GitignorePatterns: []string{
+			"node_modules/",
+			".git/",
+			"dist/",
+			"build/",
+			"target/",
+			".vscode/",
+		},
+		MaxDepth: 10,
 	}
 
 	var configPath string
@@ -123,7 +253,6 @@ func LoadFromDir(dir string) error {
 			json.Unmarshal(data, &ActiveConfig)
 			abs, _ := filepath.Abs(filepath.Dir(configPath))
 			ActiveConfig.loadedFromDir = abs
-			// fmt.Printf("Config loaded from: %s\n", ActiveConfig.loadedFromDir)
 		}
 	} else {
 		// No config found, default to CWD
@@ -200,15 +329,17 @@ func GetVerifyDefaults(ext string) (string, string) {
 	}
 }
 
-
 func ProjectRoot() string {
 	return ActiveConfig.loadedFromDir
 }
 
-func DocsDir() string {
-	p := ActiveConfig.DocsPath
+func DocsDirLegacy() string {
+	p := ActiveConfig.DocsDir
 	if p == "" {
-		p = "docs/"
+		p = ActiveConfig.DocsPath // Fall back to legacy field
+		if p == "" {
+			p = "docs/"
+		}
 	}
 	if !filepath.IsAbs(p) {
 		return filepath.Join(ActiveConfig.loadedFromDir, p)
@@ -216,9 +347,9 @@ func DocsDir() string {
 	return p
 }
 
-// ModelForTask returns the model names assigned to a given task type,
+// ModelForTask returns model names assigned to a given task type,
 // sorted by priority (if provided).
-// Falls back to FallbackModel, then to the legacy "model" field, then "llama3.2".
+// Falls back to FallbackModel, then to legacy "model" field, then "llama3.2".
 func ModelForTask(taskType string) []string {
 	type candidate struct {
 		name     string

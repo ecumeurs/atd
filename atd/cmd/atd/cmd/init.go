@@ -74,7 +74,7 @@ func runInit(dir, docsPath, model string, force bool) (string, error) {
 		model = "llama3.2"
 	}
 
-	cfg := config.ATDConfig{
+	cfg := config.Config{
 		DocsPath:                docsPath,
 		DiffSimilarityThreshold: 0.85,
 		BloatingFactor: config.BloatingFactorConfig{

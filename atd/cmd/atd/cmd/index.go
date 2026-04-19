@@ -6,13 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	"atd-tools/config"
+	"atd-tools/pkg/exploration"
 	"atd-tools/pkg/ollama"
 	"github.com/spf13/cobra"
 	_ "github.com/mattn/go-sqlite3"
@@ -40,7 +40,7 @@ Files unchanged since last indexing are automatically skipped.`,
 	},
 }
 
-// runIndex builds a semantic vector index for the given directory.
+// runIndex builds a semantic vector index for given directory.
 // mode must be "code", "docs", or "all".
 func runIndex(targetDir, dbPath, mode string) error {
 	// Pre-check: Ensure embedding model is available (no IDE fallback)
@@ -49,7 +49,7 @@ func runIndex(targetDir, dbPath, mode string) error {
 		return fmt.Errorf("error resolving embedding provider: %v", err)
 	}
 	if res.IsIDE {
-		return fmt.Errorf("indexing requires a local or remote Ollama provider with the embedding model (e.g. nomic-embed-text) installed. No embedding model was found")
+		return fmt.Errorf("indexing requires a local or remote Ollama provider with embedding model (e.g. nomic-embed-text) installed. No embedding model was found")
 	}
 
 	// Ensure docs dir exists for default db path
@@ -63,14 +63,14 @@ func runIndex(targetDir, dbPath, mode string) error {
 	defer db.Close()
 
 	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS atom_index (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			file_path TEXT,
-			chunk_text TEXT,
-			embedding BLOB,
-			last_modified INTEGER
-		)
-	`)
+			CREATE TABLE IF NOT EXISTS atom_index (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				file_path TEXT,
+				chunk_text TEXT,
+				embedding BLOB,
+				last_modified INTEGER
+			)
+		`)
 	if err != nil {
 		return fmt.Errorf("failed to create table: %v", err)
 	}
@@ -89,16 +89,28 @@ func runIndex(targetDir, dbPath, mode string) error {
 		rows.Close()
 	}
 
-	fmt.Printf("Crawling %s (Respecting .gitignore)...\n", targetDir)
+	fmt.Printf("Crawling %s (Using %s discovery method)...\n", targetDir, config.GetDiscoveryMethod())
 
-	gitCmd := exec.Command("git", "ls-files", "-c", "-o", "--exclude-standard")
-	gitCmd.Dir = targetDir
-	out, err := gitCmd.Output()
-	if err != nil {
-		return fmt.Errorf("error running git ls-files: %v", err)
+	var filesToIndex []string
+	var codePaths []string
+
+	if len(config.ActiveConfig.CodePaths) > 0 {
+		// Use configured code paths
+		for _, path := range config.ActiveConfig.CodePaths {
+			absPath := filepath.Join(targetDir, path)
+			codePaths = append(codePaths, absPath)
+		}
+	} else {
+		// Fallback to target directory
+		codePaths = []string{targetDir}
 	}
 
-	filesToIndex := strings.Split(strings.TrimSpace(string(out)), "\n")
+	// Discover files using exploration logic (includes nested git repos)
+	explorer := exploration.NewExplorer(targetDir, config.DocsDir())
+	filesToIndex, err = explorer.ListFiles()
+	if err != nil {
+		return fmt.Errorf("error discovering files: %v", err)
+	}
 
 	type chunkJob struct {
 		path      string
@@ -144,9 +156,10 @@ func runIndex(targetDir, dbPath, mode string) error {
 		isAtom := strings.HasSuffix(relPath, ".atom.md")
 
 		shouldIndex := false
+
 		switch mode {
 		case "code":
-			shouldIndex = config.ActiveConfig.SupportedExtensions[ext] && !isAtom
+			shouldIndex = config.ActiveConfig.SupportedExtensions[ext]
 		case "docs":
 			shouldIndex = isAtom
 		case "all":

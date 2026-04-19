@@ -60,8 +60,8 @@ func ResolveProviderEx(taskType string, force bool) (Resolution, error) {
 		var offline bool
 		var err error
 
-		healthTTL := time.Duration(cfg.HealthTTLMs) * time.Millisecond
-		modelTTL := time.Duration(cfg.ModelTTLMs) * time.Millisecond
+		healthTTL := time.Duration(cfg.HealthTTLs) * time.Millisecond
+		modelTTL := time.Duration(cfg.ModelTTLs) * time.Millisecond
 
 		useCache := found && !force
 		if useCache {

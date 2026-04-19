@@ -7,7 +7,6 @@ import (
 	"atd-tools/pkg/atom"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -127,31 +126,33 @@ func (e *Explorer) Load(force bool) error {
 }
 
 func (e *Explorer) ListFiles() ([]string, error) {
-	// Try git ls-files first
-	cmd := exec.Command("git", "ls-files", "-c", "-o", "--exclude-standard")
-	cmd.Dir = e.ProjectRoot
-	out, err := cmd.Output()
-	if err == nil {
-		return strings.Split(strings.TrimSpace(string(out)), "\n"), nil
-	}
-
-	// Fallback to manual walk
 	var files []string
-	err = filepath.Walk(e.ProjectRoot, func(path string, info os.FileInfo, err error) error {
+	
+	// We use filepath.Walk to ensure we catch files in nested git repositories (like submodules or sub-repos)
+	// which 'git ls-files' might skip depending on where it is run.
+	err := filepath.Walk(e.ProjectRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
+		
 		rel, err := filepath.Rel(e.ProjectRoot, path)
 		if err != nil {
 			return nil
 		}
-		// Basic ignores for fallback
-		if strings.Contains(rel, "/.") || strings.Contains(rel, "vendor/") || strings.Contains(rel, "node_modules/") {
+		
+		// Basic ignores
+		if strings.Contains(rel, "/.") || 
+		   strings.Contains(rel, "vendor/") || 
+		   strings.Contains(rel, "node_modules/") ||
+		   strings.Contains(rel, "dist/") ||
+		   strings.Contains(rel, "build/") {
 			return nil
 		}
+		
 		files = append(files, rel)
 		return nil
 	})
+	
 	return files, err
 }
 
