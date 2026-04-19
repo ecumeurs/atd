@@ -84,6 +84,16 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
+| [Decouple Code Compliance from Audit Service](issues/ISS-085_20260419_decouple_audit_code_compliance.md) | 2026-04-19 | Open | Low | The `atd audit` command currently contains a "Code Compliance Mode" (via `--c... |
+| [Project-Wide Verification Mode for ATD](issues/ISS-084_20260419_project_wide_verify_mode.md) | 2026-04-19 | Open | Low | The current `atd verify` command is strictly diff-based (uncommitted changes ... |
+| [Granular Instance-Based Verification with JSON Prompting](issues/ISS-083_20260419_granular_verify_json_recap.md) | 2026-04-19 | Open | Medium | The current `atd verify` command produces a single, large "Document Bundle" p... |
+| [ATD Configuration Parent Directory Search](issues/ISS-082_20260418_atd_config_parent_directory_search.md) | 2026-04-18 | Open | High | ATD CLI tool only searches for `.atd` configuration file in the current worki... |
+| [CLAUDE.md Project Context Mismatch](issues/ISS-078_20260418_claude_md_project_context_mismatch.md) | 2026-04-18 | Open | Medium | Current CLAUDE.md was copied from upsilon-hub and describes UpsilonBattle dev... |
+| [ATD.md Missing Agent-Specific Integration Guidance](issues/ISS-077_20260418_atd_md_agent_guidance_gaps.md) | 2026-04-18 | Open | Medium | ATD.md provides excellent tool documentation but lacks critical agent-specifi... |
+| [ATD Layer System Overload and Ambiguity](issues/ISS-076_20260418_atd_layer_system_refinement.md) | 2026-04-18 | Open | Medium | Current ATD layer system (CUSTOMER, ARCHITECTURE, IMPLEMENTATION) has overloa... |
+| [ATD Type System Redundancy and Confusion](issues/ISS-075_20260418_atd_type_system_simplification.md) | 2026-04-18 | Open | Medium | Current ATD type system contains 13 types with significant overlap and redund... |
+| [Missing @spec-link Tags for Implemented Features](issues/ISS-074_20260418_missing_spec_link_tags_documentation_gap.md) | 2026-04-18 | Open | Medium | Approximately 40 STABLE atoms describe implemented functionality that exists ... |
+| [ATD Orphan Detection Logic Flaws](issues/ISS-072_20260418_atd_orphan_detection_logic_flaws.md) | 2026-04-18 | Open | High | ATD orphan detection incorrectly marks all atoms without direct code links as... |
 | [ATD Linter Aggressive Noise and Parsing Bug](issues/ISS-070_20260415_linter_noise_and_parser_bug.md) | 2026-04-15 | Open | Medium | The `atd lint` tool currently produces a high volume of false positives and i... |
 | [WebUI Explorer Global Health Dashboard](issues/ISS-069_20260407_webui_explorer_global_health.md) | 2026-04-07 | Open | Medium | The current Explorer view provides a "Waterfall of Intent" but lacks a high-l... |
 | [Enhance WebUI ATD Health Indicators](issues/ISS-068_20260403_webui_atd_health_indicators.md) | 2026-04-03 | Open | Medium | This issue track the enhancement of the ATD cards in the WebUI Explorer view ... |
