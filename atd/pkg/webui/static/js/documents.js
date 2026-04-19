@@ -159,8 +159,8 @@ function openAtomPicker(e) {
         results.innerHTML = '';
         if (query.length < 2) return;
 
-        const matches = window.state?.atoms?.filter(a => 
-            a.id.toLowerCase().includes(query) || 
+        const matches = state?.atoms?.filter(a =>
+            a.id.toLowerCase().includes(query) ||
             (a.human_name && a.human_name.toLowerCase().includes(query))
         ) || [];
 

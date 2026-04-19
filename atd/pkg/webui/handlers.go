@@ -11,6 +11,7 @@ import (
 	"atd-tools/config"
 	"atd-tools/pkg/atom"
 	"atd-tools/pkg/exploration"
+	"atd-tools/pkg/ollama"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -28,6 +29,7 @@ func (s *Server) registerATDRoutes(api *gin.RouterGroup) {
 	api.GET("/search", s.handleSearch)
 	api.GET("/stats", s.handleStats)
 	api.POST("/atd/weave", s.handleWeave)
+	api.GET("/health", s.handleHealth)
 
 	// Document generation
 	api.POST("/search-document-context", s.handleSearchDocumentContext)
@@ -225,11 +227,31 @@ func (s *Server) handleStats(c *gin.Context) {
 	defer s.mutex.RUnlock()
 
 	var total, covered, tested, orphans int
+	var byLayer = map[string]int{"CUSTOMER": 0, "ARCHITECTURE": 0, "IMPLEMENTATION": 0, "UNKNOWN": 0}
+	var byStatus = map[string]int{"DRAFT": 0, "REVIEW": 0, "STABLE": 0, "UNKNOWN": 0}
+
 	if s.explorer.Graph != nil {
 		for _, node := range s.explorer.Graph.Atoms {
 			total++
 			if len(node.Implementations) > 0 {
 				covered++
+			}
+			if node.HasTests {
+				tested++
+			}
+			// Orphans: non-CUSTOMER atoms with no parents
+			if node.Layer != "CUSTOMER" && len(node.Parents) == 0 {
+				orphans++
+			}
+			if node.Layer != "" {
+				byLayer[node.Layer]++
+			} else {
+				byLayer["UNKNOWN"]++
+			}
+			if node.Status != "" {
+				byStatus[node.Status]++
+			} else {
+				byStatus["UNKNOWN"]++
 			}
 		}
 	}
@@ -237,9 +259,82 @@ func (s *Server) handleStats(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"Total":        total,
 		"SpecCoverage": covered,
-		"TestCoverage": tested, // @todo: implement from Explorer.TestLinks
+		"TestCoverage": tested,
 		"Orphans":      orphans,
+		"ByLayer":      byLayer,
+		"ByStatus":     byStatus,
 	})
+}
+
+// @spec-link [[api_webui_health_check]]
+func (s *Server) handleHealth(c *gin.Context) {
+	health := gin.H{
+		"providers": []gin.H{},
+		"tasks":     map[string]string{},
+	}
+
+	cfg := config.ActiveConfig.LLM
+
+	// Check each provider
+	for _, provider := range cfg.Providers {
+		if provider.Type == "passthrough" {
+			health["providers"] = append(health["providers"].([]gin.H), gin.H{
+				"name":   provider.Name,
+				"type":   "passthrough",
+				"status": "available",
+			})
+			continue
+		}
+
+		// Check provider availability
+		models, err := ollama.ListModels(provider.BaseURL, provider.TimeoutMs)
+		status := "available"
+		if err != nil {
+			status = "unreachable"
+		}
+
+		health["providers"] = append(health["providers"].([]gin.H), gin.H{
+			"name":    provider.Name,
+			"type":    "ollama",
+			"base_url": provider.BaseURL,
+			"status":  status,
+			"models":  models,
+		})
+	}
+
+	// Check task availability
+	tasks := map[string]string{
+		"embed":                        "",
+		"assemble":                     "",
+		"assemble_layer_CUSTOMER":      "",
+		"assemble_layer_ARCHITECTURE":  "",
+		"assemble_layer_IMPLEMENTATION": "",
+		"assemble_final":               "",
+		"audit_bloat":                  "",
+		"intent_extract":               "",
+		"snapshot":                     "",
+		"dissect":                      "",
+		"recon":                        "",
+		"audit_code":                   "",
+		"compare":                      "",
+		"congruence":                   "",
+		"reconcile":                    "",
+		"fix_split":                    "",
+	}
+
+	for taskName := range tasks {
+		res, err := ollama.ResolveProvider(taskName)
+		if err != nil {
+			tasks[taskName] = "error: " + err.Error()
+		} else if res.IsIDE {
+			tasks[taskName] = "ide_fallback"
+		} else {
+			tasks[taskName] = res.Provider + ":" + res.Model
+		}
+	}
+
+	health["tasks"] = tasks
+	c.JSON(http.StatusOK, health)
 }
 
 // Document Generation (Cached)

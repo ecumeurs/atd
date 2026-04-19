@@ -100,6 +100,27 @@ body {
     white-space: nowrap;
 }
 
+.health-badge {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.health-badge:hover {
+    border-color: var(--accent);
+}
+
+.health-good {
+    border-color: var(--color-green-light);
+}
+
+.health-warning {
+    border-color: var(--color-yellow-light);
+}
+
+.health-error {
+    border-color: var(--color-red-light);
+}
+
 .header-tools {
     display: flex;
     gap: 6px;
@@ -1262,4 +1283,107 @@ body {
         max-height: 50vh;
     }
     .header-info { display: none; }
+}
+/* Health Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+.btn-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 5px 10px;
+}
+
+.btn-close:hover {
+    color: var(--text-main);
+}
+
+.health-section h3 {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.health-providers,
+.health-tasks {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.health-provider-item,
+.health-task-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px;
+}
+
+.health-provider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.health-provider-name {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.health-provider-status {
+    font-size: 11px;
+}
+
+.health-provider-details {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.health-task-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+}
+
+.health-task-name {
+    font-family: monospace;
+    color: var(--color-blue-light);
+}
+
+.health-task-provider {
+    font-size: 11px;
+    color: var(--text-muted);
 }

@@ -9,6 +9,7 @@ import { initDetails } from './details.js';
 import { initTreeView, renderTreeView } from './treeview.js';
 import { initSearch } from './search.js';
 import { initDocuments } from './documents.js';
+import { initHealth } from './health.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // DOM elements
@@ -29,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initTreeView();
     initSearch();
     initDocuments();
+    initHealth();
 
     // Load Spec Builder lazily when its tab is opened
     let specBuilderLoaded = false;

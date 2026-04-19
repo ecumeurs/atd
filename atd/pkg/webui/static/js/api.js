@@ -148,3 +148,10 @@ export async function weave() {
     if (!resp.ok) throw new Error('Weaving failed');
     return resp.json();
 }
+
+// @spec-link [[api_webui_health_check]]
+export async function fetchHealth() {
+    const resp = await fetch('/api/health');
+    if (!resp.ok) throw new Error('Failed to fetch health');
+    return resp.json();
+}
