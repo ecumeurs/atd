@@ -3,9 +3,10 @@
 **ID:** `20260418_atd_indexing_system_failure`
 **Ref:** `ISS-071`
 **Date:** 2026-04-18
+**Updated:** 2026-04-19
 **Severity:** Critical
-**Status:** Open
-**Component:** `scripts/pkg/`, `scripts/cmd/atd/cmd/index.go`
+**Status:** Resolved
+**Component:** `atd/pkg/exploration/`, `atd/cmd/atd/cmd/index.go`
 **Affects:** ATD System Accuracy, Coverage Reporting, Orphan Detection
 
 ---

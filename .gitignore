@@ -4,8 +4,10 @@ upsilon-hub
 *.db
 upsilon
 atd_management_skill/.agent/skills/atd/tools
-scripts/bin
+atd/bin/*
 .agent/logs
 bin/*
-scripts/cmd/atd/bin/*
+atd/cmd/atd/bin/*
+atd/atd
+atd/scratch/
 webui/webui_bin

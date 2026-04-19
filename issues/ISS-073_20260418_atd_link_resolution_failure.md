@@ -3,9 +3,10 @@
 **ID:** `20260418_atd_link_resolution_failure`
 **Ref:** `ISS-073`
 **Date:** 2026-04-18
+**Updated:** 2026-04-19
 **Severity:** Critical
-**Status:** Open
-**Component:** `scripts/pkg/`, `scripts/cmd/atd/cmd/crawl.go`, `scripts/cmd/atd/cmd/trace.go`
+**Status:** Resolved
+**Component:** `atd/pkg/exploration/`, `atd/cmd/atd/cmd/crawl.go`, `atd/cmd/atd/cmd/trace.go`
 **Affects:** Code-Atom Traceability, Dependency Graph Accuracy, Blast Radius Analysis
 
 ---

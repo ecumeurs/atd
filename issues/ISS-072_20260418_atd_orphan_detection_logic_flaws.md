@@ -3,9 +3,10 @@
 **ID:** `20260418_atd_orphan_detection_logic_flaws`
 **Ref:** `ISS-072`
 **Date:** 2026-04-18
+**Updated:** 2026-04-19
 **Severity:** High
 **Status:** Open
-**Component:** `scripts/pkg/`, `scripts/cmd/atd/cmd/crawl.go`
+**Component:** `atd/pkg/exploration/`, `atd/cmd/atd/cmd/crawl.go`, `atd/cmd/atd/cmd/stats.go`
 **Affects:** Orphan Reporting Accuracy, Development Prioritization, Documentation Health
 
 ---
