@@ -16,9 +16,10 @@ mkdir -p "$DEST_BIN_DIR/lib"
 mkdir -p "$SKILL_TOOLS_DIR/lib"
 
 # 1. Compile atd (single binary)
-cd "$SCRIPTS_DIR"
+cd "$SCRIPTS_DIR/cmd/atd"
 echo "[Build] Compiling atd..."
-go build -o "$DEST_BIN_DIR/atd" "./cmd/atd/main.go"
+go build -o "$DEST_BIN_DIR/atd" .
+cd "$SCRIPTS_DIR"
 
 # Mirror to skill tools directory
 cp "$DEST_BIN_DIR/atd" "$SKILL_TOOLS_DIR/atd"
