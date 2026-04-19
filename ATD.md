@@ -503,10 +503,13 @@ These tools NEVER call an LLM. They are safe, cheap, and fast.
 **Purpose:** Run `git diff`, extract impacted `@spec-link` tags, and produce a structured audit prompt.
 
 | Parameter | Type | Required | Description |
-|---|---|---|---|
-| *(none)* | — | — | Reads the current git state automatically. |
+| `full` | boolean | ❌ | If `true`, Audit the entire project. |
+| `file` | string | ❌ | Target a specific file for verification. |
+| `line` | integer | ❌ | Target a specific line for verification (requires `file`). |
+| `base` | string | ❌ | Optional: base commit/ref to compare from (e.g. 'HEAD~5'). |
+| `target` | string | ❌ | Optional: target commit/ref to compare to (defaults to working tree). |
 
-**Output:** Structured audit prompt containing the changed code and each atom it's linked to.
+**Output:** Structured audit prompt containing the changed code and each atom it's linked to. Also produces a structured JSON recap for granular verification.
 
 **When to use:** During **Verify** stage (pre-commit or CI) to check whether code changes still comply with their linked atom specifications.
 
@@ -639,6 +642,8 @@ These tools require an Ollama provider (local or remote) or fall back to IDE Age
 - Before running semantic search (`atd_search`).
 - After significant code or documentation changes to refresh the index.
 - Uses `nomic-embed-text` for embeddings. Files unchanged since last indexing are automatically skipped (mtime-based caching).
+- **Stale Entry Cleanup:** Automatically removes index entries for files that have been deleted from disk.
+- **Chunk Length Handling:** Implements robust splitting to prevent context-length overflows on large files.
 
 ---
 
@@ -781,18 +786,6 @@ Beyond the backlog, the following capabilities would round out ATD as a comprehe
 
 **Recommendation:** Support a `refs` or `imports` section in `.atd` config that points to external atom repositories (git URLs or local paths). `atd crawl` and `atd search` should resolve cross-project links. This also requires upgrading the tooling to handle **destination selection** — when creating or linking atoms, the user must be able to specify which project/repository the atom belongs to. Multi-repository projects would benefit significantly from this capability.
 
-#### 3.2.4 Metrics & Dashboard
-
-**Problem:** There is no way to get a quantitative view of documentation health: coverage percentage, orphan ratio, bloat score distribution, atom count by type/status.
-
-**Recommendation:** Add an `atd stats` command (and MCP tool) that produces a JSON summary of: total atoms, atoms by type, atoms by status, coverage ratio (STABLE atoms with ≥1 `@spec-link`), average bloat score, orphan count. This could feed into a CI badge or the WebUI.
-
-
-#### 3.2.6 Atom Validation / Lint
-
-**Problem:** `atd audit` detects bloat and collisions, but there is no lightweight structural lint that catches: missing mandatory fields, malformed `[[id]]` references, broken parent/dependent links (pointing to non-existent atoms), empty sections.
-
-**Recommendation:** Add an `atd lint` tool (deterministic, no LLM) that performs fast structural validation. This should run in CI on every commit and be available as an MCP tool. It would complement `atd audit` (which is LLM-heavy) as a cheap first-pass.
 
 #### 3.2.7 Atom Templates per Type
 
@@ -828,11 +821,9 @@ Beyond the backlog, the following capabilities would round out ATD as a comprehe
 | Gap | Impact | Effort | Suggested Priority |
 |---|---|---|---|
 | Cold-start + audit via MCP (ISS-031) | High — unblocks MCP-only workflows | Medium | **P0** |
-| Atom lint/validation (§3.2.6) | High — catches structural errors cheaply | Low | **P0** |
 | Targeted impact analysis (ISS-030) | High — unblocks Architect mode | Low | **P0** |
 | Status enforcement (ISS-010) | High — governance foundation | Medium | **P1** |
 | Atom deprecation (§3.2.1) | Medium — lifecycle completeness | Low | **P1** |
-| Metrics/stats (§3.2.4) | Medium — CI integration | Low | **P1** |
 | Batch operations (§3.2.5) | Medium — MCP efficiency | Medium | **P1** |
 | Change history sidecar (§3.2.2) | Medium — audit trail | Medium | **P2** |
 | Type-specific templates (§3.2.7) | Medium — atom quality | Low | **P2** |

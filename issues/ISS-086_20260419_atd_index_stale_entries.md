@@ -4,7 +4,7 @@
 **Ref:** `ISS-086`
 **Date:** 2026-04-19
 **Severity:** Medium
-**Status:** Open
+**Status:** Resolved
 **Component:** `atd/cmd/atd/cmd/index.go`
 **Affects:** `atd index` command, semantic search accuracy
 

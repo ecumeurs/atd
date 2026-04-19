@@ -4,7 +4,7 @@
 **Ref:** `ISS-087`
 **Date:** 2026-04-19
 **Severity:** Medium
-**Status:** Open
+**Status:** Resolved
 **Component:** `webui/static/js/ui.js` (or similar rendering logic)
 **Affects:** WebUI Explorer View, Waterfall of Intent
 

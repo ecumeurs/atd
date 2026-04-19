@@ -4,7 +4,7 @@
 **Ref:** `ISS-088`
 **Date:** 2026-04-19
 **Severity:** Medium
-**Status:** Open
+**Status:** Resolved
 **Component:** `webui/static/js/explorer.js` (or similar)
 **Affects:** WebUI Explorer View
 

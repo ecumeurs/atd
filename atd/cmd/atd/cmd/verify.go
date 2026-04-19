@@ -41,6 +41,10 @@ Usecases:
 		targetLine, _ := cmd.Flags().GetInt("line")
 
 		config.ActiveConfig.DocsDirOverride = docsDir
+		
+		if full && outPath == "" {
+			outPath = "recap.md"
+		}
 
 		text, err := runVerify(docsDir, args, full, targetFile, targetLine)
 		if err != nil {
@@ -130,6 +134,8 @@ func runVerify(docsDir string, args []string, full bool, targetFile string, targ
 		_ = targetRef // Keep it for now if needed for content loading
 	}
 
+	fmt.Fprintf(os.Stderr, "Phase 1: Discovery (Found %d implementation link(s))\n", len(relevantLinks))
+
 	// 2. Statistics and Recap state
 	type auditResult struct {
 		Link            exploration.SpecLink
@@ -140,6 +146,7 @@ func runVerify(docsDir string, args []string, full bool, targetFile string, targ
 		Status          string // PASSED, FAILED, WARNING
 		Finding         string
 		TestOutput      string
+		TestFailed      bool
 		RuleCompliance  bool
 		TestCompliance  bool
 	}
@@ -150,11 +157,19 @@ func runVerify(docsDir string, args []string, full bool, targetFile string, targ
 		Valid   int
 		Invalid int
 		Gaps    int
+		Cached  int
 	}{}
+
+	type testResult struct {
+		Output string
+		Failed bool
+	}
+	testCache := make(map[string]testResult)
 
 	// 3. Iterative Instance Audits
 	for _, link := range relevantLinks {
 		stats.Total++
+		testFailed := false
 
 		atom, exists := explorer.Graph.Atoms[link.AtomID]
 		if !exists {
@@ -185,7 +200,27 @@ func runVerify(docsDir string, args []string, full bool, targetFile string, targ
 		dir := filepath.Dir(link.FilePath)
 		ext := filepath.Ext(link.FilePath)
 		cmdTpl, _ := config.GetVerifyDefaults(ext)
-		testOut, _ := executeTestCommand(cmdTpl, dir, link.FilePath)
+		
+		fmt.Fprintf(os.Stderr, "[%d/%d] Auditing %s at %s:%d... ", stats.Total, len(relevantLinks), link.AtomID, link.FilePath, link.Line)
+
+		testKey := cmdTpl + ":" + dir
+		var testOut string
+		if cached, ok := testCache[testKey]; ok {
+			testOut = cached.Output
+			testFailed = cached.Failed
+			stats.Cached++
+			fmt.Fprintf(os.Stderr, "[CACHED TEST]\n")
+		} else {
+			var err error
+			testOut, err = executeTestCommand(cmdTpl, dir, link.FilePath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "[TEST FAILED]\n")
+				testFailed = true
+			} else {
+				fmt.Fprintf(os.Stderr, "[OK]\n")
+			}
+			testCache[testKey] = testResult{Output: testOut, Failed: testFailed}
+		}
 
 		results = append(results, auditResult{
 			Link:     link,
@@ -194,6 +229,7 @@ func runVerify(docsDir string, args []string, full bool, targetFile string, targ
 			Snippet:  snippet,
 			Tests:    relevantTests,
 			TestOutput: testOut,
+			TestFailed: testFailed,
 		})
 	}
 
@@ -202,8 +238,25 @@ func runVerify(docsDir string, args []string, full bool, targetFile string, targ
 	b.WriteString("# ATD Verification Recap\n\n")
 
 	b.WriteString("## Statistics\n")
-	b.WriteString(fmt.Sprintf("- **Total Implementation Links Found:** %d\n", stats.Total))
+	b.WriteString(fmt.Sprintf("- **Internal Status:** INITIATED (CLI: %t)\n", full))
+	b.WriteString(fmt.Sprintf("- **Instances Discovered:** %d\n", stats.Total))
+	b.WriteString(fmt.Sprintf("- **Implementation Gaps (No Test Proof):** %d\n", stats.Gaps))
+	b.WriteString(fmt.Sprintf("- **Test Optimization:** %d runs cached\n", stats.Cached))
 	b.WriteString("- **Status:** PENDING LLM AUDIT\n\n")
+
+	b.WriteString("## Discovery Table\n")
+	b.WriteString("| Atom ID | File Path | Line | Coverage | Audit Status | Recommendation |\n")
+	b.WriteString("|---|---|---|---|---|---|\n")
+	for _, res := range results {
+		coverage := "OK"
+		rec := "-"
+		if len(res.Tests) == 0 {
+			coverage = "⚠️ GAP"
+			rec = "Add @test-link"
+		}
+		b.WriteString(fmt.Sprintf("| %s | %s | %d | %s | PENDING | %s |\n", res.Atom.ID, res.Link.FilePath, res.Link.Line, coverage, rec))
+	}
+	b.WriteString("\n")
 
 	b.WriteString("## Actionable Prompt\n")
 	b.WriteString("Copy the content below into your LLM to perform the granular compliance audit.\n\n")
@@ -242,7 +295,11 @@ func runVerify(docsDir string, args []string, full bool, targetFile string, targ
 
 		b.WriteString("\n#### NATIVE TEST EXECUTION\n")
 		b.WriteString("```\n")
-		b.WriteString(res.TestOutput)
+		if res.TestFailed {
+			b.WriteString(res.TestOutput)
+		} else {
+			b.WriteString("[SUCCESS] Native tests passed. Output omitted to save space.\n")
+		}
 		b.WriteString("\n```\n\n")
 		b.WriteString("---\n\n")
 	}

@@ -77,6 +77,7 @@ func runIndex(targetDir, dbPath, mode string) error {
 
 	// Read existing modification times
 	fileMods := make(map[string]int64)
+	seenPaths := make(map[string]bool)
 	rows, err := db.Query("SELECT file_path, MAX(last_modified) FROM atom_index GROUP BY file_path")
 	if err == nil {
 		for rows.Next() {
@@ -175,6 +176,7 @@ func runIndex(targetDir, dbPath, mode string) error {
 		}
 
 		path := filepath.Join(targetDir, relPath)
+		seenPaths[path] = true
 		info, err := os.Stat(path)
 		if err != nil || info.IsDir() {
 			continue
@@ -201,7 +203,8 @@ func runIndex(targetDir, dbPath, mode string) error {
 			for _, c := range raw {
 				c = strings.TrimSpace(c)
 				if c != "" {
-					chunks = append(chunks, "File: "+relPath+"\n## "+c)
+					subChunks := splitChunkRecursive("File: "+relPath+"\n## "+c, 8000)
+					chunks = append(chunks, subChunks...)
 				}
 			}
 		} else {
@@ -210,7 +213,8 @@ func runIndex(targetDir, dbPath, mode string) error {
 			for _, c := range raw {
 				c = strings.TrimSpace(c)
 				if len(c) > 20 {
-					chunks = append(chunks, "File: "+relPath+"\n"+c)
+					subChunks := splitChunkRecursive("File: "+relPath+"\n"+c, 8000)
+					chunks = append(chunks, subChunks...)
 				}
 			}
 		}
@@ -224,9 +228,88 @@ func runIndex(targetDir, dbPath, mode string) error {
 	close(jobs)
 	wg.Wait()
 
+	// Cleanup stale entries
+	processedCount := 0
+	cleanupRows, err := db.Query("SELECT DISTINCT file_path FROM atom_index")
+	if err == nil {
+		var stalePaths []string
+		for cleanupRows.Next() {
+			var p string
+			if err := cleanupRows.Scan(&p); err == nil {
+				if !seenPaths[p] {
+					stalePaths = append(stalePaths, p)
+				}
+			}
+		}
+		cleanupRows.Close()
+
+		for _, p := range stalePaths {
+			db.Exec(`DELETE FROM atom_index WHERE file_path = ?`, p)
+			processedCount++
+		}
+	}
+
+	if processedCount > 0 {
+		fmt.Printf("Cleaned up %d stale file entries from index\n", processedCount)
+	}
+
 	fmt.Printf("Indexed %d chunks across %d files (%d skipped unchanged)\n", indexedCount, fileCount, skipCount)
 	config.Log("atd-index", fmt.Sprintf("Indexed %d chunks", indexedCount))
 	return nil
+}
+
+// splitChunkRecursive splits a chunk into sub-chunks if it exceeds maxLength.
+func splitChunkRecursive(text string, maxLength int) []string {
+	if len(text) <= maxLength {
+		return []string{text}
+	}
+
+	// Try splitting by newline first
+	lines := strings.Split(text, "\n")
+	if len(lines) > 1 {
+		var chunks []string
+		current := ""
+		for _, line := range lines {
+			if len(current)+len(line)+1 > maxLength {
+				if current != "" {
+					chunks = append(chunks, current)
+				}
+				// If a single line is still too long, hard split it
+				if len(line) > maxLength {
+					hardChunks := hardSplit(line, maxLength)
+					chunks = append(chunks, hardChunks[:len(hardChunks)-1]...)
+					current = hardChunks[len(hardChunks)-1]
+				} else {
+					current = line
+				}
+			} else {
+				if current == "" {
+					current = line
+				} else {
+					current += "\n" + line
+				}
+			}
+		}
+		if current != "" {
+			chunks = append(chunks, current)
+		}
+		return chunks
+	}
+
+	// Hard split if no newlines
+	return hardSplit(text, maxLength)
+}
+
+func hardSplit(text string, maxLength int) []string {
+	var chunks []string
+	for i := 0; i < len(text); i += maxLength {
+		end := i + maxLength
+		if end > len(text) {
+			end = len(text)
+		}
+		chunks = append(chunks, text[i:end])
+	}
+	return chunks
 }
 
 func init() {

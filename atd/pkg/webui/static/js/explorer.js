@@ -69,10 +69,13 @@ export function renderWaterfall(atomsData) {
 
     atoms.forEach(atom => {
         const health = classifyAtom(atom, atomMap);
-        if (health === 'done') {
+        // Customer atoms stay in their lane even if 'done' (ISS-087)
+        if (health === 'done' && atom.layer !== 'CUSTOMER') {
             foundationAtoms.push(atom);
         } else {
             activeAtoms.push(atom);
+            // Also keep them in foundation for the count/dots if they are done
+            if (health === 'done') foundationAtoms.push(atom);
         }
     });
 
@@ -146,6 +149,11 @@ function createAtomCard(atom, atomMap) {
     const card = document.createElement('div');
     card.className = `atom-card ${getHealthBorderClass(health)}`;
     card.dataset.atomId = atom.id;
+
+    // Special style for stable Customer atoms in the lane (ISS-087)
+    if (health === 'done' && atom.layer === 'CUSTOMER') {
+        card.classList.add('card-stable-lane');
+    }
 
     // Determine if vaporware (no impl linked)
     const isVaporware = !atom.linked_codes || atom.linked_codes.length === 0;
@@ -233,9 +241,10 @@ function highlightAtomPath(atom) {
     if (!waterfallContainer) return;
 
     if (!atom) {
-        // Clear all highlights
+        // Clear all highlights and reset order
         waterfallContainer.querySelectorAll('.atom-card').forEach(c => {
             c.classList.remove('card-selected', 'card-ancestor', 'card-descendant', 'card-highlighted', 'card-dimmed');
+            c.style.order = '';
         });
         return;
     }
@@ -276,18 +285,32 @@ function highlightAtomPath(atom) {
     walkDown(atom.id);
 
     // Apply highlights to cards only (connector lines disabled)
+    let selectedEl = null;
+
     waterfallContainer.querySelectorAll('.atom-card').forEach(c => {
         const id = c.dataset.atomId;
+        c.classList.remove('card-selected', 'card-ancestor', 'card-descendant', 'card-highlighted', 'card-dimmed');
+        c.style.order = ''; // Reset order
+
         if (id === atom.id) {
             c.classList.add('card-selected');
+            c.style.order = '-10'; // Move to top of lane (ISS-088)
+            selectedEl = c;
         } else if (ancestorIds.has(id)) {
             c.classList.add('card-ancestor');
+            c.style.order = '-5'; // Near top (ISS-088)
         } else if (descendantIds.has(id)) {
             c.classList.add('card-descendant');
+            c.style.order = '-1'; // Below ancestors (ISS-088)
         } else {
             c.classList.add('card-dimmed');
         }
     });
+
+    // Scroll selected atom into view (ISS-088)
+    if (selectedEl) {
+        selectedEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 }
 
 function renderFoundation(foundationAtoms) {

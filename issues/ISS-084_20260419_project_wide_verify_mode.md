@@ -4,7 +4,7 @@
 **Ref:** `ISS-084`
 **Date:** 2026-04-19
 **Severity:** Low
-**Status:** Open
+**Status:** Resolved
 **Component:** `atd/cmd/atd/cmd/verify.go`
 **Affects:** Project health visibility, initial onboarding audits
 
