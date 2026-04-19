@@ -7,12 +7,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
-	"sync"
 	"text/template"
 
 	"atd-tools/config"
+	"atd-tools/pkg/atom"
+	"atd-tools/pkg/exploration"
 	"github.com/spf13/cobra"
 )
 
@@ -36,8 +36,13 @@ Usecases:
 		}
 
 		outPath, _ := cmd.Flags().GetString("out")
+		full, _ := cmd.Flags().GetBool("full")
+		targetFile, _ := cmd.Flags().GetString("file")
+		targetLine, _ := cmd.Flags().GetInt("line")
 
-		text, err := runVerify(docsDir, args)
+		config.ActiveConfig.DocsDirOverride = docsDir
+
+		text, err := runVerify(docsDir, args, full, targetFile, targetLine)
 		if err != nil {
 			return err
 		}
@@ -55,242 +60,225 @@ Usecases:
 	},
 }
 
-func runVerify(docsDir string, args []string) (string, error) {
-	// 1. Get modified files from git
-	gitArgs := []string{"diff", "--name-only"}
-	targetRef := "" // Empty means we read from disk (working state)
-
-	if len(args) == 1 {
-		gitArgs = append(gitArgs, args[0])
-	} else if len(args) == 2 {
-		gitArgs = append(gitArgs, args[0], args[1])
-		targetRef = args[1]
+func runVerify(docsDir string, args []string, full bool, targetFile string, targetLine int) (string, error) {
+	// 1. Initialize Explorer and Graph
+	explorer := exploration.NewExplorer(config.ProjectRoot(), config.DocsDir())
+	if err := explorer.Load(false); err != nil {
+		return "", fmt.Errorf("failed to load ATD graph: %v", err)
 	}
 
-	gitCmd := exec.Command("git", gitArgs...)
-	var out bytes.Buffer
-	gitCmd.Stdout = &out
-	if err := gitCmd.Run(); err != nil {
-		return "", fmt.Errorf("error running git diff. Ensure you are in a git repository: %v", err)
+	var relevantLinks []exploration.SpecLink
+
+	if targetFile != "" {
+		// --- PATH A: Targeted Mode ---
+		for _, l := range explorer.SpecLinks {
+			if l.FilePath == targetFile {
+				if targetLine == 0 || l.Line == targetLine {
+					relevantLinks = append(relevantLinks, l)
+				}
+			}
+		}
+		if len(relevantLinks) == 0 {
+			return fmt.Sprintf("No @spec-link tags found in %s (at line %d)", targetFile, targetLine), nil
+		}
+	} else if full {
+		// --- PATH B: Full Project Mode ---
+		relevantLinks = explorer.SpecLinks
+		if len(relevantLinks) == 0 {
+			return "No @spec-link tags found in the entire project.", nil
+		}
+	} else {
+		// --- PATH C: Diff Mode (Default) ---
+		gitArgs := []string{"diff", "--name-only"}
+		targetRef := ""
+
+		if len(args) == 1 {
+			gitArgs = append(gitArgs, args[0])
+		} else if len(args) == 2 {
+			gitArgs = append(gitArgs, args[0], args[1])
+			targetRef = args[1]
+		}
+
+		gitCmd := exec.Command("git", gitArgs...)
+		var out bytes.Buffer
+		gitCmd.Stdout = &out
+		if err := gitCmd.Run(); err != nil {
+			return "", fmt.Errorf("error running git diff. Ensure you are in a git repository: %v", err)
+		}
+
+		modifiedFiles := strings.Split(strings.TrimSpace(out.String()), "\n")
+		modifiedMap := make(map[string]bool)
+		for _, f := range modifiedFiles {
+			if f != "" {
+				modifiedMap[f] = true
+			}
+		}
+
+		if len(modifiedMap) == 0 {
+			return "No differences found for the specified range.", nil
+		}
+
+		for _, l := range explorer.SpecLinks {
+			if modifiedMap[l.FilePath] {
+				relevantLinks = append(relevantLinks, l)
+			}
+		}
+
+		if len(relevantLinks) == 0 {
+			return "No @spec-link tags found in the modified files.", nil
+		}
+		_ = targetRef // Keep it for now if needed for content loading
 	}
 
-	modifiedFiles := strings.Split(strings.TrimSpace(out.String()), "\n")
-	if len(modifiedFiles) == 1 && modifiedFiles[0] == "" {
-		return "No differences found for the specified range.", nil
+	// 2. Statistics and Recap state
+	type auditResult struct {
+		Link            exploration.SpecLink
+		Atom            *atom.AtomData
+		Ancestry        []string
+		Snippet         string
+		Tests           []string
+		Status          string // PASSED, FAILED, WARNING
+		Finding         string
+		TestOutput      string
+		RuleCompliance  bool
+		TestCompliance  bool
 	}
 
-	// 2. Extract Atom Links and identify directories with changes
-	linkRegex := regexp.MustCompile(`@spec-link\s+\[\[(.*?)\]\]`)
-	atomIDs := make(map[string]bool)
-	changedDirs := make(map[string]bool)
-	fileContents := make(map[string]string)
+	results := make([]auditResult, 0)
+	stats := struct {
+		Total   int
+		Valid   int
+		Invalid int
+		Gaps    int
+	}{}
 
-	for _, file := range modifiedFiles {
-		if file == "" {
+	// 3. Iterative Instance Audits
+	for _, link := range relevantLinks {
+		stats.Total++
+
+		atom, exists := explorer.Graph.Atoms[link.AtomID]
+		if !exists {
 			continue
 		}
 
-		if strings.HasSuffix(file, ".atom.md") || strings.HasSuffix(file, ".md") {
-			// Atoms don't have tests to execute on them in the verify context
-			continue
-		}
+		// Ancestry
+		trace, _ := explorer.Trace(link.AtomID)
+		ancestry := trace.GraphSlice.Parents
 
-		var content []byte
-		var err error
-		if targetRef == "" {
-			content, err = os.ReadFile(file)
-		} else {
-			showCmd := exec.Command("git", "show", targetRef+":"+file)
-			content, err = showCmd.Output()
-		}
+		// Surgical Snippet
+		snippet, _ := getSnippet(link.FilePath, link.Line, 30)
 
-		if err != nil {
-			continue
-		}
-
-		fileContents[file] = string(content)
-		changedDirs[filepath.Dir(file)] = true
-
-		matches := linkRegex.FindAllStringSubmatch(string(content), -1)
-		for _, match := range matches {
-			if len(match) > 1 {
-				atomIDs[match[1]] = true
+		// Verification Proof (Surgical Test Links)
+		var relevantTests []string
+		for _, tl := range explorer.TestLinks {
+			if tl.AtomID == link.AtomID {
+				testContent, _ := os.ReadFile(tl.TestFile)
+				relevantTests = append(relevantTests, fmt.Sprintf("--- Test File: %s ---\n%s\n", tl.TestFile, string(testContent)))
 			}
 		}
-	}
 
-	if len(fileContents) == 0 {
-		return "No source code modifications detected in the given range.", nil
-	}
-
-	if len(atomIDs) == 0 {
-		return "No @spec-link tags found in the modified source files. Nothing to audit.", nil
-	}
-
-	// 3. Read the relevant Atoms
-	atomContents := make(map[string]string)
-	for atomID := range atomIDs {
-		atomPath := filepath.Join(docsDir, atomID+".atom.md")
-		content, err := os.ReadFile(atomPath)
-		if err == nil {
-			atomContents[atomID] = string(content)
-		} else {
-			atomContents[atomID] = fmt.Sprintf("[ERROR] Could not read ATD file for %s", atomID)
+		if len(relevantTests) == 0 {
+			stats.Gaps++
 		}
+
+		// Native Test Run (Whole directory still, for environmental stability)
+		dir := filepath.Dir(link.FilePath)
+		ext := filepath.Ext(link.FilePath)
+		cmdTpl, _ := config.GetVerifyDefaults(ext)
+		testOut, _ := executeTestCommand(cmdTpl, dir, link.FilePath)
+
+		results = append(results, auditResult{
+			Link:     link,
+			Atom:     atom,
+			Ancestry: ancestry,
+			Snippet:  snippet,
+			Tests:    relevantTests,
+			TestOutput: testOut,
+		})
 	}
 
-	// 4. Resolve Verify Command and Test Pattern
-	dominantExt := ""
-	extCounts := make(map[string]int)
-	for file := range fileContents {
-		ext := filepath.Ext(file)
-		if ext != "" {
-			extCounts[ext]++
-			if dominantExt == "" || extCounts[ext] > extCounts[dominantExt] {
-				dominantExt = ext
-			}
-		}
-	}
-
-	cmdTpl, patternTpl := config.GetVerifyDefaults(dominantExt)
-	if config.ActiveConfig.Verify.Command != "" {
-		cmdTpl = config.ActiveConfig.Verify.Command
-	}
-	if config.ActiveConfig.Verify.TestPattern != "" {
-		patternTpl = config.ActiveConfig.Verify.TestPattern
-	}
-
-	if cmdTpl == "" {
-		return "", fmt.Errorf("no verify command found for extension %s and no override in .atd config", dominantExt)
-	}
-
-	patterns := strings.Split(patternTpl, ",")
-	for i := range patterns {
-		patterns[i] = strings.TrimSpace(patterns[i])
-	}
-
-	// 5. Run native tests for the changed directories (Concurrency Limited)
-	maxParallel := config.ActiveConfig.Verify.MaxParallelism
-	if maxParallel <= 0 {
-		maxParallel = 1
-	}
-
-	type result struct {
-		dir    string
-		output string
-		status string
-		files  string
-	}
-
-	numDirs := len(changedDirs)
-	resChan := make(chan result, numDirs)
-	dirChan := make(chan string, numDirs)
-	var wg sync.WaitGroup
-
-	for w := 0; w < maxParallel; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for dir := range dirChan {
-				var firstFile string
-				for f := range fileContents {
-					if filepath.Dir(f) == dir {
-						firstFile = f
-						break
-					}
-				}
-
-				res, err := executeTestCommand(cmdTpl, dir, firstFile)
-				status := "PASSED"
-				if err != nil {
-					status = "FAILED"
-				}
-
-				// Discover test files
-				testFilesContent := ""
-				files, _ := os.ReadDir(dir)
-				for _, f := range files {
-					if f.IsDir() {
-						continue
-					}
-					matched := false
-					for _, p := range patterns {
-						if ok, _ := filepath.Match(p, f.Name()); ok {
-							matched = true
-							break
-						}
-					}
-
-					if matched {
-						testPath := filepath.Join(dir, f.Name())
-						var tc []byte
-						if targetRef == "" {
-							tc, _ = os.ReadFile(testPath)
-						} else {
-							showCmd := exec.Command("git", "show", targetRef+":"+testPath)
-							tc, _ = showCmd.Output()
-						}
-						testFilesContent += fmt.Sprintf("--- Test File: %s ---\n%s\n\n", testPath, string(tc))
-					}
-				}
-
-				resChan <- result{
-					dir:    dir,
-					output: res,
-					status: status,
-					files:  testFilesContent,
-				}
-			}
-		}()
-	}
-
-	for dir := range changedDirs {
-		dirChan <- dir
-	}
-	close(dirChan)
-	wg.Wait()
-	close(resChan)
-
-	testResults := ""
-	testFilesContent := ""
-	for r := range resChan {
-		testResults += fmt.Sprintf("=== Test Execution for %s ===\nStatus: %s\nOutput:\n%s\n\n", r.dir, r.status, r.output)
-		testFilesContent += r.files
-	}
-
-	// 5. Generate LLM Prompt (Return string)
+	// 4. Assemble the Final Recap & Multi-Prompt
 	var b strings.Builder
+	b.WriteString("# ATD Verification Recap\n\n")
+
+	b.WriteString("## Statistics\n")
+	b.WriteString(fmt.Sprintf("- **Total Implementation Links Found:** %d\n", stats.Total))
+	b.WriteString("- **Status:** PENDING LLM AUDIT\n\n")
+
+	b.WriteString("## Actionable Prompt\n")
+	b.WriteString("Copy the content below into your LLM to perform the granular compliance audit.\n\n")
+	b.WriteString("--- BUNDLE START ---\n")
 	b.WriteString("<System Objective>\n")
-	b.WriteString("You are the ATD Lead Auditor. A developer is submitting a patch. You must evaluate the modified code and its test coverage against the strict rules defined in the Atomic Traceable Documentation (ATD).\n")
-	b.WriteString("Output a markdown report including a CLEAR TABLE summarizing:\n")
-	b.WriteString("| Atom ID | Rule Compliant? | Test Coverage Compliant? | Notes |\n")
-	b.WriteString("Ensure you explicitly check if the test files cover all constraints mentioned in the ATD expectations.\n")
+	b.WriteString("You are the ATD Lead Auditor. You must perform a granular, instance-based compliance check for each provided @spec-link.\n")
+	b.WriteString("For each instance, analyze the snippet against the rule and its ancestry (requirements context). Check if the provided tests adequately verify the logic.\n\n")
+	b.WriteString("### IMPORTANT: OUTPUT FORMAT\n")
+	b.WriteString("You MUST respond with a JSON array of objects, one per instance, following this schema exactly:\n")
+	b.WriteString("```json\n")
+	b.WriteString("[\n  {\n    \"tag\": \"file:line\",\n    \"atom_id\": \"string\",\n    \"rule_compliant\": boolean,\n    \"test_compliant\": boolean,\n    \"findings\": \"string\",\n    \"fix_suggestion\": \"string\"\n  }\n]\n")
+	b.WriteString("```\n")
 	b.WriteString("</System Objective>\n\n")
 
-	b.WriteString("<ATD Specifications (The Rules)>\n")
-	for id, content := range atomContents {
-		b.WriteString(fmt.Sprintf("--- ATOM: %s ---\n%s\n\n", id, content))
+	for i, res := range results {
+		b.WriteString(fmt.Sprintf("## INSTANCE %d: %s:%d\n", i+1, res.Link.FilePath, res.Link.Line))
+		b.WriteString(fmt.Sprintf("### ATOM: %s\n", res.Link.AtomID))
+		b.WriteString(fmt.Sprintf("**Ancestry Context:** %s\n\n", strings.Join(res.Ancestry, " -> ")))
+		
+		b.WriteString("#### THE RULE\n")
+		b.WriteString(fmt.Sprintf("Intent: %s\nLogic:\n%s\n\n", res.Atom.Intent, res.Atom.Logic))
+
+		b.WriteString("#### THE CODE (SURGICAL SNIPPET)\n")
+		b.WriteString("```\n")
+		b.WriteString(res.Snippet)
+		b.WriteString("\n```\n\n")
+
+		b.WriteString("#### THE VERIFICATION PROOF (TESTS)\n")
+		if len(res.Tests) > 0 {
+			for _, t := range res.Tests {
+				b.WriteString(t)
+			}
+		} else {
+			b.WriteString("[WARNING] No @test-link found for this atom in the project.\n")
+		}
+
+		b.WriteString("\n#### NATIVE TEST EXECUTION\n")
+		b.WriteString("```\n")
+		b.WriteString(res.TestOutput)
+		b.WriteString("\n```\n\n")
+		b.WriteString("---\n\n")
 	}
-	b.WriteString("</ATD Specifications>\n\n")
-
-	b.WriteString("<Modified Source Code (The Implementation)>\n")
-	for file, content := range fileContents {
-		b.WriteString(fmt.Sprintf("--- File: %s ---\n%s\n\n", file, content))
-	}
-	b.WriteString("</Modified Source Code>\n\n")
-
-	b.WriteString("<Test Files (The Verification Specs)>\n")
-	b.WriteString(testFilesContent)
-	b.WriteString("</Test Files>\n\n")
-
-	b.WriteString("<Native Test Execution Results (The Proof)>\n")
-	b.WriteString(testResults)
-	b.WriteString("</Native Test Execution Results>\n")
 
 	return b.String(), nil
 }
 
+func getSnippet(path string, line int, context int) (string, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	lines := strings.Split(string(content), "\n")
+	start := line - context
+	if start < 0 {
+		start = 0
+	}
+	end := line + context
+	if end > len(lines) {
+		end = len(lines)
+	}
+	return strings.Join(lines[start:end], "\n"), nil
+}
+
 func executeTestCommand(tpl, dir, file string) (string, error) {
+	absDir, _ := filepath.Abs(dir)
+	absFile, _ := filepath.Abs(file)
+	modRoot := findGoModRoot(absDir)
+
+	relDir := dir
+	relFile := file
+	if modRoot != "" {
+		relDir, _ = filepath.Rel(modRoot, absDir)
+		relFile, _ = filepath.Rel(modRoot, absFile)
+	}
+
 	t, err := template.New("cmd").Parse(tpl)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse command template: %v", err)
@@ -301,8 +289,8 @@ func executeTestCommand(tpl, dir, file string) (string, error) {
 		Dir  string
 		File string
 	}{
-		Dir:  dir,
-		File: file,
+		Dir:  relDir,
+		File: relFile,
 	}
 
 	if err := t.Execute(&buf, data); err != nil {
@@ -316,6 +304,10 @@ func executeTestCommand(tpl, dir, file string) (string, error) {
 	}
 
 	cmd := exec.Command(parts[0], parts[1:]...)
+	if modRoot != "" {
+		cmd.Dir = modRoot
+	}
+
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
@@ -323,9 +315,27 @@ func executeTestCommand(tpl, dir, file string) (string, error) {
 	return out.String(), err
 }
 
+func findGoModRoot(dir string) string {
+	current := dir
+	for {
+		if _, err := os.Stat(filepath.Join(current, "go.mod")); err == nil {
+			return current
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+	return ""
+}
+
 func init() {
 	rootCmd.AddCommand(verifyCmd)
 	verifyCmd.Flags().String("docs", "", "Override docs directory")
 	verifyCmd.Flags().String("out", "", "Write the audit report to a file")
+	verifyCmd.Flags().Bool("full", false, "Perform audit on the entire project instead of diff-based")
+	verifyCmd.Flags().String("file", "", "Target a specific file for verification")
+	verifyCmd.Flags().Int("line", 0, "Target a specific line for verification (requires --file)")
 }
 

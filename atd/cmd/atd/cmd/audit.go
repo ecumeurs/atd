@@ -24,17 +24,8 @@ var auditCmd = &cobra.Command{
 	Long: `Audit performs structural and semantic analysis of ATD atoms.
 
 Phase 1 (Bloat Detection): Uses LLM to identify atoms containing compound rules.
-Phase 2 (Collision Detection): Uses embeddings to find semantic overlaps between atoms.
-
-Can also be used in Code Compliance Mode via --code and --atom flags.`,
+Phase 2 (Collision Detection): Uses embeddings to find semantic overlaps between atoms.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		codePath, _ := cmd.Flags().GetString("code")
-		atomReqPath, _ := cmd.Flags().GetString("atom")
-
-		if codePath != "" && atomReqPath != "" {
-			return runCodeAudit(codePath, atomReqPath)
-		}
-
 		threshold, _ := cmd.Flags().GetFloat64("threshold")
 		docsDir, _ := cmd.Flags().GetString("docs")
 
@@ -51,42 +42,6 @@ Can also be used in Code Compliance Mode via --code and --atom flags.`,
 
 		return runFullAudit(docsDir, threshold)
 	},
-}
-
-func runCodeAudit(codePath, atomPath string) error {
-	codeContent, err := os.ReadFile(codePath)
-	if err != nil {
-		return fmt.Errorf("failed to read code file: %v", err)
-	}
-
-	atomData, err := atom.Parse(atomPath)
-	if err != nil {
-		return fmt.Errorf("failed to parse atom: %v", err)
-	}
-
-	// Build atom content string for prompt
-	atomBody := fmt.Sprintf("## INTENT\n%s\n\n## THE RULE / LOGIC\n%s", atomData.Intent, atomData.Logic)
-	requestPrompt := prompt.AuditCodeBuild(atomBody, string(codeContent))
-
-	resp, err := ollama.Query("audit_code", requestPrompt, prompt.AuditCodeFormat())
-	if err == ollama.ErrIDEFallback {
-		taskList, _ := pipeline.WriteTaskList("audit --code", []pipeline.PendingTask{
-			{
-				PromptFile:   atomPath,
-				ResultFile:   "code_audit.result",
-				Instruction:  "verify code compliance against rule",
-				OutputSchema: `{"passed": boolean, "resolutionMessage": string}`,
-			},
-		})
-		fmt.Printf("Task delegated to IDE Agent: %s\n", taskList)
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("ollama query failed: %v", err)
-	}
-
-	fmt.Println(resp.Response)
-	return nil
 }
 
 type atomAuditMeta struct {

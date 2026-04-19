@@ -42,6 +42,7 @@ type Config struct {
 
 	// Internal tracking
 	loadedFromDir string
+	DocsDirOverride string
 }
 
 // Legacy types for backward compatibility
@@ -341,10 +342,21 @@ func DocsDirLegacy() string {
 			p = "docs/"
 		}
 	}
+	if ActiveConfig.DocsDirOverride != "" {
+		return ActiveConfig.DocsDirOverride
+	}
 	if !filepath.IsAbs(p) {
 		return filepath.Join(ActiveConfig.loadedFromDir, p)
 	}
 	return p
+}
+
+func SrcDir() string {
+	paths := GetCodePaths()
+	if len(paths) > 0 {
+		return paths[0]
+	}
+	return ActiveConfig.loadedFromDir
 }
 
 // ModelForTask returns model names assigned to a given task type,

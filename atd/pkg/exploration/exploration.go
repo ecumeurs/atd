@@ -18,6 +18,7 @@ type Explorer struct {
 	ProjectRoot string
 	DocsDir     string
 	Graph       *DependencyGraph
+	SpecLinks   []SpecLink
 	TestLinks   []TestLink
 }
 
@@ -41,6 +42,7 @@ func (e *Explorer) Load(force bool) error {
 	}
 
 	e.Graph = &DependencyGraph{Atoms: make(map[string]*atom.AtomData)}
+	e.SpecLinks = []SpecLink{}
 	e.TestLinks = []TestLink{}
 
 	files, err := e.ListFiles()
@@ -92,42 +94,32 @@ func (e *Explorer) Load(force bool) error {
 		}
 
 		contentStr := string(content)
-		lines := strings.Split(contentStr, "\n")
 
 		// Spec Links
-		specMatches := specLinkRegex.FindAllStringSubmatch(contentStr, -1)
-		for _, match := range specMatches {
-			if len(match) > 1 {
-				atomID := match[1]
+		specIndices := specLinkRegex.FindAllStringSubmatchIndex(contentStr, -1)
+		for _, idx := range specIndices {
+			if len(idx) >= 4 {
+				atomID := contentStr[idx[2]:idx[3]]
 				if node, exists := e.Graph.Atoms[atomID]; exists {
-					// Find line number for the match
-					lineNum := 1
-					for i, line := range lines {
-						if strings.Contains(line, match[0]) {
-							lineNum = i + 1
-							break
-						}
-					}
+					// Count newlines before the match to get the correct line number
+					lineNum := strings.Count(contentStr[:idx[0]], "\n") + 1
 					location := fmt.Sprintf("%s:%d", relPath, lineNum)
 					node.Implementations = append(node.Implementations, location)
+					e.SpecLinks = append(e.SpecLinks, SpecLink{
+						AtomID:   atomID,
+						FilePath: relPath,
+						Line:     lineNum,
+					})
 				}
 			}
 		}
 
 		// Test Links
-		testMatches := testLinkRegex.FindAllStringSubmatch(contentStr, -1)
-		for _, match := range testMatches {
-			if len(match) > 1 {
-				atomID := match[1]
-				
-				// Find line number
-				lineNum := 1
-				for i, line := range lines {
-					if strings.Contains(line, match[0]) {
-						lineNum = i + 1
-						break
-					}
-				}
+		testIndices := testLinkRegex.FindAllStringSubmatchIndex(contentStr, -1)
+		for _, idx := range testIndices {
+			if len(idx) >= 4 {
+				atomID := contentStr[idx[2]:idx[3]]
+				lineNum := strings.Count(contentStr[:idx[0]], "\n") + 1
 
 				e.TestLinks = append(e.TestLinks, TestLink{
 					AtomID:   atomID,
@@ -448,6 +440,12 @@ func (e *Explorer) Query(field, search string) []*atom.AtomData {
 
 type DependencyGraph struct {
 	Atoms map[string]*atom.AtomData `json:"atoms"`
+}
+
+type SpecLink struct {
+	AtomID   string `json:"atom_id"`
+	FilePath string `json:"file_path"`
+	Line     int    `json:"line"`
 }
 
 type TestLink struct {

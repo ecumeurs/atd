@@ -222,11 +222,22 @@ Supports auditing uncommitted changes (default), evolution from a base, or betwe
 			"properties": map[string]any{
 				"base":   map[string]any{"type": "string", "description": "Optional: base commit/ref to compare from (e.g. 'HEAD~5')."},
 				"target": map[string]any{"type": "string", "description": "Optional: target commit/ref to compare to (defaults to working tree)."},
+				"full":   map[string]any{"type": "boolean", "description": "Optional: audit the entire project."},
+				"file":   map[string]any{"type": "string", "description": "Optional: target a specific file for verification."},
+				"line":   map[string]any{"type": "integer", "description": "Optional: target a specific line for verification (requires 'file')."},
 			},
 		},
 	}, func(args map[string]any) (string, error) {
 		base := argString(args, "base", "")
 		target := argString(args, "target", "")
+		full := argBool(args, "full")
+		file := argString(args, "file", "")
+		lineRaw, _ := args["line"]
+		line := 0
+		if f, ok := lineRaw.(float64); ok {
+			line = int(f)
+		}
+
 		verifyArgs := []string{}
 		if base != "" {
 			verifyArgs = append(verifyArgs, base)
@@ -234,7 +245,7 @@ Supports auditing uncommitted changes (default), evolution from a base, or betwe
 		if target != "" {
 			verifyArgs = append(verifyArgs, target)
 		}
-		return runVerify(config.DocsDir(), verifyArgs)
+		return runVerify(config.DocsDir(), verifyArgs, full, file, line)
 	})
 
 	// @spec-link [[api_atd_serve_assemble]]
@@ -383,27 +394,16 @@ Use during PLAN stage to find related code or atoms by meaning, or to locate imp
 		Name: "atd_audit",
 		Description: `Audit ATD atoms for documentation quality issues.
 Default mode: detect bloated atoms and semantic collisions (duplicate/overlapping atoms) across the entire docs directory.
-Compliance mode (provide both atom + code): validate whether a specific code file conforms to a specific atom's specification.
-Use during VERIFY stage after creating new atoms to check for overlap, or to validate code-spec alignment.`,
+Use during PLAN stage after creating new atoms to check for overlap.`,
 		InputSchema: map[string]any{
 			"type": "object",
-			"properties": map[string]any{
-				"code": map[string]any{"type": "string", "description": "Path to code file for compliance mode. Must be provided together with 'atom'."},
-				"atom": map[string]any{"type": "string", "description": "Path to atom file for compliance mode. Must be provided together with 'code'."},
-			},
+			"properties": map[string]any{},
 		},
 	}, func(args map[string]any) (string, error) {
 		docs := config.DocsDir()
-		code := argString(args, "code", "")
-		atom := argString(args, "atom", "")
 		threshold := config.ActiveConfig.DiffSimilarityThreshold
 		if threshold <= 0 {
 			threshold = 0.85
-		}
-		if code != "" && atom != "" {
-			return captureStdout(func() error {
-				return runCodeAudit(code, atom)
-			})
 		}
 		return captureStdout(func() error {
 			return runFullAudit(docs, threshold)

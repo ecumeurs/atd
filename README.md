@@ -84,6 +84,10 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
+| [WebUI Search and Document Generation Regression](issues/ISS-089_20260419_webui_search_docgen_regression.md) | 2026-04-19 | Open | High | Critical functionality in the WebUI has regressed: 1. The **Command Palette (... |
+| [WebUI Explorer - Improved Visibility for Related Atoms on Selection](issues/ISS-088_20260419_webui_selection_visibility.md) | 2026-04-19 | Open | Medium | When an ATD is clicked in the Explorer view, it, its ancestors, and its desce... |
+| [WebUI Foundation Zone - Implemented Customer Atoms Missing from Column](issues/ISS-087_20260419_webui_foundation_customer_missing.md) | 2026-04-19 | Open | Medium | In the WebUI Explorer, when a Customer Layer ATD is fully implemented, it cor... |
+| [ATD Index Stale Entries and Chunking Failures](issues/ISS-086_20260419_atd_index_stale_entries.md) | 2026-04-19 | Open | Medium | The ATD embedding index (`.atd_index.db`) suffers from two major issues: 1. I... |
 | [Decouple Code Compliance from Audit Service](issues/ISS-085_20260419_decouple_audit_code_compliance.md) | 2026-04-19 | Open | Low | The `atd audit` command currently contains a "Code Compliance Mode" (via `--c... |
 | [Project-Wide Verification Mode for ATD](issues/ISS-084_20260419_project_wide_verify_mode.md) | 2026-04-19 | Open | Low | The current `atd verify` command is strictly diff-based (uncommitted changes ... |
 | [Granular Instance-Based Verification with JSON Prompting](issues/ISS-083_20260419_granular_verify_json_recap.md) | 2026-04-19 | Open | Medium | The current `atd verify` command produces a single, large "Document Bundle" p... |

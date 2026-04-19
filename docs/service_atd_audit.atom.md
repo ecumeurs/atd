@@ -20,15 +20,15 @@ layer: IMPLEMENTATION
 To systematically assess the structural integrity of the ATD ecosystem — detecting bloated atoms, semantic collisions, and missing abstractions — and optionally verifying code compliance against ATD rules.
 
 ## THE RULE / LOGIC
-Operates in two modes:
+Operates in two modes focusing on internal ATD health:
 
-**Default mode (Bloat + Collision):**
-Phase 1 feeds each atom's INTENT and LOGIC sections to the LLM (task `audit_bloat`) for a binary YES/NO bloat assessment. Phase 2 computes Nomic embeddings for all atoms, builds a pairwise cosine similarity matrix, and for pairs exceeding `diff_similarity_threshold`, performs an ancestry BFS walk to determine if they share a parent (SOUND) or represent a missing abstraction (COLLISION).
+**Mode 1 (Bloat Detection):**
+Feeds each atom's INTENT and LOGIC sections to the LLM (task `audit_bloat`) for a binary YES/NO bloat assessment based on the atom type's strictness.
 
-**Code mode (`--code` flag):**
-Feeds an atom rule and a code snippet to the LLM (task `audit_code`) for a JSON pass/fail compliance verdict.
+**Mode 2 (Collision Detection):**
+Computes Nomic embeddings for all atoms and builds a pairwise cosine similarity matrix. For pairs exceeding the threshold, performs an ancestry BFS walk to determine if they represent a COLLISION (missing abstraction) or are structurally related.
 
-Results are cached in SQLite keyed by file mtime to avoid redundant LLM queries.
+Code-level compliance is handled by the [[service_atd_verify]] tool.
 
 ## TECHNICAL INTERFACE (The Bridge)
 - **Command:** `atd audit [--code <snippet> --atom <path>] [--threshold <float>]`

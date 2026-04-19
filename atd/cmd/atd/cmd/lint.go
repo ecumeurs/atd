@@ -8,6 +8,7 @@ import (
 
 	"atd-tools/config"
 	"atd-tools/pkg/atom"
+	"atd-tools/pkg/exploration"
 	"github.com/spf13/cobra"
 )
 
@@ -59,6 +60,8 @@ func runLint(dir string) (string, error) {
 	}
 
 	var errors []string
+	explorer := exploration.NewExplorer(config.ProjectRoot(), config.DocsDir())
+	_ = explorer.Load(false)
 
 	for _, a := range atoms {
 		var atomErrors []string
@@ -119,6 +122,26 @@ func runLint(dir string) (string, error) {
 			if !knownAtoms[strings.TrimSpace(p)] {
 				atomErrors = append(atomErrors, fmt.Sprintf("Unresolved dependent link: [[%s]]", p))
 			}
+		}
+
+		// Traceability (Missing Proof)
+		hasImplementation := false
+		for _, sl := range explorer.SpecLinks {
+			if sl.AtomID == a.ID {
+				hasImplementation = true
+				break
+			}
+		}
+		hasTest := false
+		for _, tl := range explorer.TestLinks {
+			if tl.AtomID == a.ID {
+				hasTest = true
+				break
+			}
+		}
+
+		if hasImplementation && !hasTest && a.Layer == "IMPLEMENTATION" {
+			atomErrors = append(atomErrors, "Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)")
 		}
 
 		if len(atomErrors) > 0 {

@@ -18,7 +18,11 @@ layer: IMPLEMENTATION
 To audit modified files against their linked ATD specifications by combining git diff analysis, native test execution, and LLM-powered compliance verification.
 
 ## THE RULE / LOGIC
-Runs `git diff --name-only` to find modified files, extracts `@spec-link` tags from each, reads the corresponding atoms from docs, discovers and runs test files in changed directories (via `go test`), and assembles a comprehensive audit prompt with: ATD specifications, modified source code, test files, and test execution results. Outputs the prompt to stdout for IDE Agent processing.
+Iterates through every @spec-link instance in modified files (or full project via --full). For each instance, it assembles a surgical context containing the atom logic, its full parent ancestry, a code snippet around the tag, and any associated @test-link verification proof. It executes native tests for stability and generates a bundled JSON-structured audit prompt for individual compliance assessment.
+
+Flags:
+- --full: Audit the entire project.
+- --file/--line: Target specific tags.
 
 ## TECHNICAL INTERFACE (The Bridge)
 - **Command:** `atd verify`
