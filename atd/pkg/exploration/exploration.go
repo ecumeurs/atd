@@ -48,8 +48,9 @@ func (e *Explorer) Load(force bool) error {
 		return err
 	}
 
-	specLinkRegex := regexp.MustCompile(`@spec-link\s+\[?\[?([^\]\s]+)\]?\]?`)
-	testLinkRegex := regexp.MustCompile(`@test-link\s+\[?\[?([^\]\s]+)\]?\]?`)
+	// Support [[id]], [id], or id formats
+	specLinkRegex := regexp.MustCompile(`@spec-link\s+\[?\[?([a-zA-Z0-9_\-\.]+)\]?\]?`)
+	testLinkRegex := regexp.MustCompile(`@test-link\s+\[?\[?([a-zA-Z0-9_\-\.]+)\]?\]?`)
 
 	// 1. Process Atoms
 	for _, relPath := range files {
@@ -90,33 +91,51 @@ func (e *Explorer) Load(force bool) error {
 			continue
 		}
 
-		lines := strings.Split(string(content), "\n")
-		for i, line := range lines {
-			// Spec Links
-			specMatches := specLinkRegex.FindAllStringSubmatch(line, -1)
-			for _, match := range specMatches {
-				if len(match) > 1 {
-					atomID := match[1]
-					if node, exists := e.Graph.Atoms[atomID]; exists {
-						location := fmt.Sprintf("%s:%d", relPath, i+1)
-						node.Implementations = append(node.Implementations, location)
+		contentStr := string(content)
+		lines := strings.Split(contentStr, "\n")
+
+		// Spec Links
+		specMatches := specLinkRegex.FindAllStringSubmatch(contentStr, -1)
+		for _, match := range specMatches {
+			if len(match) > 1 {
+				atomID := match[1]
+				if node, exists := e.Graph.Atoms[atomID]; exists {
+					// Find line number for the match
+					lineNum := 1
+					for i, line := range lines {
+						if strings.Contains(line, match[0]) {
+							lineNum = i + 1
+							break
+						}
 					}
+					location := fmt.Sprintf("%s:%d", relPath, lineNum)
+					node.Implementations = append(node.Implementations, location)
 				}
 			}
+		}
 
-			// Test Links
-			testMatches := testLinkRegex.FindAllStringSubmatch(line, -1)
-			for _, match := range testMatches {
-				if len(match) > 1 {
-					atomID := match[1]
-					e.TestLinks = append(e.TestLinks, TestLink{
-						AtomID:   atomID,
-						TestFile: relPath,
-						Line:     i + 1,
-					})
-					if node, exists := e.Graph.Atoms[atomID]; exists {
-						node.HasTests = true
+		// Test Links
+		testMatches := testLinkRegex.FindAllStringSubmatch(contentStr, -1)
+		for _, match := range testMatches {
+			if len(match) > 1 {
+				atomID := match[1]
+				
+				// Find line number
+				lineNum := 1
+				for i, line := range lines {
+					if strings.Contains(line, match[0]) {
+						lineNum = i + 1
+						break
 					}
+				}
+
+				e.TestLinks = append(e.TestLinks, TestLink{
+					AtomID:   atomID,
+					TestFile: relPath,
+					Line:     lineNum,
+				})
+				if node, exists := e.Graph.Atoms[atomID]; exists {
+					node.HasTests = true
 				}
 			}
 		}

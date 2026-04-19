@@ -11,12 +11,15 @@ import (
 )
 
 type StatsReport struct {
-	TotalAtoms    int            `json:"total_atoms"`
-	ByType        map[string]int `json:"by_type"`
-	ByStatus      map[string]int `json:"by_status"`
-	ByLayer       map[string]int `json:"by_layer"`
-	CoverageRatio float64        `json:"coverage_ratio"`
-	OrphanCount   int            `json:"orphan_count"`
+	TotalAtoms             int            `json:"total_atoms"`
+	ByType                 map[string]int `json:"by_type"`
+	ByStatus               map[string]int `json:"by_status"`
+	ByLayer                map[string]int `json:"by_layer"`
+	CoverageRatio          float64        `json:"coverage_ratio"`
+	CandidateCoverageRatio float64        `json:"candidate_coverage_ratio"`
+	OrphanCount            int            `json:"orphan_count"`
+	ImplementedStableCount int            `json:"implemented_stable_count"`
+	ImplementedTotalCount  int            `json:"implemented_total_count"`
 }
 
 var statsCmd = &cobra.Command{
@@ -56,7 +59,7 @@ func runStats(srcPath, docsDir string) (string, error) {
 	}
 
 	var stableCount int
-	var implementedCount int
+	var candidateCount int
 
 	for _, node := range graph.Atoms {
 		report.ByType[node.Type]++
@@ -68,18 +71,37 @@ func runStats(srcPath, docsDir string) (string, error) {
 			report.ByLayer["<unspecified>"]++
 		}
 
+		isImplemented := len(node.Implementations) > 0
+		if isImplemented {
+			report.ImplementedTotalCount++
+		}
+
 		if node.Status == "STABLE" {
 			stableCount++
-			if len(node.Implementations) == 0 {
-				report.OrphanCount++
+			if isImplemented {
+				report.ImplementedStableCount++
 			} else {
-				implementedCount++
+				report.OrphanCount++
 			}
+		}
+		
+		if node.Status == "STABLE" || node.Status == "REVIEW" {
+			candidateCount++
 		}
 	}
 
 	if stableCount > 0 {
-		report.CoverageRatio = float64(implementedCount) / float64(stableCount)
+		report.CoverageRatio = float64(report.ImplementedStableCount) / float64(stableCount)
+	}
+	
+	if candidateCount > 0 {
+		implementedCandidate := 0
+		for _, node := range graph.Atoms {
+			if (node.Status == "STABLE" || node.Status == "REVIEW") && len(node.Implementations) > 0 {
+				implementedCandidate++
+			}
+		}
+		report.CandidateCoverageRatio = float64(implementedCandidate) / float64(candidateCount)
 	}
 
 	out, err := json.MarshalIndent(report, "", "  ")
