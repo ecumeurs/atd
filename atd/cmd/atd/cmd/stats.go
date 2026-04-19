@@ -78,10 +78,10 @@ func runStats(srcPath, docsDir string) (string, error) {
 
 		if node.Status == "STABLE" {
 			stableCount++
-			if isImplemented {
-				report.ImplementedStableCount++
-			} else {
+			if explorer.IsOrphan(node) {
 				report.OrphanCount++
+			} else {
+				report.ImplementedStableCount++
 			}
 		}
 		

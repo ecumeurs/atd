@@ -53,7 +53,7 @@ func runCrawl(srcPath, docsDir string, gaps bool) (string, error) {
 			OrphanedAtoms: []string{},
 		}
 		for id, node := range graph.Atoms {
-			if node.Status == "STABLE" && len(node.Implementations) == 0 {
+			if explorer.IsOrphan(node) {
 				report.OrphanedAtoms = append(report.OrphanedAtoms, id)
 			}
 		}

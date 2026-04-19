@@ -69,6 +69,7 @@ func RegisterMCPTools(r *mcp.Registry) {
 
 	// ── Deterministic Tools (no LLM, fast, token-free) ───────────────────
 
+	// @spec-link [[api_atd_serve_query]]
 	r.Register(mcp.Tool{
 		Name: "atd_query",
 		Description: `Search ATD atoms by frontmatter field value (e.g. type, status, id, layer, tags).
@@ -90,6 +91,7 @@ Returns a JSON array of matching atoms with full frontmatter.`,
 		return runQuery(field, search, pathsOnly)
 	})
 
+	// @spec-link [[api_atd_serve_crawl]]
 	r.Register(mcp.Tool{
 		Name: "atd_crawl",
 		Description: `Build a dependency graph of ATD atoms and their @spec-link connections to source code.
@@ -106,6 +108,7 @@ Set gaps=true during VERIFY stage to find STABLE atoms with no code implementati
 		return runCrawl(".", config.DocsDir(), gaps)
 	})
 
+	// @spec-link [[api_atd_serve_weave]]
 	r.Register(mcp.Tool{
 		Name: "atd_weave",
 		Description: `Synchronize the bidirectional atom graph by populating dependents[] from parents[] references.
@@ -120,6 +123,7 @@ This is mandatory after any atom creation to keep the dependency graph consisten
 		return explorer.Weave()
 	})
 
+	// @spec-link [[api_atd_serve_update]]
 	r.Register(mcp.Tool{
 		Name: "atd_update",
 		Description: `Surgically modify ATD atom files — the ONLY correct way to edit .atom.md files.
@@ -175,6 +179,7 @@ NEVER rewrite an entire .atom.md file manually — always use this tool.`,
 		return runUpdate(file, setPairs, intent, logic, iface, expectation, specLink, specFile)
 	})
 
+	// @spec-link [[api_atd_serve_roadmap]]
 	r.Register(mcp.Tool{
 		Name: "atd_roadmap",
 		Description: `Scan a source directory and produce a complexity map ranking files by density (lines, cyclomatic complexity, function count).
@@ -206,6 +211,7 @@ Use during VERIFY stage to assess overall documentation quality, or in CI to gen
 		return runStats(".", config.DocsDir())
 	})
 
+	// @spec-link [[api_atd_serve_verify]]
 	r.Register(mcp.Tool{
 		Name: "atd_verify",
 		Description: `Run git diff, extract impacted @spec-link tags, and produce a structured audit prompt.
@@ -231,6 +237,7 @@ Supports auditing uncommitted changes (default), evolution from a base, or betwe
 		return runVerify(config.DocsDir(), verifyArgs)
 	})
 
+	// @spec-link [[api_atd_serve_assemble]]
 	r.Register(mcp.Tool{
 		Name: "atd_assemble",
 		Description: `Stitch atoms together into a cohesive document by walking the dependency graph from root atoms.
@@ -279,6 +286,7 @@ Supports structured layer-by-layer summarization by the LLM by passing structure
 		return runTrace(atomID, config.DocsDir(), ".")
 	})
 
+	// @spec-link [[api_atd_serve_test_links]]
 	r.Register(mcp.Tool{
 		Name: "atd_test_links",
 		Description: `Audit @test-link [[ATOM_ID]] tags in source code to map atoms to their verification tests.
@@ -296,6 +304,7 @@ Use during VERIFY stage to confirm test coverage per atom, or before modifying a
 
 	// ── LLM-Backed Tools (require Ollama or IDE Agent fallback) ──────────
 
+	// @spec-link [[api_atd_serve_dissect]]
 	r.Register(mcp.Tool{
 		Name: "atd_dissect",
 		Description: `Dissect a source code or documentation file into proposed atomic boundaries (IDs, types, line ranges).
@@ -313,6 +322,7 @@ The tool uses the LLM provider configured in .atd; if no provider is available, 
 		return runDissect(file, true)
 	})
 
+	// @spec-link [[api_atd_serve_index]]
 	r.Register(mcp.Tool{
 		Name: "atd_index",
 		Description: `Build or refresh the semantic vector index of all source code and ATD documents.
@@ -330,6 +340,7 @@ This tool takes no parameters — it indexes the entire project using the .atd c
 		})
 	})
 
+	// @spec-link [[api_atd_serve_search]]
 	r.Register(mcp.Tool{
 		Name: "atd_search",
 		Description: `Search the project semantically or by keyword.
@@ -367,6 +378,7 @@ Use during PLAN stage to find related code or atoms by meaning, or to locate imp
 		})
 	})
 
+	// @spec-link [[api_atd_serve_audit]]
 	r.Register(mcp.Tool{
 		Name: "atd_audit",
 		Description: `Audit ATD atoms for documentation quality issues.
@@ -398,6 +410,7 @@ Use during VERIFY stage after creating new atoms to check for overlap, or to val
 		})
 	})
 
+	// @spec-link [[api_atd_serve_recon]]
 	r.Register(mcp.Tool{
 		Name: "atd_recon",
 		Description: `Validate whether a candidate source file implements a specific ATD atom (semantic archaeology).
@@ -416,6 +429,7 @@ Use during cold-start to verify discovered file-atom links before applying @spec
 		return runRecon(atom, candidate)
 	})
 
+	// @spec-link [[api_atd_serve_discover]]
 	r.Register(mcp.Tool{
 		Name: "atd_discover",
 		Description: `Extract architectural intent from an undocumented source file and recommend @spec-link tags to apply.

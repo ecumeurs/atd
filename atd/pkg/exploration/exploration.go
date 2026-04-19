@@ -144,6 +144,45 @@ func (e *Explorer) Load(force bool) error {
 	return nil
 }
 
+// IsOrphan determines if an atom should be considered a "true orphan" based on type-aware rules.
+func (e *Explorer) IsOrphan(node *atom.AtomData) bool {
+	// 1. Only STABLE atoms are tracked as orphans in the health metrics
+	if node.Status != "STABLE" {
+		return false
+	}
+
+	// 2. If it has direct source code implementations, it is definitely not an orphan
+	if len(node.Implementations) > 0 {
+		return false
+	}
+
+	// 3. Exclude specific types that are architectural groupings or top-level documents
+	if config.GetOrphanExcludedTypes()[node.Type] {
+		return false
+	}
+
+	// 4. Handle Customer Layer exceptions (they are requirements, not implementation units)
+	if config.ActiveConfig.CustomerLayerException && node.Layer == "CUSTOMER" {
+		return false
+	}
+
+	// 5. Hierarchical check: a parent atom is NOT an orphan if it has implemented children
+	if config.ActiveConfig.HierarchicalOrphanCheck {
+		for _, depID := range node.Dependents {
+			if depNode, ok := e.Graph.Atoms[depID]; ok {
+				// If a child has direct implementations, the parent is "covered by proxy"
+				if len(depNode.Implementations) > 0 {
+					return false
+				}
+				// Note: Deep recursion could be added if needed, but one-level implementation
+				// detection handles the majority of false positives in ATD.
+			}
+		}
+	}
+
+	return true
+}
+
 func (e *Explorer) ListFiles() ([]string, error) {
 	var files []string
 	
