@@ -1,7 +1,7 @@
 {
     "name": "atd-linker",
     "displayName": "ATD Linker",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "publisher": "local-dev",
     "engines": {
         "vscode": "^1.60.0"
@@ -15,6 +15,11 @@
             {
                 "command": "atd.showFullGraph",
                 "title": "ATD: Show Full System Graph",
+                "category": "ATD"
+            },
+            {
+                "command": "atd.renameAtom",
+                "title": "ATD: Rename Atom",
                 "category": "ATD"
             }
         ],

@@ -1,0 +1,553 @@
+--- FALSE ORPHANS (Tagged but reported as orphan) ---
+- rule_tracing_logging
+  FOUND IN: upsiloncli/internal/display/printer.go
+  FOUND IN: battleui/bootstrap/app.php
+- mech_move_validation_move_validation_path_adjacency
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_path_not_adjacent.js
+- req_admin_experience
+  FOUND IN: upsiloncli/tests/scenarios/edge_auth_non_admin_access.js
+- api_profile_character
+  FOUND IN: battleui/routes/api.php
+  FOUND IN: battleui/tests/Feature/API/CharacterTest.php
+  FOUND IN: battleui/app/Http/Controllers/API/ProfileController.php
+- mech_action_economy_timeout_penalty_rules
+  FOUND IN: upsilonbattle/battlearena/ruler/ruler.go
+- us_win_progression_win_alloc_point
+  FOUND IN: upsiloncli/tests/scenarios/e2e_progression_post_win.js
+- ui_registration_minimal_form_fields
+  FOUND IN: battleui/resources/js/Pages/Auth/Register.vue
+- api_profile_export
+  FOUND IN: upsiloncli/tests/scenarios/e2e_gdpr_portability.js
+- uc_player_registration
+  FOUND IN: upsiloncli/tests/scenarios/edge_char_reroll_limit.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_auth_password_policy_full.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_customer_onboarding.js
+- api_go_battle_start
+  FOUND IN: battleui/app/Services/UpsilonApiService.php
+  FOUND IN: battleui/app/Http/Controllers/API/MatchMakingController.php
+- api_laravel_health_check
+  FOUND IN: battleui/bootstrap/app.php
+- api_go_webhook_callback
+  FOUND IN: battleui/app/Http/Requests/API/Webhook/WebhookRequest.php
+  FOUND IN: battleui/app/Http/Controllers/API/WebhookController.php
+- ui_team_roster_panel
+  FOUND IN: battleui/resources/js/Components/Arena/TeamRosterPanel.vue
+- entity_game_match
+  FOUND IN: battleui/app/Models/GameMatch.php
+- mech_action_economy_time_constraint_rules
+  FOUND IN: upsilonbattle/battlearena/ruler/ruler.go
+- mech_skill_validation_entity_targeting_rules_verification
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_targeting_rules.js
+- ui_character_battle_card
+  FOUND IN: battleui/resources/js/Components/Arena/CharacterBattleCard.vue
+- mech_initiative
+  FOUND IN: upsiloncli/tests/scenarios/edge_match_forfeit_out_of_turn.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_out_of_turn.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_out_of_turn.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_combat_turn_management.js
+  FOUND IN: upsilonbattle/battlearena/ruler/turner/turner.go
+- ui_battle_arena
+  FOUND IN: battleui/resources/js/services/tactical.js
+  FOUND IN: battleui/resources/js/services/game.js
+  FOUND IN: battleui/resources/js/Pages/BattleArena.vue
+- ui_character_pawn
+  FOUND IN: battleui/resources/js/Components/Arena/CharacterPawn.vue
+- ui_combat_header
+  FOUND IN: battleui/resources/js/Components/Arena/CombatHeader.vue
+- requirement_customer_user_id_privacy
+  FOUND IN: battleui/resources/js/services/tactical_id.js
+  FOUND IN: battleui/resources/js/Components/TacticalHeader.vue
+  FOUND IN: battleui/app/Http/Resources/UserResource.php
+- mech_skill_validation_action_state_verification
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_already_acted.js
+- api_matchmaking
+  FOUND IN: upsiloncli/tests/scenarios/edge_match_leave_not_queued.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_match_queue_while_queued.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_match_invalid_game_mode.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_match_queue_while_in_match.js
+  FOUND IN: battleui/routes/api.php
+  FOUND IN: battleui/tests/Feature/API/MatchmakingTest.php
+  FOUND IN: battleui/app/Http/Controllers/API/MatchMakingController.php
+- spec_match_format
+  FOUND IN: upsiloncli/tests/scenarios/edge_match_invalid_game_mode.js
+- us_character_reroll_reroll_counter
+  FOUND IN: upsiloncli/tests/scenarios/edge_char_reroll_limit.js
+- us_queue_selection
+  FOUND IN: upsiloncli/tests/scenarios/e2e_matchmaking_pve_instant.js
+- mech_matchmaking
+  FOUND IN: battleui/tests/Feature/API/PVEMatchmakingTest.php
+  FOUND IN: battleui/tests/Feature/API/ExtraMatchmakingTest.php
+  FOUND IN: battleui/tests/Feature/API/MatchmakingTest.php
+  FOUND IN: battleui/app/Http/Controllers/API/MatchMakingController.php
+- rule_character_renaming
+  FOUND IN: upsiloncli/internal/script/bridge.go
+  FOUND IN: battleui/resources/js/Components/CharacterRoster.vue
+  FOUND IN: battleui/app/Http/Requests/API/Profile/RenameCharacterRequest.php
+  FOUND IN: battleui/app/Http/Controllers/API/ProfileController.php
+- mech_controller_communication_sequence
+  FOUND IN: upsilonbattle/battlearena/ruler/ruler.go
+- mech_controller_handshake
+  FOUND IN: upsilonbattle/battlearena/controller/controller.go
+  FOUND IN: upsilonbattle/battlearena/controller/controllers/aggressive.go
+  FOUND IN: upsilonbattle/battlearena/ruler/ruler.go
+- api_go_battle_engine
+  FOUND IN: upsilonapi/main_test.go
+  FOUND IN: upsilonapi/api/output.go
+  FOUND IN: upsilonapi/api/input.go
+  FOUND IN: upsilonapi/handler/handler.go
+  FOUND IN: battleui/app/Services/UpsilonApiService.php
+- mech_skill_validation_grid_boundaries_verification
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_target_out_of_grid.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_grid_boundaries.js
+- mech_move_validation_move_validation_jump_limitations
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_jump_limitations.js
+- ui_admin_dashboard
+  FOUND IN: battleui/resources/js/Pages/Admin/Dashboard.vue
+  FOUND IN: battleui/app/Http/Controllers/AdminController.php
+- mech_move_validation_move_validation_already_moved
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_already_attacked.js
+- uc_match_resolution
+  FOUND IN: upsiloncli/samples/match_resolution_2v2.js
+  FOUND IN: upsiloncli/samples/match_resolution_forfeit.js
+  FOUND IN: upsiloncli/samples/match_resolution_forfeit_2v2.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_match_forfeit_out_of_turn.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_match_action_after_end.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_match_resolution_standard.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_match_resolution_forfeit.js
+- api_websocket
+  FOUND IN: upsiloncli/tests/scenarios/edge_ws_ping_timeout.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_ws_wrong_channel.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_ws_connection_no_token.js
+- api_auth_user
+  FOUND IN: battleui/routes/api.php
+- module_upsilonapi
+  FOUND IN: upsilonapi/bridge/http_controller.go
+  FOUND IN: upsilonapi/bridge/bridge.go
+  FOUND IN: upsilonbattle/battlearena/ruler/ruler_race_test.go
+- requirement_req_ui_session_timeout
+  FOUND IN: upsiloncli/tests/scenarios/edge_auth_session_timeout.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_session_timeout.js
+- rule_turn_clock
+  FOUND IN: upsilonbattle/battlearena/ruler/ruler.go
+  FOUND IN: upsilonbattle/battlearena/ruler/ruler_race_test.go
+  FOUND IN: upsilonbattle/battlearena/ruler/ruler_shotclock_test.go
+- arch_api_id_masking_gateway
+  FOUND IN: battleui/app/Policies/GameMatchPolicy.php
+  FOUND IN: battleui/app/Http/Resources/BoardStateResource.php
+- rule_forfeit_battle
+  FOUND IN: upsilonapi/bridge/bridge.go
+  FOUND IN: upsiloncli/tests/scenarios/edge_match_forfeit_out_of_turn.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_match_resolution_forfeit.js
+  FOUND IN: upsilonbattle/battlearena/ruler/ruler.go
+  FOUND IN: upsilonbattle/battlearena/ruler/rules/forfeit.go
+  FOUND IN: upsilonbattle/battlearena/ruler/rules/rules_forfeit_test.go
+  FOUND IN: battleui/resources/js/services/game.js
+  FOUND IN: battleui/app/Services/UpsilonApiService.php
+  FOUND IN: battleui/app/Http/Controllers/API/GameController.php
+- battleui_api_dtos
+  FOUND IN: upsilonapi/api/output.go
+  FOUND IN: battleui/app/Http/Controllers/API/WebhookController.php
+- mech_version_bit_packing
+  FOUND IN: upsilonbattle/battlearena/ruler/rules/gamestate.go
+- api_go_health_check
+  FOUND IN: upsilonapi/main.go
+- us_win_progression_movement_locked
+  FOUND IN: upsiloncli/tests/scenarios/edge_prog_movement_gate.js
+- requirement_customer_api_first
+  FOUND IN: upsiloncli/tests/scenarios/e2e_api_discovery.js
+- mech_board_generation_terrain_obstacles
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_obstacle_collision.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_jump_limitations.js
+- us_leaderboard_view_sort_leaderboard
+  FOUND IN: upsiloncli/tests/scenarios/edge_leaderboard_invalid_mode.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_leaderboard_over_pagination.js
+- mech_skill_validation_economic_cost_verification_cooldown_check
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_skill_cooldown.js
+- mech_skill_validation_turn_controller_identity_verification
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_out_of_turn.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_wrong_controller.js
+- mech_character_reroll
+  FOUND IN: battleui/tests/Feature/API/CharacterTest.php
+  FOUND IN: battleui/app/Models/Character.php
+- api_help_endpoint
+  FOUND IN: upsiloncli/tests/scenarios/e2e_api_discovery.js
+  FOUND IN: battleui/routes/api.php
+  FOUND IN: battleui/app/Http/Controllers/API/HelpController.php
+- mechanic_mech_cli_sensitive_data_masking
+  FOUND IN: upsiloncli/internal/cli/repl.go
+  FOUND IN: upsiloncli/internal/display/printer.go
+- mech_skill_validation_range_limit_verification
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_target_not_in_range.js
+- api_websocket_arena_updates
+  FOUND IN: upsiloncli/tests/scenarios/edge_ws_wrong_channel.js
+- api_auth_logout
+  FOUND IN: battleui/app/Http/Controllers/API/AuthController.php
+- uc_matchmaking
+  FOUND IN: upsiloncli/tests/scenarios/e2e_matchmaking_pvp_queue.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_matchmaking_pve_instant.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_match_queue_while_in_match.js
+- api_controller_methods
+  FOUND IN: upsilonbattle/battlearena/controller/controllermethods/controllermethods.go
+- rule_friendly_fire
+  FOUND IN: upsiloncli/samples/friendly_fire_check.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_friendly_fire_prevention.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_targeting_rules.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_friendly_fire.js
+- rule_progression
+  FOUND IN: upsiloncli/samples/progression_check.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_prog_movement_gate.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_prog_negative_value.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_prog_allocation_no_wins.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_prog_attribute_cap.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_progression_constraints.js
+  FOUND IN: battleui/app/Http/Controllers/API/ProfileController.php
+- ui_dashboard_match_statistics
+  FOUND IN: battleui/routes/api.php
+  FOUND IN: battleui/app/Services/UpsilonApiService.php
+  FOUND IN: battleui/app/Http/Controllers/API/MatchMakingController.php
+- requirement_customer_user_account
+  FOUND IN: battleui/resources/js/Components/IdentitySection.vue
+- uc_player_login
+  FOUND IN: upsiloncli/tests/scenarios/edge_auth_invalid_credentials.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_customer_login.js
+- mech_sanctum_token_renewal
+  FOUND IN: battleui/app/Http/Middleware/SanctumTokenRenewal.php
+- rule_admin_access_restriction
+  FOUND IN: upsiloncli/tests/scenarios/edge_admin_private_data_access.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_auth_non_admin_access.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_admin_user_management.js
+  FOUND IN: battleui/app/Http/Middleware/AdminMiddleware.php
+- mech_move_validation_move_validation_controller_mismatch
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_wrong_controller.js
+- ui_iso_board
+  FOUND IN: battleui/resources/js/Components/Arena/IsoBoardGrid.vue
+- ui_login
+  FOUND IN: battleui/resources/js/Pages/Auth/Login.vue
+- mechanic_mech_frontend_auth_bridge
+  FOUND IN: upsiloncli/tests/scenarios/edge_auth_missing_token.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_api_5xx_error_handling.js
+  FOUND IN: battleui/resources/js/services/auth.js
+  FOUND IN: battleui/resources/js/Components/CharacterRoster.vue
+- api_auth_register
+  FOUND IN: battleui/tests/Feature/API/AuthTest.php
+  FOUND IN: battleui/app/Http/Requests/API/Auth/RegisterRequest.php
+  FOUND IN: battleui/app/Http/Controllers/API/AuthController.php
+- rule_friendly_fire_match_type
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_friendly_fire.js
+- uc_admin_login
+  FOUND IN: upsiloncli/tests/scenarios/edge_auth_non_admin_access.js
+  FOUND IN: battleui/app/Http/Controllers/API/AdminController.php
+- ui_tactical_action_report
+  FOUND IN: battleui/resources/js/Components/Arena/TacticalActionReport.vue
+- mech_move_validation_move_validation_obstacle_collision
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_obstacle_collision.js
+- entity_character
+  FOUND IN: upsilonapi/api/input.go
+  FOUND IN: upsiloncli/tests/scenarios/edge_prog_negative_value.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_path_too_long.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_target_not_in_range.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_prog_attribute_cap.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_entity_collision.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_api_invalid_uuid.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_target_no_entity.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_targeting_rules.js
+  FOUND IN: battleui/app/Http/Resources/API/Upsilon/UpsilonEntityResource.php
+  FOUND IN: battleui/app/Models/Character.php
+- uc_admin_user_management
+  FOUND IN: upsiloncli/tests/scenarios/edge_admin_anonymize_nonexistent.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_admin_private_data_access.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_admin_delete_nonexistent.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_admin_user_management.js
+  FOUND IN: battleui/resources/js/Pages/Admin/UserManagement.vue
+  FOUND IN: battleui/app/Http/Controllers/AdminController.php
+  FOUND IN: battleui/app/Http/Controllers/API/AdminController.php
+- req_logging_traceability
+  FOUND IN: upsiloncli/tests/scenarios/edge_ws_ping_timeout.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_api_missing_request_id.js
+- req_ui_look_and_feel
+  FOUND IN: battleui/resources/js/Pages/BattleArena.vue
+- entity_grid
+  FOUND IN: upsilonapi/api/output.go
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_target_out_of_grid.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_grid_boundaries.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_obstacle_collision.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_jump_limitations.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_path_not_adjacent.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_target_invalid_cell.js
+- us_win_progression
+  FOUND IN: upsiloncli/tests/scenarios/edge_prog_movement_gate.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_prog_allocation_no_wins.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_match_resolution_standard.js
+- req_security
+  FOUND IN: upsiloncli/tests/scenarios/edge_auth_password_policy_full.js
+- mech_action_economy_action_cost_rules
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_already_attacked.js
+  FOUND IN: upsilonbattle/battlearena/ruler/ruler.go
+  FOUND IN: upsilonbattle/battlearena/ruler/rules/attack.go
+  FOUND IN: upsilonbattle/battlearena/ruler/rules/move.go
+  FOUND IN: upsilonbattle/battlearena/ruler/rules/endofturn.go
+- mech_move_validation_move_validation_turn_mismatch
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_out_of_turn.js
+- rule_team_mechanics
+  FOUND IN: upsilonapi/bridge/bridge.go
+  FOUND IN: upsilonbattle/battlearena/controller/controllers/aggressive.go
+  FOUND IN: upsilonbattle/battlearena/ruler/ruler.go
+  FOUND IN: upsilonbattle/battlearena/ruler/rules/forfeit.go
+  FOUND IN: upsilonbattle/battlearena/ruler/rules/rules_forfeit_test.go
+  FOUND IN: upsilonbattle/battlearena/ruler/rules/gamestate.go
+- usecase_api_flow_matchmaking
+  FOUND IN: upsiloncli/tests/scenarios/edge_match_leave_not_queued.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_match_queue_while_queued.js
+- req_security_token_ttl
+  FOUND IN: upsiloncli/tests/scenarios/edge_auth_session_timeout.js
+  FOUND IN: battleui/resources/js/services/auth.js
+- api_go_battle_action
+  FOUND IN: battleui/app/Services/UpsilonApiService.php
+  FOUND IN: battleui/app/Http/Controllers/API/GameController.php
+- api_websocket_game_events
+  FOUND IN: upsiloncli/internal/ws/listener.go
+  FOUND IN: battleui/resources/js/services/connection.js
+  FOUND IN: battleui/resources/js/services/game.js
+  FOUND IN: battleui/app/Http/Controllers/API/WebhookController.php
+  FOUND IN: battleui/app/Http/Controllers/API/MatchMakingController.php
+  FOUND IN: battleui/app/Events/MatchFound.php
+  FOUND IN: battleui/app/Events/BoardUpdated.php
+- mech_move_validation_move_validation_path_length_credits
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_path_too_long.js
+- req_security_authorization
+  FOUND IN: upsiloncli/tests/scenarios/edge_auth_invalid_credentials.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_auth_missing_token.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_ws_connection_no_token.js
+- ui_registration
+  FOUND IN: battleui/resources/js/Pages/Auth/Register.vue
+- ui_leaderboard
+  FOUND IN: battleui/resources/js/Components/LeaderboardComponent.vue
+- entity_player
+  FOUND IN: upsilonapi/api/input.go
+  FOUND IN: upsiloncli/tests/scenarios/e2e_customer_onboarding.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_wrong_controller.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_wrong_controller.js
+  FOUND IN: battleui/app/Models/User.php
+- domain_skill_system
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_skill_cooldown.js
+- mech_character_reroll_limit
+  FOUND IN: upsiloncli/tests/scenarios/edge_char_reroll_limit.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_char_reroll_post_match.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_character_reroll.js
+  FOUND IN: battleui/tests/Feature/API/CharacterTest.php
+  FOUND IN: battleui/app/Http/Controllers/API/ProfileController.php
+- uc_progression_stat_allocation
+  FOUND IN: upsiloncli/tests/scenarios/edge_prog_allocation_no_wins.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_progression_post_win.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_progression_constraints.js
+- api_auth_login
+  FOUND IN: upsiloncli/tests/scenarios/edge_auth_invalid_credentials.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_customer_login.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_session_timeout.js
+  FOUND IN: battleui/tests/Feature/API/AuthTest.php
+  FOUND IN: battleui/app/Http/Controllers/API/AuthController.php
+  FOUND IN: battleui/app/Http/Controllers/API/AdminController.php
+- uc_combat_turn
+  FOUND IN: upsiloncli/tests/scenarios/e2e_combat_turn_management.js
+- us_character_reroll
+  FOUND IN: upsiloncli/samples/reroll_check.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_char_reroll_post_match.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_character_reroll.js
+- api_standard_envelope
+  FOUND IN: upsilonapi/stdmessage/message.go
+  FOUND IN: upsilonapi/bridge/http_controller.go
+  FOUND IN: upsiloncli/tests/scenarios/edge_api_missing_request_id.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_api_invalid_uuid.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_api_5xx_error_handling.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_api_malformed_json.js
+  FOUND IN: upsiloncli/internal/ws/listener.go
+  FOUND IN: battleui/resources/js/services/game.js
+  FOUND IN: battleui/resources/js/Pages/BattleArena.vue
+  FOUND IN: battleui/bootstrap/app.php
+  FOUND IN: battleui/app/Services/UpsilonApiService.php
+  FOUND IN: battleui/app/Http/Requests/API/Webhook/WebhookRequest.php
+  FOUND IN: battleui/app/Http/Controllers/API/WebhookController.php
+  FOUND IN: battleui/app/Traits/ApiResponder.php
+  FOUND IN: battleui/app/Events/MatchFound.php
+  FOUND IN: battleui/app/Events/BoardUpdated.php
+- mech_game_state_versioning
+  FOUND IN: upsilonapi/bridge/http_controller.go
+  FOUND IN: upsilonapi/bridge/bridge.go
+  FOUND IN: upsilonbattle/battlearena/ruler/ruler.go
+  FOUND IN: upsilonbattle/battlearena/ruler/rules/gamestate.go
+  FOUND IN: battleui/app/Http/Controllers/API/WebhookController.php
+- rule_gdpr_compliance
+  FOUND IN: upsiloncli/tests/scenarios/edge_admin_anonymize_nonexistent.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_admin_private_data_access.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_gdpr_portability.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_admin_delete_nonexistent.js
+  FOUND IN: battleui/resources/js/Components/IdentitySection.vue
+  FOUND IN: battleui/public/build/assets/Dashboard-2Xs8mx4E.js
+  FOUND IN: battleui/tests/Feature/API/GdprTest.php
+  FOUND IN: battleui/app/Http/Controllers/API/AuthController.php
+- mech_move_validation_move_validation_entity_collision
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_entity_collision.js
+- mech_action_economy
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_path_too_long.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_already_attacked.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_out_of_turn.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_match_action_after_end.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_movement_out_of_turn.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_already_acted.js
+  FOUND IN: upsilonbattle/battlearena/ruler/rules/endofturn.go
+  FOUND IN: upsilonbattle/battlearena/ruler/turner/turner.go
+  FOUND IN: battleui/resources/js/Components/Arena/ActionPanel.vue
+- us_leaderboard_view
+  FOUND IN: upsiloncli/tests/scenarios/e2e_leaderboard_viewing.js
+- api_ruler_methods
+  FOUND IN: upsilonbattle/battlearena/ruler/rulermethods/rulermethods.go
+- api_battle_proxy
+  FOUND IN: battleui/tests/Feature/API/BattleProxyTest.php
+  FOUND IN: battleui/app/Http/Controllers/API/WebhookController.php
+  FOUND IN: battleui/app/Http/Controllers/API/GameController.php
+  FOUND IN: battleui/app/Events/BoardUpdated.php
+- rule_password_policy
+  FOUND IN: upsiloncli/samples/auth_security_check.js
+  FOUND IN: upsiloncli/samples/pve_2v2_battle.js
+  FOUND IN: upsiloncli/samples/fast_bot_battle.js
+  FOUND IN: upsiloncli/samples/slow_bot_battle.js
+  FOUND IN: upsiloncli/samples/pve_1v1_battle.js
+  FOUND IN: upsiloncli/samples/pvp_2v2_battle.js
+  FOUND IN: upsiloncli/samples/pvp_1v1_battle.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_auth_password_policy_full.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_password_policy.js
+  FOUND IN: upsiloncli/tests/scenarios/e2e_customer_onboarding.js
+  FOUND IN: battleui/app/Http/Requests/API/Auth/RegisterRequest.php
+  FOUND IN: battleui/app/Http/Controllers/API/AuthController.php
+- ui_leaderboard_data_display
+  FOUND IN: battleui/resources/js/Components/LeaderboardComponent.vue
+- rule_matchmaking_single_queue
+  FOUND IN: upsiloncli/tests/scenarios/e2e_matchmaking_pvp_queue.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_match_queue_while_queued.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_match_queue_while_in_match.js
+  FOUND IN: battleui/resources/js/Components/EngagementHub.vue
+  FOUND IN: battleui/app/Http/Controllers/API/MatchMakingController.php
+- req_matchmaking_matchmaking_queue
+  FOUND IN: upsiloncli/tests/scenarios/edge_match_invalid_game_mode.js
+  FOUND IN: battleui/app/Models/MatchmakingQueue.php
+- ui_modal_box
+  FOUND IN: battleui/resources/js/Components/ModalBox.vue
+- mech_web_catchall_router
+  FOUND IN: battleui/routes/web.php
+- mech_initiative_active_state
+  FOUND IN: upsilonbattle/battlearena/ruler/ruler.go
+  FOUND IN: upsilonbattle/battlearena/ruler/ruler_dead_entity_next_turn_test.go
+- api_request_id
+  FOUND IN: upsiloncli/tests/scenarios/edge_api_missing_request_id.js
+  FOUND IN: battleui/bootstrap/app.php
+  FOUND IN: battleui/app/Traits/ApiResponder.php
+- rule_friendly_fire_team_validation
+  FOUND IN: upsiloncli/tests/scenarios/e2e_friendly_fire_prevention.js
+  FOUND IN: upsiloncli/tests/scenarios/edge_attack_friendly_fire.js
+  FOUND IN: upsilonbattle/battlearena/ruler/rules/attack.go
+- infra_seed_admin
+  FOUND IN: battleui/database/seeders/DatabaseSeeder.php
+- ui_dashboard
+  FOUND IN: battleui/resources/js/Pages/Dashboard.vue
+- ui_action_panel
+  FOUND IN: battleui/resources/js/Components/Arena/ActionPanel.vue
+- ui_character_roster
+  FOUND IN: battleui/resources/js/Components/CharacterRoster.vue
+- spec_match_format_win_condition_rule
+  FOUND IN: upsilonbattle/battlearena/ruler/ruler.go
+  FOUND IN: upsilonbattle/battlearena/ruler/ruler_victory_test.go
+- ui_initiative_timeline
+  FOUND IN: battleui/resources/js/Components/Arena/InitiativeTimeline.vue
+
+--- TRUE ORPHANS (Missing tags) ---
+- mech_board_generation_min_area_constraint
+- domain_upsilon_engine_domain_upsilon_engine_entity_stat_integration
+- ui_holo_obstacle
+- us_win_progression_stat_reflection
+- ui_leaderboard_security
+- module_frontend_matchmaking_orchestration
+- mech_board_generation_board_dimensions
+- spec_match_format_team_composition_rule
+- domain_upsilon_engine
+- module_frontend_character_entity_creation
+- module_ui_tactical_layout
+- mech_character_reroll_availability
+- usecase_api_flow_game_turn
+- domain_ruler_state_data_custody
+- mech_move_validation
+- req_matchmaking_pve_pvp_transition
+- module_backend_action_economy
+- mech_entity_properties_item_properties
+- ui_dashboard_roster_display
+- domain_ruler_state
+- ui_dashboard_navigation
+- api_websocket_user_notifications
+- us_win_progression_progression_screen
+- mech_move_validation_move_validation_existence
+- entity_player_entity_player_registration
+- us_character_reroll_reroll_button_action
+- mech_initiative_requeue_calculation
+- module_backend_board_generation
+- us_leaderboard_view_auth_leaderboard
+- mech_skill_validation
+- ui_registration_success_state
+- entity_player_entity_player_initial_setup
+- domain_ruler_state_action_validation
+- battleui_upsilon_api_service
+- mech_skill_validation_existence_verification
+- module_backend
+- mech_entity_properties
+- ui_dashboard_player_statistics
+- entity_character_distribute_remaining_points
+- requirement_req_trpg_game_definition
+- us_queue_selection_display_win_loss_record
+- requirement_customer_player_profile
+- uc_admin_history_management
+- infra_mvp_docker
+- domain_ruler_state_game_states
+- us_queue_selection_queue_buttons_visible
+- module_frontend_board_ui_rendering
+- us_queue_selection_pvp_navigation
+- ui_registration_character_generation_flow
+- entity_player_entity_character_rules_apply
+- ui_leaderboard_metrics_displayed
+- entity_player_entity_player_stats_tracking
+- uc_auth_logout
+- spec_match_format_mode_rule
+- mech_board_generation
+- module_backend_combat_math
+- us_auth_logout
+- module_frontend
+- ui_dashboard_queue_selection
+- domain_upsilon_engine_domain_upsilon_engine_resolution
+- us_character_reroll_create_character
+- ui_dashboard_security_check
+- us_queue_selection_pve_instant_game_start
+- domain_upsilon_engine_domain_upsilon_engine_technical_interface
+- req_matchmaking
+- mech_skill_validation_economic_cost_verification_stat_leech
+- ui_dashboard_profile_edit
+- ui_theme
+- mech_character_reroll_effect
+- domain_upsilon_engine_domain_upsilon_engine_api_orchestration
+- api_go_action_feedback
+- mech_initiative_initiative_roll
+- req_security_token_exchange
+- script_farm
+- mech_actor_pattern
+- ui_leaderboard_primary_sorting
+- mech_entity_properties_skill_properties
+- module_frontend_integration_constraint
+- module_backend_initiative_evaluation
+- req_security_public_access
+- us_character_reroll_button_lockdown
+- ui_registration_reroll_limit
+- domain_upsilon_engine_domain_upsilon_engine_combat_isolation
+- domain_upsilon_engine_domain_upsilon_engine_expectation
+- mech_initiative_delay_costs
+- rule_character_create_character
+- req_matchmaking_transition_rules
+- domain_ruler_state_technical_interface
+- module_frontend_session_management
+- ui_leaderboard_secondary_sorting
+- req_player_experience

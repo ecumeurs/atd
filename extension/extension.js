@@ -135,11 +135,17 @@ function activate(context) {
                 const testPercent = Math.round(traceData.health_summary.test_coverage_rate * 100);
                 const warningCount = traceData.warnings ? traceData.warnings.length : 0;
 
-                return [new vscode.CodeLens(new vscode.Range(0, 0, 0, 0), {
-                    title: `✅ Ancestry | ⚙️ Impl: ${implPercent}% | 🧪 Tests: ${testPercent}% ${warningCount > 0 ? `| ⚠️ ${warningCount}` : ''}`,
-                    command: 'atd.showDetails',
-                    arguments: [traceData]
-                })];
+                return [
+                    new vscode.CodeLens(new vscode.Range(0, 0, 0, 0), {
+                        title: `✅ Ancestry | ⚙️ Impl: ${implPercent}% | 🧪 Tests: ${testPercent}% ${warningCount > 0 ? `| ⚠️ ${warningCount}` : ''}`,
+                        command: 'atd.showDetails',
+                        arguments: [traceData]
+                    }),
+                    new vscode.CodeLens(new vscode.Range(0, 0, 0, 0), {
+                        title: '✏️ Rename Atom',
+                        command: 'atd.renameAtom'
+                    })
+                ];
             } catch (e) {
                 return [];
             }
@@ -151,6 +157,59 @@ function activate(context) {
             vscode.window.showWarningMessage(`Warnings for ${traceData.target_id}:\n• ${traceData.warnings.join('\n• ')}`, { modal: true });
         } else {
             vscode.window.showInformationMessage(`Health for ${traceData.target_id} looks great!`);
+        }
+    });
+
+    // @spec-link [[mechanic_vscode_rename_atom]]
+    const renameAtomCommand = vscode.commands.registerCommand('atd.renameAtom', async () => {
+        const activeEditor = vscode.window.activeTextEditor;
+        if (!activeEditor || !activeEditor.document.fileName.endsWith('.atom.md')) {
+            vscode.window.showWarningMessage('Please open an .atom.md file to rename it.');
+            return;
+        }
+
+        const fileName = path.basename(activeEditor.document.fileName);
+        const currentID = fileName.replace('.atom.md', '');
+
+        const newID = await vscode.window.showInputBox({
+            prompt: 'Enter new atom ID',
+            value: currentID,
+            placeHolder: 'new_atom_id',
+            validateInput: (value) => {
+                if (!value || value.trim() === '') {
+                    return 'Atom ID cannot be empty';
+                }
+                if (value.includes(' ') || value.includes('(') || value.includes(')')) {
+                    return 'Atom ID cannot contain spaces or parentheses';
+                }
+                return null;
+            }
+        });
+
+        if (!newID || newID === currentID) {
+            return;
+        }
+
+        const trimmedID = newID.trim();
+        outputChannel.appendLine(`[ATD Rename] Renaming ${currentID} to ${trimmedID}`);
+
+        try {
+            await execAsync(`atd update --file "${activeEditor.document.fileName}" --set id=${trimmedID}`, { cwd: workspaceRoot });
+            outputChannel.appendLine(`[ATD Rename] Success: atom file updated`);
+
+            // Trigger weave to update parent/dependent relationships
+            await execAsync(`atd weave`, { cwd: workspaceRoot });
+            outputChannel.appendLine(`[ATD Rename] Dependencies updated via atd weave`);
+
+            vscode.window.showInformationMessage(`Atom renamed from "${currentID}" to "${trimmedID}"`);
+
+            // Open the renamed file
+            const newFilePath = path.join(workspaceRoot, docsPath, `${trimmedID}.atom.md`);
+            const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(newFilePath));
+            await vscode.window.showTextDocument(doc);
+        } catch (e) {
+            outputChannel.appendLine(`[ATD Rename ERROR] ${e.message}`);
+            vscode.window.showErrorMessage(`Failed to rename atom: ${e.message}`);
         }
     });
 
@@ -427,7 +486,7 @@ function activate(context) {
 
 
     context.subscriptions.push(
-        watcher, codeLensProvider, hoverProvider, linkProvider, definitionProvider, showDetailsCommand, showGraphCommand
+        watcher, codeLensProvider, hoverProvider, linkProvider, definitionProvider, showDetailsCommand, renameAtomCommand, showGraphCommand
     );
 }
 

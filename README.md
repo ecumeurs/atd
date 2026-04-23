@@ -84,6 +84,7 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
+| [E2E Test @test-link Overcrowding](issues/ISS-090_20260422_e2e_test_link_overcrowding.md) | 2026-04-22 | Open | Medium | The current ATD model requires individual `@test-link` tags for each atom imp... |
 | [WebUI Search and Document Generation Regression](issues/ISS-089_20260419_webui_search_docgen_regression.md) | 2026-04-19 | Open | High | Critical functionality in the WebUI has regressed: 1. The **Command Palette (... |
 | [Decouple Code Compliance from Audit Service](issues/ISS-085_20260419_decouple_audit_code_compliance.md) | 2026-04-19 | Open | Low | The `atd audit` command currently contains a "Code Compliance Mode" (via `--c... |
 | [ATD Configuration Parent Directory Search](issues/ISS-082_20260418_atd_config_parent_directory_search.md) | 2026-04-18 | Open | High | ATD CLI tool only searches for `.atd` configuration file in the current worki... |
@@ -105,7 +106,6 @@ docker exec -it ollama ollama pull nomic-embed-text
 | [WebUI Document Generation Failures and UI Regressions](issues/ISS-061_20260402_webui_document_generation_bugs.md) | 2026-04-02 | Open | High | The WebUI document generation flow is currently broken and suffers from sever... |
 | [Refactor ATD Commands to Use Unified Exploration Package with Caching](issues/ISS-060_20260402_refactor_atd_exploration_commands.md) | 2026-04-02 | Open | Medium | This issue is a follow-up to ISS-059. The goal is to refactor all remaining A... |
 | [Update ATD Exploration to Use .gitignore](issues/ISS-059_20260402_refactor_atd_exploration_gitignore.md) | 2026-04-02 | Open | Medium | The current crawler and exploration methods used by the ATD tooling ignore hi... |
-| [WebUI Issue Integration](issues/ISS-055_20260330_webui_issue_integration.md) | 2026-03-30 | Open | Medium | The WebUI currently focuses on ATD visualization but lacks visibility into th... |
 | [`atd stats` coverage and ancestry reporting](issues/ISS-052_20260325_atd_stats_coverage_ancestry.md) | 2026-03-25 | Open | Medium | `atd stats` currently lacks detailed reporting on implementation and test cov... |
 | [atd_verify MCP tool fails with git diff error](issues/ISS-051_20260325_atd_verify_mcp_git_diff_failure.md) | 2026-03-25 | Open | High | The `atd_verify` tool fails when invoked via the MCP server with the error: `... |
 | [Unified Cold-Start and Audit Protocol as MCP Tools](issues/ISS-050_20260325_mcp_protocol_unification.md) | 2026-03-25 | Open | High | The full cold-start and auditing protocols (multi-step pipelines) should be e... |

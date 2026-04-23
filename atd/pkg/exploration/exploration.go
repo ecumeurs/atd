@@ -322,7 +322,11 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 		if !foundArchDesc { snap.Warnings = append(snap.Warnings, "Customer atom has no Architecture dependents") }
 		if !foundImplDesc { snap.Warnings = append(snap.Warnings, "Customer atom has no Implementation dependents") }
 	case "ARCHITECTURE":
-		if !foundImplDesc { snap.Warnings = append(snap.Warnings, "Architecture atom has no Implementation dependents") }
+		// Only warn about missing Implementation dependents if atom has no direct @spec-link
+		// Architecture atoms may have direct code links (90% of cases) which is valid
+		if !foundImplDesc && len(target.Implementations) == 0 {
+			snap.Warnings = append(snap.Warnings, "Architecture atom has no Implementation dependents or direct @spec-link")
+		}
 		if !foundCustAnc { snap.Warnings = append(snap.Warnings, "Architecture atom has no Customer origin") }
 	case "IMPLEMENTATION":
 		if !foundArchAnc { snap.Warnings = append(snap.Warnings, "Implementation atom has no Architecture origin") }
@@ -353,6 +357,7 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 		return impl, test
 	}
 
+	// Include IMPLEMENTATION layer atoms in health calculation
 	if target.Layer == "IMPLEMENTATION" {
 		totalPool++
 		impl, test := checkHealth(targetID, target)
@@ -362,12 +367,33 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 		}
 	}
 
+	// Include ARCHITECTURE layer atoms with direct @spec-link in health calculation
+	if target.Layer == "ARCHITECTURE" && len(target.Implementations) > 0 {
+		totalPool++
+		implementedCount++
+		_, test := checkHealth(targetID, target)
+		if test { testedCount++ }
+	}
+
 	for _, id := range snap.GraphSlice.Dependents {
 		if node, ok := e.Graph.Atoms[id]; ok {
-			impl, test := checkHealth(id, node)
-			if impl {
-				implementedCount++
-				if test { testedCount++ }
+			// Count IMPLEMENTATION layer dependents
+			if node.Layer == "IMPLEMENTATION" {
+				totalPool++
+				impl, test := checkHealth(id, node)
+				if impl {
+					implementedCount++
+					if test { testedCount++ }
+				}
+			}
+			// Count ARCHITECTURE dependents with direct @spec-link
+			if node.Layer == "ARCHITECTURE" && len(node.Implementations) > 0 {
+				totalPool++
+				impl, test := checkHealth(id, node)
+				if impl {
+					implementedCount++
+					if test { testedCount++ }
+				}
 			}
 		}
 	}
