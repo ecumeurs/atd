@@ -20,6 +20,7 @@ type StatsReport struct {
 	OrphanCount            int            `json:"orphan_count"`
 	ImplementedStableCount int            `json:"implemented_stable_count"`
 	ImplementedTotalCount  int            `json:"implemented_total_count"`
+	Project                string         `json:"project,omitempty"`
 }
 
 var statsCmd = &cobra.Command{
@@ -29,12 +30,13 @@ var statsCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		srcPath, _ := cmd.Flags().GetString("src")
 		docsDir, _ := cmd.Flags().GetString("docs")
+		workspace, _ := cmd.Flags().GetBool("workspace")
 
 		if docsDir == "" {
 			docsDir = config.DocsDir()
 		}
 
-		out, err := runStats(srcPath, docsDir)
+		out, err := runStats(srcPath, docsDir, workspace)
 		if err != nil {
 			return err
 		}
@@ -43,10 +45,16 @@ var statsCmd = &cobra.Command{
 	},
 }
 
-func runStats(srcPath, docsDir string) (string, error) {
+func runStats(srcPath, docsDir string, workspace bool) (string, error) {
 	explorer := exploration.NewExplorer(config.ProjectRoot(), docsDir)
-	if err := explorer.Load(false); err != nil {
-		return "", err
+	if workspace {
+		if err := explorer.LoadWorkspace(false); err != nil {
+			return "", err
+		}
+	} else {
+		if err := explorer.Load(false); err != nil {
+			return "", err
+		}
 	}
 
 	graph := explorer.GetGraph()
@@ -56,6 +64,7 @@ func runStats(srcPath, docsDir string) (string, error) {
 		ByType:     make(map[string]int),
 		ByStatus:   make(map[string]int),
 		ByLayer:    make(map[string]int),
+		Project:    config.ActiveConfig.ActiveProject,
 	}
 
 	var stableCount int
@@ -115,4 +124,5 @@ func init() {
 	rootCmd.AddCommand(statsCmd)
 	statsCmd.Flags().String("src", "", "Path to the source code directory to calculate coverage")
 	statsCmd.Flags().String("docs", "", "Override docs directory")
+	statsCmd.Flags().Bool("workspace", false, "Aggregate stats from all projects in workspace")
 }

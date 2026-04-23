@@ -25,12 +25,13 @@ If --gaps is provided, identifies STABLE atoms with no implementation.`,
 		srcPath, _ := cmd.Flags().GetString("src")
 		gaps, _ := cmd.Flags().GetBool("gaps")
 		docsDir, _ := cmd.Flags().GetString("docs")
+		workspace, _ := cmd.Flags().GetBool("workspace")
 
 		if docsDir == "" {
 			docsDir = config.DocsDir()
 		}
 
-		text, err := runCrawl(srcPath, docsDir, gaps)
+		text, err := runCrawl(srcPath, docsDir, gaps, workspace)
 		if err != nil {
 			return err
 		}
@@ -39,10 +40,16 @@ If --gaps is provided, identifies STABLE atoms with no implementation.`,
 	},
 }
 
-func runCrawl(srcPath, docsDir string, gaps bool) (string, error) {
+func runCrawl(srcPath, docsDir string, gaps bool, workspace bool) (string, error) {
 	explorer := exploration.NewExplorer(config.ProjectRoot(), docsDir)
-	if err := explorer.Load(false); err != nil {
-		return "", err
+	if workspace {
+		if err := explorer.LoadWorkspace(false); err != nil {
+			return "", err
+		}
+	} else {
+		if err := explorer.Load(false); err != nil {
+			return "", err
+		}
 	}
 
 	graph := explorer.GetGraph()
@@ -72,4 +79,5 @@ func init() {
 	crawlCmd.Flags().String("src", "", "Path to the source code directory")
 	crawlCmd.Flags().Bool("gaps", false, "Identify orphaned STABLE atoms")
 	crawlCmd.Flags().String("docs", "", "Override docs directory")
+	crawlCmd.Flags().Bool("workspace", false, "Crawl entire workspace")
 }

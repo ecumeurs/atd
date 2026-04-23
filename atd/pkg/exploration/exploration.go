@@ -20,6 +20,7 @@ type Explorer struct {
 	Graph       *DependencyGraph
 	SpecLinks   []SpecLink
 	TestLinks   []TestLink
+	Workspace   *config.WorkspaceConfig
 }
 
 func NewExplorer(root, docsDir string) *Explorer {
@@ -32,6 +33,7 @@ func NewExplorer(root, docsDir string) *Explorer {
 	return &Explorer{
 		ProjectRoot: root,
 		DocsDir:     docsDir,
+		Workspace:   config.ActiveConfig.Workspace,
 	}
 }
 
@@ -130,6 +132,64 @@ func (e *Explorer) Load(force bool) error {
 					node.HasTests = true
 				}
 			}
+		}
+	}
+
+	return nil
+}
+
+// LoadWorkspace loads all atoms from all projects in the workspace.
+func (e *Explorer) LoadWorkspace(force bool) error {
+	if e.Workspace == nil {
+		return fmt.Errorf("no workspace active")
+	}
+
+	if !force && e.Graph != nil && len(e.Graph.Atoms) > 0 {
+		// Already loaded? Need to check if it's the full workspace graph
+		// For simplicity, always reload if LoadWorkspace is called for now
+	}
+
+	e.Graph = &DependencyGraph{Atoms: make(map[string]*atom.AtomData)}
+	
+	for _, p := range e.Workspace.Projects {
+		absProjPath := p.Path
+		if !filepath.IsAbs(absProjPath) {
+			absProjPath = filepath.Join(e.Workspace.LoadedFrom, p.Path)
+		}
+		
+		docsPath := p.DocsPath
+		if docsPath == "" {
+			docsPath = "docs/"
+		}
+		if !filepath.IsAbs(docsPath) {
+			docsPath = filepath.Join(absProjPath, docsPath)
+		}
+
+		// Temporary graph to load this project
+		projGraph := &DependencyGraph{Atoms: make(map[string]*atom.AtomData)}
+		if err := CrawlDocs(docsPath, projGraph); err != nil {
+			continue
+		}
+
+		// Crawl source for this project
+		codePaths := p.CodePaths
+		if len(codePaths) == 0 {
+			codePaths = []string{"."}
+		}
+		for _, cp := range codePaths {
+			absCP := cp
+			if !filepath.IsAbs(absCP) {
+				absCP = filepath.Join(absProjPath, absCP)
+			}
+			CrawlSrc(absCP, projGraph)
+		}
+
+		// Merge into workspace graph with project prefix
+		for id, a := range projGraph.Atoms {
+			prefixedID := fmt.Sprintf("%s:%s", p.Name, id)
+			e.Graph.Atoms[prefixedID] = a
+			// Also keep original ID for local resolution if we are in that project?
+			// No, for workspace-wide, we use prefixes everywhere to avoid collisions
 		}
 	}
 
@@ -462,6 +522,62 @@ func (e *Explorer) Query(field, search string) []*atom.AtomData {
 		}
 	}
 	return matches
+}
+
+// ResolveAtom finds an atom by ID, supporting [[project:id]] syntax.
+func (e *Explorer) ResolveAtom(refID string) (*atom.AtomData, error) {
+	// Handle local prefix or no prefix
+	targetID := refID
+	projectID := ""
+
+	if strings.Contains(refID, ":") {
+		parts := strings.SplitN(refID, ":", 2)
+		projectID = parts[0]
+		targetID = parts[1]
+	}
+
+	if projectID == "" || projectID == "local" {
+		if node, ok := e.Graph.Atoms[targetID]; ok {
+			return node, nil
+		}
+		return nil, fmt.Errorf("atom '%s' not found in local project", targetID)
+	}
+
+	if e.Workspace == nil {
+		return nil, fmt.Errorf("cross-project reference '%s' but no workspace active", refID)
+	}
+
+	// Cross-project resolution
+	for _, p := range e.Workspace.Projects {
+		if p.Name == projectID {
+			absProjPath := p.Path
+			if !filepath.IsAbs(absProjPath) {
+				absProjPath = filepath.Join(e.Workspace.LoadedFrom, p.Path)
+			}
+			
+			docsPath := p.DocsPath
+			if docsPath == "" {
+				docsPath = "docs/"
+			}
+			if !filepath.IsAbs(docsPath) {
+				docsPath = filepath.Join(absProjPath, docsPath)
+			}
+
+			// For now, we crawl the other project's docs to find the atom
+			// Optimization: use a cache of graphs for other projects
+			otherGraph := &DependencyGraph{Atoms: make(map[string]*atom.AtomData)}
+			if err := CrawlDocs(docsPath, otherGraph); err != nil {
+				return nil, err
+			}
+			
+			if node, ok := otherGraph.Atoms[targetID]; ok {
+				return node, nil
+			}
+			return nil, fmt.Errorf("atom '%s' not found in project '%s'", targetID, projectID)
+		}
+	}
+
+	return nil, fmt.Errorf("project '%s' not found in workspace", projectID)
 }
 
 type DependencyGraph struct {

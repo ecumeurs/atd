@@ -16,11 +16,13 @@ var weaveCmd = &cobra.Command{
 automatically update the 'dependents' field in each atom file.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		docsDir, _ := cmd.Flags().GetString("docs")
+		workspace, _ := cmd.Flags().GetBool("workspace")
+
 		if docsDir == "" {
 			docsDir = config.DocsDir()
 		}
 
-		text, err := runWeave(docsDir)
+		text, err := runWeave(docsDir, workspace)
 		if err != nil {
 			return err
 		}
@@ -29,12 +31,18 @@ automatically update the 'dependents' field in each atom file.`,
 	},
 }
 
-func runWeave(docsDir string) (string, error) {
-	explorer := exploration.NewExplorer(docsDir, docsDir)
+func runWeave(docsDir string, workspace bool) (string, error) {
+	explorer := exploration.NewExplorer(config.ProjectRoot(), docsDir)
+	if workspace {
+		if err := explorer.LoadWorkspace(false); err != nil {
+			return "", err
+		}
+	}
 	return explorer.Weave()
 }
 
 func init() {
 	rootCmd.AddCommand(weaveCmd)
 	weaveCmd.Flags().String("docs", "", "Override docs directory")
+	weaveCmd.Flags().Bool("workspace", false, "Weave entire workspace")
 }

@@ -105,7 +105,7 @@ Set gaps=true during VERIFY stage to find STABLE atoms with no code implementati
 		},
 	}, func(args map[string]any) (string, error) {
 		gaps := argBool(args, "gaps")
-		return runCrawl(".", config.DocsDir(), gaps)
+		return runCrawl(".", config.DocsDir(), gaps, false)
 	})
 
 	// @spec-link [[api_atd_serve_weave]]
@@ -208,7 +208,7 @@ Use during VERIFY stage to assess overall documentation quality, or in CI to gen
 			"properties": map[string]any{},
 		},
 	}, func(args map[string]any) (string, error) {
-		return runStats(".", config.DocsDir())
+		return runStats(".", config.DocsDir(), false)
 	})
 
 	// @spec-link [[api_atd_serve_verify]]
@@ -406,7 +406,7 @@ Use during PLAN stage after creating new atoms to check for overlap.`,
 			threshold = 0.85
 		}
 		return captureStdout(func() error {
-			return runFullAudit(docs, threshold)
+			return runFullAudit(docs, threshold, false)
 		})
 	})
 

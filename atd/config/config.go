@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -43,6 +44,27 @@ type Config struct {
 	// Internal tracking
 	loadedFromDir string
 	DocsDirOverride string
+	Workspace     *WorkspaceConfig `json:"-"`
+	ActiveProject string           `json:"-"`
+}
+
+type ProjectConfig struct {
+	Name       string   `json:"name"`
+	Path       string   `json:"path"`
+	ConfigPath string   `json:"config_path,omitempty"`
+	DocsPath   string   `json:"docs_path,omitempty"`
+	CodePaths  []string `json:"code_paths,omitempty"`
+}
+
+type WorkspaceConfig struct {
+	WorkspaceName string                   `json:"workspace_name"`
+	WorkspaceRoot string                   `json:"workspace_root"`
+	Projects      []ProjectConfig          `json:"projects"`
+	SharedLibs    map[string]string        `json:"shared_libraries,omitempty"`
+	CommonSettings map[string]interface{} `json:"common_settings,omitempty"`
+	
+	// Internal tracking
+	LoadedFrom string `json:"-"`
 }
 
 // Legacy types for backward compatibility
@@ -234,18 +256,19 @@ func LoadFromDirLegacy(dir string) error {
 	}
 
 	var configPath string
+	searchDir := dir
 
 	for {
-		p := filepath.Join(dir, ".atd")
+		p := filepath.Join(searchDir, ".atd")
 		if _, err := os.Stat(p); err == nil {
 			configPath = p
 			break
 		}
-		parent := filepath.Dir(dir)
-		if parent == dir || parent == "/" {
+		parent := filepath.Dir(searchDir)
+		if parent == searchDir || parent == "/" {
 			break
 		}
-		dir = parent
+		searchDir = parent
 	}
 
 	if configPath != "" {
@@ -260,7 +283,102 @@ func LoadFromDirLegacy(dir string) error {
 		cwd, _ := os.Getwd()
 		ActiveConfig.loadedFromDir = cwd
 	}
+
+	// Always check for workspace context
+	ws, err := LoadWorkspaceConfig(dir)
+	if err != nil {
+		// fmt.Printf("LoadWorkspaceConfig err: %v\n", err)
+	}
+	if err == nil && ws != nil {
+		// fmt.Printf("Workspace found: %s\n", ws.WorkspaceName)
+		ActiveConfig.Workspace = ws
+		// If we don't have an active project yet (e.g. no .atd found or not in project dir), find it
+		if ActiveConfig.ActiveProject == "" {
+			for _, p := range ws.Projects {
+				absProjPath := p.Path
+				if !filepath.IsAbs(absProjPath) {
+					absProjPath = filepath.Join(ws.LoadedFrom, p.Path)
+				}
+
+				rel, err := filepath.Rel(absProjPath, dir)
+				if err == nil && !strings.HasPrefix(rel, "..") {
+					ActiveConfig.ActiveProject = p.Name
+					// If we haven't loaded a config yet, use this project as root
+					if configPath == "" {
+						ActiveConfig.loadedFromDir = absProjPath
+					}
+					break
+				}
+			}
+		}
+	}
+
 	return nil
+}
+
+// SetProject overrides the active project and reloads its config if needed.
+func SetProject(name string) error {
+	if ActiveConfig.Workspace == nil {
+		return fmt.Errorf("no workspace active")
+	}
+
+	for _, p := range ActiveConfig.Workspace.Projects {
+		if p.Name == name {
+			ActiveConfig.ActiveProject = name
+			absProjPath := p.Path
+			if !filepath.IsAbs(absProjPath) {
+				absProjPath = filepath.Join(ActiveConfig.Workspace.LoadedFrom, p.Path)
+			}
+
+			projConfigPath := p.ConfigPath
+			if projConfigPath == "" {
+				projConfigPath = filepath.Join(absProjPath, ".atd")
+			} else if !filepath.IsAbs(projConfigPath) {
+				projConfigPath = filepath.Join(ActiveConfig.Workspace.LoadedFrom, projConfigPath)
+			}
+
+			if data, err := os.ReadFile(projConfigPath); err == nil {
+				json.Unmarshal(data, &ActiveConfig)
+				ActiveConfig.loadedFromDir = absProjPath
+			} else {
+				// Fallback to defaults in project dir
+				ActiveConfig.loadedFromDir = absProjPath
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("project '%s' not found in workspace", name)
+}
+
+// LoadWorkspaceConfig searches upward for .atd.workspace and parses it.
+func LoadWorkspaceConfig(startDir string) (*WorkspaceConfig, error) {
+	dir := startDir
+	for {
+		p := filepath.Join(dir, ".atd.workspace")
+		if _, err := os.Stat(p); err == nil {
+			data, err := os.ReadFile(p)
+			if err != nil {
+				return nil, err
+			}
+			var ws WorkspaceConfig
+			if err := json.Unmarshal(data, &ws); err != nil {
+				return nil, err
+			}
+			abs, _ := filepath.Abs(dir)
+			ws.LoadedFrom = abs
+			if ws.WorkspaceRoot == "" {
+				ws.WorkspaceRoot = abs
+			}
+			return &ws, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir || parent == "/" {
+			break
+		}
+		dir = parent
+	}
+	return nil, fmt.Errorf("workspace not found")
 }
 
 // Log writes a concise trace to the configured log_path.

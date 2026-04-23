@@ -9,6 +9,7 @@ import (
 )
 
 var Verbose bool
+var Project string
 
 var rootCmd = &cobra.Command{
 	Use:     "atd",
@@ -22,7 +23,13 @@ Configuration is loaded from the .atd file found at the project root.
 
 Revision: %s`, GetVersion()),
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return config.Load()
+		if err := config.Load(); err != nil {
+			return err
+		}
+		if Project != "" {
+			return config.SetProject(Project)
+		}
+		return nil
 	},
 }
 
@@ -59,4 +66,5 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose output")
+	rootCmd.PersistentFlags().StringVarP(&Project, "project", "p", "", "active project name")
 }

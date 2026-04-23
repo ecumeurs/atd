@@ -19,8 +19,17 @@ func (e *Explorer) Weave() (string, error) {
 
 	// 1. Discover all declared parents
 	for id, a := range e.Graph.Atoms {
+		projectPrefix := ""
+		if strings.Contains(id, ":") {
+			projectPrefix = strings.Split(id, ":")[0]
+		}
+
 		for _, p := range a.Parents {
-			parentToDependents[p] = append(parentToDependents[p], id)
+			normalizedParent := p
+			if !strings.Contains(p, ":") && projectPrefix != "" {
+				normalizedParent = projectPrefix + ":" + p
+			}
+			parentToDependents[normalizedParent] = append(parentToDependents[normalizedParent], id)
 		}
 	}
 
@@ -30,6 +39,11 @@ func (e *Explorer) Weave() (string, error) {
 	for id, a := range e.Graph.Atoms {
 		if a.FilePath == "" {
 			continue
+		}
+
+		projectPrefix := ""
+		if strings.Contains(id, ":") {
+			projectPrefix = strings.Split(id, ":")[0]
 		}
 
 		content, err := os.ReadFile(a.FilePath)
@@ -119,7 +133,11 @@ func (e *Explorer) Weave() (string, error) {
 		} else {
 			newDepsLines = append(newDepsLines, "dependents:")
 			for _, dep := range deps {
-				newDepsLines = append(newDepsLines, fmt.Sprintf("  - [[%s]]", dep))
+				displayDep := dep
+				if projectPrefix != "" && strings.HasPrefix(dep, projectPrefix+":") {
+					displayDep = strings.TrimPrefix(dep, projectPrefix+":")
+				}
+				newDepsLines = append(newDepsLines, fmt.Sprintf("  - [[%s]]", displayDep))
 			}
 		}
 

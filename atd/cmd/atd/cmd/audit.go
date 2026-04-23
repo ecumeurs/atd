@@ -28,6 +28,7 @@ Phase 2 (Collision Detection): Uses embeddings to find semantic overlaps between
 	RunE: func(cmd *cobra.Command, args []string) error {
 		threshold, _ := cmd.Flags().GetFloat64("threshold")
 		docsDir, _ := cmd.Flags().GetString("docs")
+		workspace, _ := cmd.Flags().GetBool("workspace")
 
 		if docsDir == "" {
 			docsDir = config.DocsDir()
@@ -40,7 +41,7 @@ Phase 2 (Collision Detection): Uses embeddings to find semantic overlaps between
 			}
 		}
 
-		return runFullAudit(docsDir, threshold)
+		return runFullAudit(docsDir, threshold, workspace)
 	},
 }
 
@@ -54,7 +55,7 @@ type atomAuditMeta struct {
 	LastModified int64
 }
 
-func runFullAudit(docsDir string, threshold float64) error {
+func runFullAudit(docsDir string, threshold float64, workspace bool) error {
 	dbPath := filepath.Join(docsDir, ".atd_audit.db") // Renamed from original to avoid conflict with search index if needed
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
@@ -87,9 +88,30 @@ func runFullAudit(docsDir string, threshold float64) error {
 		return fmt.Errorf("failed to create collision_cache: %v", err)
 	}
 
-	files, _ := filepath.Glob(filepath.Join(docsDir, "*.atom.md"))
+	var files []string
+	if workspace && config.ActiveConfig.Workspace != nil {
+		for _, p := range config.ActiveConfig.Workspace.Projects {
+			absProjPath := p.Path
+			if !filepath.IsAbs(absProjPath) {
+				absProjPath = filepath.Join(config.ActiveConfig.Workspace.LoadedFrom, p.Path)
+			}
+			pDocs := p.DocsPath
+			if pDocs == "" {
+				pDocs = "docs/"
+			}
+			if !filepath.IsAbs(pDocs) {
+				pDocs = filepath.Join(absProjPath, pDocs)
+			}
+
+			pFiles, _ := filepath.Glob(filepath.Join(pDocs, "*.atom.md"))
+			files = append(files, pFiles...)
+		}
+	} else {
+		files, _ = filepath.Glob(filepath.Join(docsDir, "*.atom.md"))
+	}
+
 	if len(files) == 0 {
-		return fmt.Errorf("no atoms found in %s", docsDir)
+		return fmt.Errorf("no atoms found")
 	}
 
 	fmt.Println("=== ATD AUDIT PROTOCOL INITIATED ===")
@@ -255,6 +277,7 @@ func init() {
 	rootCmd.AddCommand(auditCmd)
 	auditCmd.Flags().Float64("threshold", 0, "Similarity threshold (0.0 - 1.0)")
 	auditCmd.Flags().String("docs", "", "Path to docs directory")
+	auditCmd.Flags().Bool("workspace", false, "Audit all atoms in workspace")
 	auditCmd.Flags().String("code", "", "Snippet path for compliance check")
 	auditCmd.Flags().String("atom", "", "Atom path for compliance check")
 }
