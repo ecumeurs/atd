@@ -134,7 +134,18 @@
                     </p>
                 </div>
 
-                <!-- Field 6: Generate Button -->
+                <!-- Field 6: Workspace Scope -->
+                <div class="form-group" style="margin-top: 10px; display: none;" id="doc-setup-workspace-group">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="doc-setup-workspace" style="width: auto;">
+                        <label for="doc-setup-workspace" style="margin: 0; cursor: pointer;">Allow cross-project atoms (Workspace Mode)</label>
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">
+                        Enable this to include dependencies from other projects in the workspace
+                    </p>
+                </div>
+
+                <!-- Field 7: Generate Button -->
                 <div class="form-actions" style="margin-top: 15px;">
                     <button class="btn btn-primary" id="btn-doc-setup-generate">🚀 Generate Document</button>
                 </div>

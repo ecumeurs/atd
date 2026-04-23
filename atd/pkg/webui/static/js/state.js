@@ -84,3 +84,11 @@ export function getAtomMap() {
     state.atoms.forEach(a => map.set(a.id, a));
     return map;
 }
+
+export function isInWorkspace() {
+    return state.workspace.inWorkspace;
+}
+
+export function getWorkspace() {
+    return state.workspace;
+}

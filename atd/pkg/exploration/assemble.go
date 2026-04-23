@@ -17,6 +17,7 @@ type AssembleMetadata struct {
 	Layer    string `json:"layer"`
 	Type     string `json:"type"`
 	Filepath string `json:"filepath"`
+	Project  string `json:"project,omitempty"` // NEW
 }
 
 type AssembleJSON struct {
@@ -36,6 +37,7 @@ type AssembleOptions struct {
 	OnlyParents    bool
 	OnlyDependents bool
 	DocsDir        string
+	Workspace      bool // NEW: Allow cross-project assembly
 }
 
 func Assemble(opts AssembleOptions) (string, error) {
@@ -49,8 +51,16 @@ func Assemble(opts AssembleOptions) (string, error) {
 	}
 
 	graph := &DependencyGraph{Atoms: make(map[string]*atom.AtomData)}
-	if err := CrawlDocs(opts.DocsDir, graph); err != nil {
-		return "", err
+	
+	// Determine how to load atoms
+	if opts.Workspace {
+		if err := CrawlWorkspaceDocs(graph); err != nil {
+			return "", err
+		}
+	} else {
+		if err := CrawlDocs(opts.DocsDir, graph); err != nil {
+			return "", err
+		}
 	}
 
 	// Build reverse relationships (dependents) for graph traversal
@@ -109,6 +119,7 @@ func Assemble(opts AssembleOptions) (string, error) {
 			Layer:    a.Layer,
 			Type:     a.Type,
 			Filepath: a.FilePath,
+			Project:  a.GetProject(),
 		})
 	}
 
@@ -256,7 +267,11 @@ func RenderMetadata(meta []AssembleMetadata) string {
 	var out strings.Builder
 	out.WriteString("\n\n---\n**Metadata Index:**\n")
 	for _, m := range meta {
-		out.WriteString(fmt.Sprintf("- `[[%s]]` (%s, %s)\n", m.ID, m.Layer, m.Type))
+		projectInfo := ""
+		if m.Project != "" {
+			projectInfo = fmt.Sprintf("[%s] ", m.Project)
+		}
+		out.WriteString(fmt.Sprintf("- %s`[[%s]]` (%s, %s)\n", projectInfo, m.ID, m.Layer, m.Type))
 	}
 	return out.String()
 }

@@ -628,6 +628,11 @@ type TraceGraphSlice struct {
 
 // @spec-link [[mechanic_atd_exploration_graph]]
 func CrawlDocs(dir string, graph *DependencyGraph) error {
+	return CrawlDocsWithTag(dir, graph, "")
+}
+
+// CrawlDocsWithTag walks a directory and adds all atoms found to the graph, tagged with a project name.
+func CrawlDocsWithTag(dir string, graph *DependencyGraph, projectName string) error {
 	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // Skip path on error
@@ -641,12 +646,21 @@ func CrawlDocs(dir string, graph *DependencyGraph) error {
 					return nil
 				}
 				if id != "" {
-					graph.Atoms[id] = &atom.AtomData{
+					a = atom.AtomData{
 						ID:       id,
 						FilePath: path,
 					}
+				} else {
+					return nil
 				}
-				return nil
+			}
+
+			// Tag with project name
+			if projectName != "" {
+				if a.Metadata == nil {
+					a.Metadata = make(map[string]string)
+				}
+				a.Metadata["project"] = projectName
 			}
 
 			node := a
@@ -654,6 +668,35 @@ func CrawlDocs(dir string, graph *DependencyGraph) error {
 		}
 		return nil
 	})
+}
+
+// CrawlWorkspaceDocs crawls all projects in the workspace and gathers all atoms.
+func CrawlWorkspaceDocs(graph *DependencyGraph) error {
+	if config.ActiveConfig.Workspace == nil {
+		return fmt.Errorf("no workspace active")
+	}
+
+	for _, p := range config.ActiveConfig.Workspace.Projects {
+		absProjPath := p.Path
+		if !filepath.IsAbs(absProjPath) {
+			absProjPath = filepath.Join(config.ActiveConfig.Workspace.LoadedFrom, p.Path)
+		}
+
+		docsPath := p.DocsPath
+		if docsPath == "" {
+			docsPath = "docs/"
+		}
+		if !filepath.IsAbs(docsPath) {
+			docsPath = filepath.Join(absProjPath, docsPath)
+		}
+
+		if err := CrawlDocsWithTag(docsPath, graph, p.Name); err != nil {
+			// Log warning but continue
+			fmt.Printf("Warning: failed to crawl %s: %v\n", p.Name, err)
+		}
+	}
+
+	return nil
 }
 
 // @spec-link [[mechanic_atd_exploration_graph]]

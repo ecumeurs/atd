@@ -269,14 +269,21 @@ func (s *Server) handleSummary(c *gin.Context) {
 func (s *Server) handleSearch(c *gin.Context) {
 	query := c.Query("q")
 	grep := c.Query("grep")
+	workspace := c.Query("workspace") == "true"
+	var projects []string
+	if p := c.Query("projects"); p != "" {
+		projects = strings.Split(p, ",")
+	}
 
 	opts := exploration.SearchOptions{
-		Query:  query,
-		Grep:   grep,
-		DBPath: filepath.Join(config.DocsDir(), ".atd_index.db"),
-		Limit:  10,
-		Scope:  "all",
-		Root:   config.ProjectRoot(),
+		Query:     query,
+		Grep:      grep,
+		DBPath:    filepath.Join(config.DocsDir(), ".atd_index.db"),
+		Limit:     10,
+		Scope:     "all",
+		Root:      config.ProjectRoot(),
+		Workspace: workspace,
+		Projects:  projects,
 	}
 
 	results, err := exploration.Search(opts)
@@ -297,6 +304,7 @@ func (s *Server) handleSearch(c *gin.Context) {
 		Status     string  `json:"status"`
 		Intent     string  `json:"intent"`
 		Similarity float64 `json:"similarity"`
+		Project    string  `json:"project"` // NEW
 	}
 
 	var atomResults []AtomSearchResult
@@ -327,6 +335,7 @@ func (s *Server) handleSearch(c *gin.Context) {
 				Status:     atom.Status,
 				Intent:     atom.Intent,
 				Similarity: result.Similarity,
+				Project:    result.Project, // NEW
 			})
 		}
 	}
@@ -491,9 +500,10 @@ func (s *Server) handleSearchDocumentContext(c *gin.Context) {
 
 func (s *Server) handleGenerateDocument(c *gin.Context) {
 	var req struct {
-		Intent string   `json:"intent"`
-		Starts []string `json:"starts"`
-			Length  string  `json:"length,omitempty"`
+		Intent    string   `json:"intent"`
+		Starts    []string `json:"starts"`
+		Length    string   `json:"length,omitempty"`
+		Workspace bool     `json:"workspace"` // NEW
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
@@ -503,10 +513,11 @@ func (s *Server) handleGenerateDocument(c *gin.Context) {
 	opts := exploration.AssembleOptions{
 		Starts:     strings.Join(req.Starts, ","),
 		Intent:     req.Intent,
-			Length:     req.Length,
+		Length:     req.Length,
 		Structured: true,
 		AsJSON:     true,
 		DocsDir:    config.DocsDir(),
+		Workspace:  req.Workspace, // NEW
 	}
 
 	resStr, err := exploration.Assemble(opts)

@@ -724,6 +724,67 @@ body {
     text-align: center;
 }
 
+.search-scope-container {
+    padding: 8px 20px;
+    background: rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.search-scope-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.search-scope-toggle {
+    display: flex;
+    background: var(--bg-dark);
+    border-radius: 4px;
+    padding: 2px;
+}
+
+.scope-option {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.scope-option input {
+    display: none;
+}
+
+.scope-option span {
+    color: var(--text-muted);
+}
+
+.scope-option:has(input:checked) {
+    background: var(--accent);
+}
+
+.scope-option:has(input:checked) span {
+    color: white;
+    font-weight: 600;
+}
+
+.search-result-project {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(156, 39, 176, 0.15);
+    color: #e1bee7;
+    border: 1px solid rgba(156, 39, 176, 0.3);
+    margin-left: 4px;
+}
+
 /* =======================================
    DETAILS PANEL
    ======================================= */

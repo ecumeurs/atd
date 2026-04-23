@@ -25,6 +25,9 @@ export function initDocuments() {
     lengthSelect = document.getElementById('doc-setup-length');
     generateBtn = document.getElementById('btn-doc-setup-generate');
     loadingSpinner = document.getElementById('doc-setup-loading');
+    
+    // NEW: Workspace toggle
+    const workspaceGroup = document.getElementById('doc-setup-workspace-group');
 
     viewerTitle = document.getElementById('document-modal-title');
     viewerMeta = document.getElementById('document-modal-meta');
@@ -67,6 +70,12 @@ export function initDocuments() {
         selectedAtoms.clear();
         updateSelectedDisplay();
         foundList.innerHTML = '<li style="padding: 10px;">Search for ATDs above</li>';
+
+        // NEW: Show/hide workspace toggle based on state
+        const workspaceGroup = document.getElementById('doc-setup-workspace-group');
+        if (workspaceGroup) {
+            workspaceGroup.style.display = state.workspace.inWorkspace ? 'block' : 'none';
+        }
 
         // Auto-search if query provided
         if (query.trim().length >= 2) {
@@ -332,7 +341,8 @@ async function handleGenerate() {
             length = lengthValue;
         }
 
-        const doc = await generateDocument(prompt, starts, length);
+        const useWorkspace = document.getElementById('doc-setup-workspace')?.checked || false;
+        const doc = await generateDocument(prompt, starts, length, useWorkspace);
         setupModal.style.display = 'none';
         showDocumentViewer(doc);
     } catch(err) {

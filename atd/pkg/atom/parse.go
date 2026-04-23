@@ -37,7 +37,16 @@ type AtomData struct {
 	Expectation string   `json:"expectation"` // Content of ## EXPECTATION section
 	FilePath    string   `json:"filepath"`    // Original file path
 	Implementations []string `json:"linked_codes"` // Linked source files
-	HasTests    bool     `json:"has_tests"`    // Detection of @test-link tags
+	HasTests    bool              `json:"has_tests"`    // Detection of @test-link tags
+	Metadata    map[string]string `json:"metadata"`     // NEW: For project tagging
+}
+
+// GetProject returns the project name from metadata if present.
+func (a *AtomData) GetProject() string {
+	if a.Metadata != nil {
+		return a.Metadata["project"]
+	}
+	return ""
 }
 
 // Parse reads a full .atom.md file and returns all metadata + content sections.

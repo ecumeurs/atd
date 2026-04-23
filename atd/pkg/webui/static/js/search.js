@@ -2,7 +2,7 @@
  * Search Overlay Module — Ctrl+K command palette for atom lookup.
  * @spec-link [[ui_webui_search_overlay]]
  */
-import { state, setCurrentAtom, emit } from './state.js';
+import { state, setCurrentAtom, emit, isInWorkspace, getWorkspace } from './state.js';
 import { searchAtoms } from './api.js';
 
 let overlay = null;
@@ -35,6 +35,46 @@ function openSearchOverlay() {
     input.className = 'search-input';
     input.placeholder = 'Search atoms by name, ID, or content... (Ctrl+K)';
     input.autofocus = true;
+
+    // NEW: Workspace scope toggle
+    if (isInWorkspace()) {
+        const workspace = getWorkspace();
+        const scopeContainer = document.createElement('div');
+        scopeContainer.className = 'search-scope-container';
+
+        const scopeLabel = document.createElement('span');
+        scopeLabel.className = 'search-scope-label';
+        scopeLabel.textContent = 'Search scope:';
+
+        const scopeToggle = document.createElement('div');
+        scopeToggle.className = 'search-scope-toggle';
+
+        const projectRadio = document.createElement('label');
+        projectRadio.className = 'scope-option';
+        projectRadio.innerHTML = `
+            <input type="radio" name="search-scope" value="project" checked>
+            <span>${escapeHtml(workspace.activeProject || 'Current Project')}</span>
+        `;
+
+        const workspaceRadio = document.createElement('label');
+        workspaceRadio.className = 'scope-option';
+        workspaceRadio.innerHTML = `
+            <input type="radio" name="search-scope" value="workspace">
+            <span>All Projects</span>
+        `;
+
+        scopeToggle.appendChild(projectRadio);
+        scopeToggle.appendChild(workspaceRadio);
+        scopeContainer.appendChild(scopeLabel);
+        scopeContainer.appendChild(scopeToggle);
+        panel.appendChild(scopeContainer);
+
+        // Re-trigger search on toggle
+        scopeToggle.addEventListener('change', () => {
+            const q = input.value.trim();
+            if (q.length >= 2) performSearch(q, results, hint);
+        });
+    }
 
     const results = document.createElement('div');
     results.className = 'search-results';
@@ -108,7 +148,11 @@ function updateSelection(items, index) {
 
 async function performSearch(query, resultsContainer, hint) {
     try {
-        const atoms = await searchAtoms(query);
+        // NEW: Check workspace scope selection
+        const scopeRadio = document.querySelector('input[name="search-scope"]:checked');
+        const useWorkspace = scopeRadio?.value === 'workspace';
+
+        const atoms = await searchAtoms(query, useWorkspace);
         resultsContainer.innerHTML = '';
 
         if (!atoms || atoms.length === 0) {
@@ -132,6 +176,9 @@ async function performSearch(query, resultsContainer, hint) {
                 <div class="search-result-left">
                     <span class="search-result-type" style="color: ${layerColors[atom.layer] || 'var(--text-muted)'}">${atom.type}</span>
                     <span class="search-result-name">${escapeHtml(atom.human_name || atom.id)}</span>
+                    ${atom.project && atom.project !== state.workspace.activeProject 
+                        ? `<span class="search-result-project" title="From project: ${atom.project}">${escapeHtml(atom.project)}</span>` 
+                        : ''}
                 </div>
                 <div class="search-result-right">
                     <span class="search-result-layer">${atom.layer}</span>

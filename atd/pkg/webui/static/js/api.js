@@ -71,8 +71,12 @@ export async function fetchSummary(id) {
 }
 
 // @spec-link [[ui_webui_search_overlay]]
-export async function searchAtoms(query) {
-    const resp = await fetch('/api/search?q=\${encodeURIComponent(query)}');
+export async function searchAtoms(query, workspaceScope = false) {
+    let url = `/api/search?q=${encodeURIComponent(query)}`;
+    if (workspaceScope) {
+        url += '&workspace=true';
+    }
+    const resp = await fetch(url);
     if (!resp.ok) throw new Error('Search failed');
     return resp.json();
 }
@@ -120,8 +124,8 @@ export async function searchDocumentContext(query) {
 }
 
 // @spec-link [[mechanic_webui_document_generation]]
-export async function generateDocument(intent, starts, length = null) {
-    const payload = { intent, starts };
+export async function generateDocument(intent, starts, length = null, workspace = false) {
+    const payload = { intent, starts, workspace };
     if (length !== null && length !== '') {
         payload.length = length;
     }
