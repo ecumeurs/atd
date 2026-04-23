@@ -1,0 +1,18 @@
+{
+  "workspace_name": "test-workspace",
+  "workspace_root": "/home/bastien/work/skill/test-workspace",
+  "projects": [
+    {
+      "name": "project-a",
+      "path": "./project-a"
+    },
+    {
+      "name": "project-b",
+      "path": "./project-b"
+    },
+    {
+      "name": "project-c",
+      "path": "./project-c"
+    }
+  ]
+}

@@ -125,3 +125,43 @@ func TestSetProject(t *testing.T) {
 		t.Errorf("expected error for missing project")
 	}
 }
+
+func TestLoadWorkspaceConfig_Malformed(t *testing.T) {
+	tmp, err := os.MkdirTemp("", "atd-test-malformed-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	// Test invalid JSON
+	os.WriteFile(filepath.Join(tmp, ".atd.workspace"), []byte(`{invalid json`), 0644)
+	_, err = LoadWorkspaceConfig(tmp)
+	if err == nil {
+		t.Error("Expected error for malformed JSON")
+	}
+}
+
+func TestDetectActiveProject_Subdir(t *testing.T) {
+	tmp, err := os.MkdirTemp("", "atd-test-subdir-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	projA := filepath.Join(tmp, "proj-a")
+	projASub := filepath.Join(projA, "src", "deep")
+	os.MkdirAll(projASub, 0755)
+
+	wsContent := `{"workspace_name": "test-ws", "projects": [{"name": "proj-a", "path": "./proj-a"}]}`
+	os.WriteFile(filepath.Join(tmp, ".atd.workspace"), []byte(wsContent), 0644)
+
+	// Test loading from deep subdir
+	err = LoadFromDirLegacy(projASub)
+	if err != nil {
+		t.Fatalf("LoadFromDirLegacy failed: %v", err)
+	}
+
+	if ActiveConfig.ActiveProject != "proj-a" {
+		t.Errorf("Expected active project 'proj-a', got '%s'", ActiveConfig.ActiveProject)
+	}
+}

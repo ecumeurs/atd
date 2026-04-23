@@ -1,0 +1,14 @@
+{
+  "workspace_name": "e2e-ws",
+  "workspace_root": ".",
+  "projects": [
+    {
+      "name": "frontend",
+      "path": "./frontend"
+    },
+    {
+      "name": "backend",
+      "path": "./backend"
+    }
+  ]
+}

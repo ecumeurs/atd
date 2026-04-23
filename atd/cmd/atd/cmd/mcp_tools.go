@@ -100,12 +100,14 @@ Set gaps=true during VERIFY stage to find STABLE atoms with no code implementati
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"gaps": map[string]any{"type": "boolean", "description": "If true, return only STABLE atoms with zero code implementations (orphan detection)."},
+				"gaps":      map[string]any{"type": "boolean", "description": "If true, return only STABLE atoms with zero code implementations (orphan detection)."},
+				"workspace": map[string]any{"type": "boolean", "description": "If true, crawl the entire workspace."},
 			},
 		},
 	}, func(args map[string]any) (string, error) {
 		gaps := argBool(args, "gaps")
-		return runCrawl(".", config.DocsDir(), gaps, false)
+		workspace := argBool(args, "workspace")
+		return runCrawl(".", config.DocsDir(), gaps, workspace)
 	})
 
 	// @spec-link [[api_atd_serve_weave]]
@@ -204,11 +206,14 @@ Use during cold-start PLAN stage to prioritize which files to dissect first.`,
 		Description: `Produce quantitative documentation health metrics: total atoms, atoms by type/status/layer, @spec-link coverage ratio, and orphan count.
 Use during VERIFY stage to assess overall documentation quality, or in CI to generate health badges.`,
 		InputSchema: map[string]any{
-			"type":       "object",
-			"properties": map[string]any{},
+			"type": "object",
+			"properties": map[string]any{
+				"workspace": map[string]any{"type": "boolean", "description": "If true, aggregate stats from all projects in the workspace."},
+			},
 		},
 	}, func(args map[string]any) (string, error) {
-		return runStats(".", config.DocsDir(), false)
+		workspace := argBool(args, "workspace")
+		return runStats(".", config.DocsDir(), workspace)
 	})
 
 	// @spec-link [[api_atd_serve_verify]]
@@ -548,5 +553,16 @@ Subsequent tool calls will be scoped to this project.`,
 			return "", err
 		}
 		return fmt.Sprintf("Switched to project: %s", project), nil
+	})
+
+	r.Register(mcp.Tool{
+		Name: "atd_workspace_stats",
+		Description: `Aggregate documentation health metrics across all projects in the workspace.`,
+		InputSchema: map[string]any{
+			"type":       "object",
+			"properties": map[string]any{},
+		},
+	}, func(args map[string]any) (string, error) {
+		return runStats(".", config.DocsDir(), true)
 	})
 }
