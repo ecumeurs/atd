@@ -59,22 +59,72 @@
         </header>
 
         <div id="document-setup-modal" class="modal-overlay" style="display: none;">
-            <div class="modal-content">
+            <div class="modal-content modal-large">
                 <button class="btn-close" id="close-document-setup">×</button>
                 <h2>Generate Documentation</h2>
+
+                <!-- Field 1: Prompt/Intent -->
                 <div class="form-group" style="margin-top: 10px;">
-                    <label>Intent / Narrative Request</label>
-                    <input type="text" id="doc-setup-intent" class="search-input"
-                        placeholder="What should the document cover?">
+                    <label>Prompt / Narrative Request</label>
+                    <input type="text" id="doc-setup-prompt" class="search-input"
+                        placeholder="Present Character Progression for players">
                 </div>
-                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 5px;">Selected Graph Nodes:</p>
-                <ul id="doc-setup-atoms-list"
-                    style="list-style: none; padding: 0; max-height: 200px; overflow-y: auto; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 4px; margin: 0 0 10px 0;">
-                </ul>
-                <button class="btn btn-outline btn-sm" id="btn-doc-setup-add" style="margin-bottom: 15px;">+ Add
-                    Specific Atom</button>
-                <div class="form-actions" style="margin-top: auto;">
-                    <button class="btn btn-primary" id="btn-doc-setup-generate">Confirm Generation</button>
+
+                <!-- Field 2: Research/Search Input -->
+                <div class="form-group" style="margin-top: 10px;">
+                    <label>Research ATDs</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="doc-setup-search" class="search-input"
+                            placeholder="Search ATDs..." style="flex: 1;">
+                        <button class="btn btn-outline btn-sm" id="btn-doc-setup-search">🔍</button>
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">
+                        Search results will populate below. Click to add to selection.
+                    </p>
+                </div>
+
+                <!-- Field 3: Found ATDs List -->
+                <div class="form-group" style="margin-top: 10px;">
+                    <label style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Found ATDs</span>
+                        <span id="doc-setup-found-count" style="font-size: 11px; color: var(--text-muted);">0 found</span>
+                    </label>
+                    <ul id="doc-setup-found-list"
+                        style="list-style: none; padding: 0; max-height: 150px; overflow-y: auto; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 4px;">
+                        <li style="padding: 10px; color: var(--text-muted); text-align: center;">Search for ATDs above</li>
+                    </ul>
+                </div>
+
+                <!-- Field 4: Selected ATDs List (Tag Style) -->
+                <div class="form-group" style="margin-top: 10px;">
+                    <label style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Selected ATDs</span>
+                        <button class="btn btn-outline btn-sm" id="btn-doc-setup-clear" style="font-size: 11px;">Clear All</button>
+                    </label>
+                    <div id="doc-setup-selected-container"
+                        style="min-height: 80px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 4px; padding: 10px; display: flex; flex-wrap: wrap; gap: 5px; align-items: flex-start;">
+                        <div id="doc-setup-selected-placeholder" style="color: var(--text-muted); font-size: 13px;">No ATDs selected</div>
+                    </div>
+                </div>
+
+                <!-- Field 5: Document Length -->
+                <div class="form-group" style="margin-top: 10px;">
+                    <label>Document Length</label>
+                    <select id="doc-setup-length" class="search-input" style="width: 150px;">
+                        <option value="">Auto (based on content)</option>
+                        <option value="short">Short (~100 words)</option>
+                        <option value="default">Default (~300 words)</option>
+                        <option value="long">Long (~600 words)</option>
+                        <option value="detailed">Detailed (~1000 words)</option>
+                    </select>
+                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">
+                        Controls the detail level of generated documentation
+                    </p>
+                </div>
+
+                <!-- Field 6: Generate Button -->
+                <div class="form-actions" style="margin-top: 15px;">
+                    <button class="btn btn-primary" id="btn-doc-setup-generate">🚀 Generate Document</button>
                 </div>
                 <div id="doc-setup-loading"
                     style="display: none; align-items: center; gap: 10px; margin-top: 10px; color: var(--color-blue-light);">

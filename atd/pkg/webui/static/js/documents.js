@@ -6,25 +6,31 @@ import { on, state, emit } from './state.js';
 import { searchDocumentContext, generateDocument, fetchRecentDocuments } from './api.js';
 
 let setupModal, viewerModal;
-let intentInput, atomList, addAtomBtn, generateBtn, loadingSpinner;
+let promptInput, searchInput, searchBtn, foundList, selectedContainer, generateBtn, loadingSpinner, clearBtn, lengthSelect;
 let viewerTitle, viewerMeta, viewerContent, downloadBtn;
 let recentDocsBtn, recentDocsDropdown, recentDocsList;
+let selectedAtoms = new Set();
+let foundAtoms = [];
 
 export function initDocuments() {
     setupModal = document.getElementById('document-setup-modal');
     viewerModal = document.getElementById('document-modal');
-    
-    intentInput = document.getElementById('doc-setup-intent');
-    atomList = document.getElementById('doc-setup-atoms-list');
-    addAtomBtn = document.getElementById('btn-doc-setup-add');
+
+    promptInput = document.getElementById('doc-setup-prompt');
+    searchInput = document.getElementById('doc-setup-search');
+    searchBtn = document.getElementById('btn-doc-setup-search');
+    foundList = document.getElementById('doc-setup-found-list');
+    selectedContainer = document.getElementById('doc-setup-selected-container');
+    clearBtn = document.getElementById('btn-doc-setup-clear');
+    lengthSelect = document.getElementById('doc-setup-length');
     generateBtn = document.getElementById('btn-doc-setup-generate');
     loadingSpinner = document.getElementById('doc-setup-loading');
-    
+
     viewerTitle = document.getElementById('document-modal-title');
     viewerMeta = document.getElementById('document-modal-meta');
     viewerContent = document.getElementById('document-modal-content');
     downloadBtn = document.getElementById('btn-download-document');
-    
+
     recentDocsBtn = document.getElementById('btn-recent-docs');
     recentDocsDropdown = document.getElementById('recent-docs-dropdown');
     recentDocsList = document.getElementById('recent-docs-list');
@@ -38,27 +44,33 @@ export function initDocuments() {
         viewerModal.style.display = 'none';
     });
 
-    addAtomBtn?.addEventListener('click', openAtomPicker);
-    
+    searchBtn?.addEventListener('click', () => handleSearch(searchInput.value.trim()));
+
+    searchInput?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleSearch(searchInput.value.trim());
+        }
+    });
+
+    clearBtn?.addEventListener('click', () => {
+        selectedAtoms.clear();
+        updateSelectedDisplay();
+    });
+
     generateBtn?.addEventListener('click', handleGenerate);
 
     on('document-setup-requested', async (query) => {
-        intentInput.value = query;
-        atomList.innerHTML = '<li style="padding: 10px;">Searching context...</li>';
+        promptInput.value = query;
         setupModal.style.display = 'flex';
         loadingSpinner.style.display = 'none';
         generateBtn.disabled = false;
+        selectedAtoms.clear();
+        updateSelectedDisplay();
+        foundList.innerHTML = '<li style="padding: 10px;">Search for ATDs above</li>';
 
-        try {
-            const context = await searchDocumentContext(query);
-            atomList.innerHTML = '';
-            if (!context || context.length === 0) {
-                atomList.innerHTML = '<li style="padding: 10px;">No contextual ATDs found. Please add manually.</li>';
-            } else {
-                context.forEach(atom => addAtomToChecklist(atom));
-            }
-        } catch (e) {
-            atomList.innerHTML = `<li style="padding: 10px; color: var(--color-red);">Error: ${e.message}</li>`;
+        // Auto-search if query provided
+        if (query.trim().length >= 2) {
+            await handleSearch(query);
         }
     });
 
@@ -79,39 +91,148 @@ export function initDocuments() {
     });
 }
 
-function addAtomToChecklist(atom, checked = true) {
-    if (atomList.querySelector(`input[value="${atom.id}"]`)) return;
+async function handleSearch(query) {
+    if (query.length < 2) {
+        foundList.innerHTML = '<li style="padding: 10px; text-align: center;">Type at least 2 characters</li>';
+        return;
+    }
 
-    const li = document.createElement('li');
-    li.style.padding = '8px 10px';
-    li.style.borderBottom = '1px solid var(--border)';
-    li.style.display = 'flex';
-    li.style.alignItems = 'center';
-    li.style.gap = '10px';
+    foundList.innerHTML = '<li style="padding: 10px; text-align: center;">Searching...</li>';
 
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.value = atom.id;
-    checkbox.checked = checked;
+    try {
+        const atoms = await searchAtoms(query);
+        foundAtoms = atoms || [];
+        updateFoundDisplay();
+    } catch (err) {
+        foundList.innerHTML = `<li style="padding: 10px; color: var(--color-red);">Search error: ${err.message}</li>`;
+    }
+}
 
-    const info = document.createElement('div');
-    info.style.flex = '1';
-    
+function updateFoundDisplay() {
+    foundList.innerHTML = '';
+
+    if (!foundAtoms || foundAtoms.length === 0) {
+        foundList.innerHTML = '<li style="padding: 10px; text-align: center;">No ATDs found</li>';
+        document.getElementById('doc-setup-found-count').textContent = '0 found';
+        return;
+    }
+
+    document.getElementById('doc-setup-found-count').textContent = `${foundAtoms.length} found`;
+
     const layerColors = {
         CUSTOMER: 'var(--color-customer)',
         ARCHITECTURE: 'var(--color-architecture)',
         IMPLEMENTATION: 'var(--color-implementation)',
     };
-    
-    info.innerHTML = `
-        <span style="color: ${layerColors[atom.layer] || 'var(--text-muted)'}; font-size: 11px; margin-right: 5px; font-weight: bold;">[${atom.layer}]</span>
-        <span style="font-weight: 500;">${atom.id}</span>
-        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${atom.human_name || ''}</div>
-    `;
 
-    li.appendChild(checkbox);
-    li.appendChild(info);
-    atomList.appendChild(li);
+    foundAtoms.forEach(atom => {
+        const li = document.createElement('li');
+        li.style.padding = '8px 10px';
+        li.style.borderBottom = '1px solid var(--border)';
+        li.style.display = 'flex';
+        li.style.alignItems = 'center';
+        li.style.gap = '10px';
+        li.style.cursor = 'pointer';
+        li.style.transition = 'background 0.2s';
+
+        const isSelected = selectedAtoms.has(atom.id);
+        if (isSelected) {
+            li.style.background = 'var(--color-selected)';
+        }
+
+        const info = document.createElement('div');
+        info.style.flex = '1';
+        info.innerHTML = `
+            <span style="color: ${layerColors[atom.layer] || 'var(--text-muted)'}; font-size: 11px; margin-right: 5px; font-weight: bold;">[${atom.layer}]</span>
+            <span style="font-weight: 500;">${atom.id}</span>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${atom.human_name || ''}</div>
+        `;
+
+        li.appendChild(info);
+        li.addEventListener('click', () => toggleAtomSelection(atom));
+        li.addEventListener('mouseenter', () => {
+            if (!selectedAtoms.has(atom.id)) li.style.background = 'var(--color-hover)';
+        });
+        li.addEventListener('mouseleave', () => {
+            if (!selectedAtoms.has(atom.id)) li.style.background = '';
+        });
+
+        foundList.appendChild(li);
+    });
+}
+
+function toggleAtomSelection(atom) {
+    if (selectedAtoms.has(atom.id)) {
+        selectedAtoms.delete(atom.id);
+    } else {
+        selectedAtoms.add(atom.id);
+    }
+    updateFoundDisplay();
+    updateSelectedDisplay();
+}
+
+function updateSelectedDisplay() {
+    // Clear current display
+    selectedContainer.innerHTML = '';
+
+    if (selectedAtoms.size === 0) {
+        const placeholder = document.createElement('div');
+        placeholder.id = 'doc-setup-selected-placeholder';
+        placeholder.style.color = 'var(--text-muted)';
+        placeholder.style.fontSize = '13px';
+        placeholder.textContent = 'No ATDs selected';
+        selectedContainer.appendChild(placeholder);
+        return;
+    }
+
+    // Create tags for selected atoms
+    selectedAtoms.forEach(atomId => {
+        const atom = foundAtoms.find(a => a.id === atomId) || state.atoms.find(a => a.id === atomId);
+        if (!atom) return;
+
+        const tag = document.createElement('div');
+        tag.className = 'atom-tag';
+        tag.style.display = 'flex';
+        tag.style.alignItems = 'center';
+        tag.style.gap = '5px';
+        tag.style.background = 'var(--color-primary)';
+        tag.style.color = 'white';
+        tag.style.padding = '5px 10px';
+        tag.style.borderRadius = '20px';
+        tag.style.fontSize = '12px';
+        tag.style.fontWeight = '500';
+        tag.style.transition = 'transform 0.2s, background 0.2s';
+
+        const layerColors = {
+            CUSTOMER: '#4CAF50',
+            ARCHITECTURE: '#2196F3',
+            IMPLEMENTATION: '#FF9800',
+        };
+
+        tag.innerHTML = `
+            <span style="color: ${layerColors[atom.layer] || '#666'}; font-weight: bold; margin-right: 2px;">[${atom.layer}]</span>
+            <span>${atom.id}</span>
+            <button class="tag-remove" style="background: none; border: none; color: white; cursor: pointer; padding: 0; font-size: 14px; line-height: 1; opacity: 0.7;" title="Remove">×</button>
+        `;
+
+        tag.querySelector('.tag-remove').addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectedAtoms.delete(atomId);
+            updateFoundDisplay();
+            updateSelectedDisplay();
+        });
+
+        tag.addEventListener('mouseenter', () => {
+            tag.style.transform = 'scale(1.05)';
+            tag.querySelector('.tag-remove').style.opacity = '1';
+        });
+        tag.addEventListener('mouseleave', () => {
+            tag.style.transform = 'scale(1)';
+            tag.querySelector('.tag-remove').style.opacity = '0.7';
+        });
+
+        selectedContainer.appendChild(tag);
+    });
 }
 
 function openAtomPicker(e) {
@@ -188,17 +309,15 @@ function openAtomPicker(e) {
 }
 
 async function handleGenerate() {
-    const intent = intentInput.value.trim();
-    if (!intent) {
-        alert('Please provide an intent or narrative request.');
+    const prompt = promptInput.value.trim();
+    if (!prompt) {
+        alert('Please provide a prompt or narrative request.');
         return;
     }
 
-    const startInputs = atomList.querySelectorAll('input:checked');
-    const starts = Array.from(startInputs).map(i => i.value);
-    
+    const starts = Array.from(selectedAtoms);
     if (starts.length === 0) {
-        alert('Please select at least one graph node to begin assembly.');
+        alert('Please select at least one ATD to begin assembly.');
         return;
     }
 
@@ -206,7 +325,14 @@ async function handleGenerate() {
     loadingSpinner.style.display = 'flex';
 
     try {
-        const doc = await generateDocument(intent, starts);
+        // Get length parameter if provided
+        let length = null;
+        const lengthValue = lengthSelect.value.trim();
+        if (lengthValue) {
+            length = lengthValue;
+        }
+
+        const doc = await generateDocument(prompt, starts, length);
         setupModal.style.display = 'none';
         showDocumentViewer(doc);
     } catch(err) {

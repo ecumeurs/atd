@@ -307,10 +307,14 @@ function highlightAtomPath(atom) {
         }
     });
 
-    // Scroll selected atom into view (ISS-088)
-    if (selectedEl) {
-        selectedEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    // Scroll all lanes to top to show bubbled items (ISS-088)
+    // We use requestAnimationFrame to ensure the 'order' change has been processed by the browser
+    requestAnimationFrame(() => {
+        const laneContents = waterfallContainer.querySelectorAll('.lane-content');
+        laneContents.forEach(lane => {
+            lane.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    });
 }
 
 function renderFoundation(foundationAtoms) {

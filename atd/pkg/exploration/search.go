@@ -35,7 +35,12 @@ func Search(opts SearchOptions) ([]SearchResult, error) {
 		return GrepSearch(opts.Grep, opts.Root)
 	}
 	if opts.Query != "" {
-		return SemanticSearch(opts.Query, opts.DBPath, opts.Limit, opts.Scope)
+		results, err := SemanticSearch(opts.Query, opts.DBPath, opts.Limit, opts.Scope)
+		if err != nil {
+			// Fallback to grep search if semantic search fails (e.g. LLM provider offline)
+			return GrepSearch(opts.Query, opts.Root)
+		}
+		return results, nil
 	}
 	return nil, fmt.Errorf("either query or grep must be specified")
 }

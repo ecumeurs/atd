@@ -16,26 +16,26 @@ export async function fetchTree() {
 }
 
 export async function fetchAtom(id) {
-    const resp = await fetch(`/api/atd/${id}`);
+    const resp = await fetch('/api/atd/\${id}');
     if (!resp.ok) throw new Error('Atom not found');
     return resp.json();
 }
 
 export async function fetchAtomCode(id) {
-    const resp = await fetch(`/api/atd/${id}/code`);
+    const resp = await fetch('/api/atd/\${id}/code');
     if (!resp.ok) throw new Error('Failed to fetch code');
     return resp.json();
 }
 
 export async function fetchAtomTests(id) {
-    const resp = await fetch(`/api/atd/${id}/tests`);
+    const resp = await fetch('/api/atd/\${id}/tests');
     if (!resp.ok) throw new Error('Failed to fetch tests');
     return resp.json();
 }
 
 // @spec-link [[mechanic_atd_update]]
 export async function updateAtom(id, data) {
-    const resp = await fetch(`/api/atd/${id}/update`, {
+    const resp = await fetch('/api/atd/\${id}/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -65,14 +65,14 @@ export async function applyProposal(action, atomId, content) {
 
 // @spec-link [[mechanic_webui_summary_aggregation]]
 export async function fetchSummary(id) {
-    const resp = await fetch(`/api/summary/${id}`);
+    const resp = await fetch('/api/summary/\${id}');
     if (!resp.ok) throw new Error('Failed to fetch summary');
     return resp.json();
 }
 
 // @spec-link [[ui_webui_search_overlay]]
 export async function searchAtoms(query) {
-    const resp = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    const resp = await fetch('/api/search?q=\${encodeURIComponent(query)}');
     if (!resp.ok) throw new Error('Search failed');
     return resp.json();
 }
@@ -86,14 +86,14 @@ export async function fetchModels() {
 
 // @spec-link [[mechanic_webui_gemini_proxy]]
 export async function searchGeminiAtoms(query) {
-    const resp = await fetch(`/api/gemini/atoms?q=${encodeURIComponent(query)}`);
+    const resp = await fetch('/api/gemini/atoms?q=\${encodeURIComponent(query)}');
     if (!resp.ok) throw new Error('Atom search failed');
     return resp.json();
 }
 
 // @spec-link [[mechanic_webui_gemini_proxy]]
 export async function fetchGeminiAtom(id) {
-    const resp = await fetch(`/api/gemini/atom/${id}`);
+    const resp = await fetch('/api/gemini/atom/\${id}');
     if (!resp.ok) throw new Error('Atom not found');
     return resp.json();
 }
@@ -120,15 +120,20 @@ export async function searchDocumentContext(query) {
 }
 
 // @spec-link [[mechanic_webui_document_generation]]
-export async function generateDocument(intent, starts) {
+export async function generateDocument(intent, starts, length = null) {
+    const payload = { intent, starts };
+    if (length !== null && length !== '') {
+        payload.length = length;
+    }
+
     const resp = await fetch('/api/generate-document', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ intent, starts }),
+        body: JSON.stringify(payload),
     });
     if (!resp.ok) {
         const errorData = await resp.json().catch(() => ({error: 'Failed to generate document'}));
-		throw new Error(errorData.error || 'Failed to generate document');
+			throw new Error(errorData.error || 'Failed to generate document');
     }
     return resp.json();
 }

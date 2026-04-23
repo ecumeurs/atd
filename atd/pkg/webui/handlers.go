@@ -219,7 +219,53 @@ func (s *Server) handleSearch(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, results)
+	// Convert search results to atom objects for frontend compatibility
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	type AtomSearchResult struct {
+		ID         string  `json:"id"`
+		HumanName  string  `json:"human_name"`
+		Type       string  `json:"type"`
+		Layer      string  `json:"layer"`
+		Status     string  `json:"status"`
+		Intent     string  `json:"intent"`
+		Similarity float64 `json:"similarity"`
+	}
+
+	var atomResults []AtomSearchResult
+	seen := make(map[string]bool)
+
+	for _, result := range results {
+		// Extract atom ID from file path if it's an atom file
+		var atomID string
+		if strings.HasSuffix(result.FilePath, ".atom.md") {
+			// Try to extract atom ID from file path
+			parts := strings.Split(result.FilePath, "/")
+			filename := parts[len(parts)-1]
+			atomID = strings.TrimSuffix(filename, ".atom.md")
+		}
+
+		if atomID == "" || seen[atomID] {
+			continue
+		}
+
+		// Look up full atom data from the graph
+		if atom, exists := s.explorer.Graph.Atoms[atomID]; exists {
+			seen[atomID] = true
+			atomResults = append(atomResults, AtomSearchResult{
+				ID:         atom.ID,
+				HumanName:  atom.HumanName,
+				Type:       atom.Type,
+				Layer:      atom.Layer,
+				Status:     atom.Status,
+				Intent:     atom.Intent,
+				Similarity: result.Similarity,
+			})
+		}
+	}
+
+	c.JSON(http.StatusOK, atomResults)
 }
 
 func (s *Server) handleStats(c *gin.Context) {
@@ -381,6 +427,7 @@ func (s *Server) handleGenerateDocument(c *gin.Context) {
 	var req struct {
 		Intent string   `json:"intent"`
 		Starts []string `json:"starts"`
+			Length  string  `json:"length,omitempty"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
@@ -390,6 +437,7 @@ func (s *Server) handleGenerateDocument(c *gin.Context) {
 	opts := exploration.AssembleOptions{
 		Starts:     strings.Join(req.Starts, ","),
 		Intent:     req.Intent,
+			Length:     req.Length,
 		Structured: true,
 		AsJSON:     true,
 		DocsDir:    config.DocsDir(),

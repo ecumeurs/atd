@@ -53,6 +53,17 @@ func Assemble(opts AssembleOptions) (string, error) {
 		return "", err
 	}
 
+	// Build reverse relationships (dependents) for graph traversal
+	parentToDependents := make(map[string][]string)
+	for id, atom := range graph.Atoms {
+		for _, parent := range atom.Parents {
+			parentToDependents[parent] = append(parentToDependents[parent], id)
+		}
+	}
+	for id, atom := range graph.Atoms {
+		atom.Dependents = parentToDependents[id]
+	}
+
 	visited := make(map[string]bool)
 	gatheredAtoms := []*atom.AtomData{}
 	
