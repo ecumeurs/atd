@@ -45,5 +45,5 @@ func init() {
 	webuiCmd.Flags().Bool("dev", false, "Enable development mode (serve from filesystem instead of embed)")
 	webuiCmd.Flags().String("static-path", "", "Override path to static files (useful for local development)")
 	webuiCmd.Flags().String("host", "", "Host to listen on (default is all interfaces)")
-	webuiCmd.Flags().IntP("port", "p", 0, "Port to listen on (default 8080)")
+	webuiCmd.Flags().IntP("port", "P", 0, "Port to listen on (default 8080)")
 }

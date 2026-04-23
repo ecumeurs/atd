@@ -19,6 +19,18 @@
                 <div class="logo-icon">▲</div>
                 <h1>Project Chimera</h1>
                 <div class="header-info">
+                    <!-- Workspace indicator -->
+                    <span class="info-badge workspace-badge" id="workspace-label" style="display: none;" title="Current Workspace">
+                        🗂️ <span></span>
+                    </span>
+                    <!-- Workspace selector -->
+                    <select id="workspace-select" class="workspace-select" style="display: none;" title="Switch Project">
+                        <!-- Populated by JS -->
+                    </select>
+                    <span class="info-badge project-badge" id="project-badge" style="display: none;" title="Active Project">
+                        📦 <span></span>
+                    </span>
+                    <!-- Existing badges -->
                     <span class="info-badge" title="Project Document path">📁 <span id="info-docs"></span></span>
                     <span class="info-badge" title="Project Target code path">⚙️ <span id="info-project"></span></span>
                     <span class="info-badge" title="Number of parsed ATDs">🔍 <span id="info-count">0</span> ATDs

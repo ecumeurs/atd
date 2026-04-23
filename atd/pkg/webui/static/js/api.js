@@ -160,3 +160,24 @@ export async function fetchHealth() {
     if (!resp.ok) throw new Error('Failed to fetch health');
     return resp.json();
 }
+
+// @spec-link [[api_webui_workspace_info]]
+export async function fetchWorkspaceInfo() {
+    const resp = await fetch('/api/workspace/info');
+    if (!resp.ok) throw new Error('Failed to fetch workspace info');
+    return resp.json();
+}
+
+// @spec-link [[api_webui_workspace_switch]]
+export async function switchProject(projectName) {
+    const resp = await fetch('/api/workspace/switch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project: projectName }),
+    });
+    if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to switch project');
+    }
+    return resp.json();
+}

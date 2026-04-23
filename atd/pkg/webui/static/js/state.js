@@ -12,7 +12,30 @@ export const state = {
     isSelectionMode: false,
     currentView: 'waterfall', // 'waterfall' | 'tree'
     foundationCollapsed: true,
+    workspace: {
+        inWorkspace: false,
+        workspaceName: null,
+        workspaceRoot: null,
+        activeProject: null,
+        projects: []
+    }
 };
+
+export function setWorkspace(ws) {
+    state.workspace = { ...state.workspace, ...ws };
+    // Handle camelCase conversion from snake_case API response
+    if (ws.in_workspace !== undefined) state.workspace.inWorkspace = ws.in_workspace;
+    if (ws.workspace_name !== undefined) state.workspace.workspaceName = ws.workspace_name;
+    if (ws.workspace_root !== undefined) state.workspace.workspaceRoot = ws.workspace_root;
+    if (ws.active_project !== undefined) state.workspace.activeProject = ws.active_project;
+    
+    emit('workspace-updated', state.workspace);
+}
+
+export function setActiveProject(projectName) {
+    state.workspace.activeProject = projectName;
+    emit('workspace-updated', state.workspace);
+}
 
 export function on(event, fn) {
     if (!listeners[event]) listeners[event] = [];

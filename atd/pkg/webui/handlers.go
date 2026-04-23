@@ -31,6 +31,10 @@ func (s *Server) registerATDRoutes(api *gin.RouterGroup) {
 	api.POST("/atd/weave", s.handleWeave)
 	api.GET("/health", s.handleHealth)
 
+	// Workspace support
+	api.GET("/workspace/info", s.handleWorkspaceInfo)
+	api.POST("/workspace/switch", s.handleWorkspaceSwitch)
+
 	// Document generation
 	api.POST("/search-document-context", s.handleSearchDocumentContext)
 	api.POST("/generate-document", s.handleGenerateDocument)
@@ -56,11 +60,73 @@ func (s *Server) handleInfo(c *gin.Context) {
 		count = len(s.explorer.Graph.Atoms)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	resp := gin.H{
 		"project_path": config.ProjectRoot(),
 		"docs_path":    config.DocsDir(),
 		"atd_count":    count,
+	}
+
+	if config.ActiveConfig.Workspace != nil {
+		resp["workspace"] = gin.H{
+			"in_workspace":   true,
+			"workspace_name": config.ActiveConfig.Workspace.WorkspaceName,
+			"active_project": config.ActiveConfig.ActiveProject,
+		}
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+func (s *Server) handleWorkspaceInfo(c *gin.Context) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	if config.ActiveConfig.Workspace == nil {
+		c.JSON(http.StatusOK, gin.H{"in_workspace": false})
+		return
+	}
+
+	ws := config.ActiveConfig.Workspace
+	projects := []gin.H{}
+	for _, p := range ws.Projects {
+		projects = append(projects, gin.H{
+			"name":      p.Name,
+			"path":      p.Path,
+			"is_active": p.Name == config.ActiveConfig.ActiveProject,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"in_workspace":   true,
+		"workspace_name": ws.WorkspaceName,
+		"workspace_root": ws.WorkspaceRoot,
+		"active_project": config.ActiveConfig.ActiveProject,
+		"projects":       projects,
 	})
+}
+
+func (s *Server) handleWorkspaceSwitch(c *gin.Context) {
+	var req struct {
+		Project string `json:"project"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Project name required"})
+		return
+	}
+
+	if err := config.SetProject(req.Project); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Refresh atoms for the new project
+	if err := s.refreshAtoms(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to refresh atoms", "details": err.Error()})
+		return
+	}
+
+	// Return updated workspace info
+	s.handleWorkspaceInfo(c)
 }
 
 func (s *Server) handleTree(c *gin.Context) {

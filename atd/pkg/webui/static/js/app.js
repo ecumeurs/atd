@@ -10,6 +10,7 @@ import { initTreeView, renderTreeView } from './treeview.js';
 import { initSearch } from './search.js';
 import { initDocuments } from './documents.js';
 import { initHealth } from './health.js';
+import { initWorkspace } from './workspace.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // DOM elements
@@ -31,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSearch();
     initDocuments();
     initHealth();
+    initWorkspace();
 
     // Load Spec Builder lazily when its tab is opened
     let specBuilderLoaded = false;
@@ -135,9 +137,9 @@ document.addEventListener('DOMContentLoaded', () => {
             ]);
 
             if (infoData) {
-                infoDocs.textContent = infoData.atd_path || 'N/A';
-                infoProject.textContent = infoData.project_path || 'N/A';
-                infoCount.textContent = infoData.atd_count || '0';
+                if (infoDocs) infoDocs.textContent = infoData.docs_path || 'N/A';
+                if (infoProject) infoProject.textContent = infoData.project_path || 'N/A';
+                if (infoCount) infoCount.textContent = infoData.atd_count || '0';
             }
 
             if (treeData && treeData.length > 0) {
