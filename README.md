@@ -84,6 +84,7 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
+| [ATD Workspace & Multi-Project Support](issues/ISS-091_20260423_atd_workspace_multi_project_support.md) | 2026-04-23 | Open | High | ATD currently assumes a single `.atd` configuration per directory tree. In mo... |
 | [E2E Test @test-link Overcrowding](issues/ISS-090_20260422_e2e_test_link_overcrowding.md) | 2026-04-22 | Open | Medium | The current ATD model requires individual `@test-link` tags for each atom imp... |
 | [WebUI Search and Document Generation Regression](issues/ISS-089_20260419_webui_search_docgen_regression.md) | 2026-04-19 | Open | High | Critical functionality in the WebUI has regressed: 1. The **Command Palette (... |
 | [Decouple Code Compliance from Audit Service](issues/ISS-085_20260419_decouple_audit_code_compliance.md) | 2026-04-19 | Open | Low | The `atd audit` command currently contains a "Code Compliance Mode" (via `--c... |

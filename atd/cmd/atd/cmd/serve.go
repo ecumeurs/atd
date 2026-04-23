@@ -64,5 +64,5 @@ Example .mcp.json for VS Code (HTTP):
 func init() {
 	rootCmd.AddCommand(serveCmd)
 	serveCmd.Flags().Bool("http", false, "Use Streamable HTTP transport instead of stdio")
-	serveCmd.Flags().IntP("port", "p", 7474, "HTTP port (only used with --http)")
+	serveCmd.Flags().Int("port", 7474, "HTTP port (only used with --http)")
 }
