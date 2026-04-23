@@ -513,4 +513,40 @@ Use during VERIFY stage as a cheap first-pass before running the heavier atd_aud
 	}, func(args map[string]any) (string, error) {
 		return runLint(config.DocsDir())
 	})
+
+	r.Register(mcp.Tool{
+		Name: "atd_workspace_list",
+		Description: `List all projects in the current ATD workspace.
+Use to discover available projects when working in a monorepo.`,
+		InputSchema: map[string]any{
+			"type":       "object",
+			"properties": map[string]any{},
+		},
+	}, func(args map[string]any) (string, error) {
+		if config.ActiveConfig.Workspace == nil {
+			return "No workspace active", nil
+		}
+		out, _ := json.MarshalIndent(config.ActiveConfig.Workspace.Projects, "", "  ")
+		return fmt.Sprintf("Workspace: %s\nActive Project: %s\nProjects:\n%s", 
+			config.ActiveConfig.Workspace.WorkspaceName, config.ActiveConfig.ActiveProject, string(out)), nil
+	})
+
+	r.Register(mcp.Tool{
+		Name: "atd_workspace_use",
+		Description: `Switch the active project context in the current workspace.
+Subsequent tool calls will be scoped to this project.`,
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"project": map[string]any{"type": "string", "description": "Name of the project to switch to."},
+			},
+			"required": []string{"project"},
+		},
+	}, func(args map[string]any) (string, error) {
+		project := argString(args, "project", "")
+		if err := config.SetProject(project); err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("Switched to project: %s", project), nil
+	})
 }
