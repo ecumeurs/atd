@@ -3,11 +3,23 @@
  * @spec-link [[ui_webui_waterfall_explorer]]
  */
 import { state, on, setCurrentAtom, getAtomMap, emit, toggleFoundation } from './state.js';
+import { fetchHeatMap } from './api.js';
 
 let waterfallContainer;
 let foundationContainer;
+let heatMapData = null;
+let activeHeatLayer = 'none';
 
 const LANE_LAYERS = ['CUSTOMER', 'ARCHITECTURE', 'IMPLEMENTATION'];
+
+// Heat state mapping to classes
+const HEAT_CLASSES = {
+    'cold': 'heat-cold',
+    'optimal': 'heat-optimal',
+    'warm': 'heat-warm',
+    'hot': 'heat-hot',
+    'stable': 'heat-stable'
+};
 
 // Health classification helpers
 // @spec-link [[mechanic_webui_health_categorization]]
@@ -52,8 +64,40 @@ export function initExplorer() {
         }
     });
 
-    // TODO: Re-enable connector lines when scroll-sync is implemented
-    // @spec-link [[mechanic_webui_connector_lines]]
+    initHeatMapToggles();
+}
+
+function initHeatMapToggles() {
+    const container = document.getElementById('heatmap-toggles');
+    if (!container) return;
+
+    container.addEventListener('click', async (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+
+        const layer = btn.dataset.heat;
+        if (layer === activeHeatLayer) return;
+
+        // Update active class
+        container.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        activeHeatLayer = layer;
+
+        if (layer !== 'none' && !heatMapData) {
+            try {
+                heatMapData = await fetchHeatMap();
+            } catch (err) {
+                console.error('Failed to fetch heatmap:', err);
+                activeHeatLayer = 'none';
+                container.querySelector('[data-heat="none"]').classList.add('active');
+                btn.classList.remove('active');
+                return;
+            }
+        }
+
+        renderWaterfall();
+    });
 }
 
 // @spec-link [[ui_webui_waterfall_explorer]]
@@ -159,6 +203,62 @@ function createAtomCard(atom, atomMap) {
     const isVaporware = !atom.linked_codes || atom.linked_codes.length === 0;
     if (isVaporware && atom.layer === 'IMPLEMENTATION') {
         card.classList.add('card-vaporware');
+    }
+
+    // Heat Map Integration
+    if (activeHeatLayer !== 'none' && heatMapData && heatMapData[atom.id]) {
+        const heatResult = heatMapData[atom.id];
+        let heatState = 'optimal';
+        let badge = '';
+
+        switch (activeHeatLayer) {
+            case 'dependency':
+                heatState = heatResult.dependency_state;
+                if (heatState === 'hot') badge = '🔴';
+                else if (heatState === 'warm') badge = '⚡';
+                break;
+            case 'code':
+                heatState = heatResult.code_state;
+                if (heatState === 'hot') badge = '🔴';
+                else if (heatState === 'warm') badge = '⚡';
+                break;
+            case 'updates':
+                heatState = heatResult.update_state;
+                if (heatState === 'hot') badge = '🔴';
+                else if (heatState === 'warm') badge = '⚡';
+                break;
+        }
+
+        if (heatState) {
+            card.classList.add(HEAT_CLASSES[heatState] || 'heat-optimal');
+            if (badge) {
+                const badgeEl = document.createElement('div');
+                badgeEl.className = 'heat-badge';
+                badgeEl.textContent = badge;
+                card.appendChild(badgeEl);
+            }
+
+            const metrics = heatResult.metrics;
+            const tooltip = document.createElement('div');
+            tooltip.className = 'heat-metrics-tooltip';
+
+            if (activeHeatLayer === 'dependency') {
+                tooltip.innerHTML = `
+                    <div class="heat-metric-item"><span>Parents:</span> <span class="heat-metric-value">${metrics.parents}</span></div>
+                    <div class="heat-metric-item"><span>Dependents:</span> <span class="heat-metric-value">${metrics.dependents}</span></div>
+                `;
+            } else if (activeHeatLayer === 'code') {
+                tooltip.innerHTML = `
+                    <div class="heat-metric-item"><span>Files:</span> <span class="heat-metric-value">${metrics.codeFilesLinked}</span></div>
+                `;
+            } else if (activeHeatLayer === 'updates') {
+                tooltip.innerHTML = `
+                    <div class="heat-metric-item"><span>Commits:</span> <span class="heat-metric-value">${metrics.recentUpdates}</span></div>
+                    <div class="heat-metric-item"><span>Last:</span> <span class="heat-metric-value">${metrics.lastUpdated || 'N/A'}</span></div>
+                `;
+            }
+            card.appendChild(tooltip);
+        }
     }
 
     // Type badge

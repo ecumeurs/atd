@@ -565,4 +565,49 @@ Subsequent tool calls will be scoped to this project.`,
 	}, func(args map[string]any) (string, error) {
 		return runStats(".", config.DocsDir(), true)
 	})
+
+	r.Register(mcp.Tool{
+		Name: "atd_heatmap",
+		Description: `Get heat map metrics for a specific atom. 
+Layers: dependency (coupling), code (implementation density), updates (instability).`,
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"atom": map[string]any{"type": "string", "description": "Atom ID or file path."},
+			},
+			"required": []string{"atom"},
+		},
+	}, func(args map[string]any) (string, error) {
+		atomID := argString(args, "atom", "")
+		return runHeatmapAtom(atomID)
+	})
+
+	r.Register(mcp.Tool{
+		Name: "atd_heatmap_code",
+		Description: `Get heat map metrics for a specific source file based on @spec-link density.`,
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"file": map[string]any{"type": "string", "description": "Source file path."},
+			},
+			"required": []string{"file"},
+		},
+	}, func(args map[string]any) (string, error) {
+		file := argString(args, "file", "")
+		return runHeatmapCode(file)
+	})
+
+	r.Register(mcp.Tool{
+		Name: "atd_heatmap_project",
+		Description: `Get a project-wide heat map summary.`,
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"layer": map[string]any{"type": "string", "description": "Heat layer: dependency, code, updates, all (default)."},
+			},
+		},
+	}, func(args map[string]any) (string, error) {
+		layer := argString(args, "layer", "all")
+		return runHeatmapProject(layer)
+	})
 }

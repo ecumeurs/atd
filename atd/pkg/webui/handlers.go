@@ -30,6 +30,7 @@ func (s *Server) registerATDRoutes(api *gin.RouterGroup) {
 	api.GET("/stats", s.handleStats)
 	api.POST("/atd/weave", s.handleWeave)
 	api.GET("/health", s.handleHealth)
+	api.GET("/heatmap", s.handleHeatMap)
 
 	// Workspace support
 	api.GET("/workspace/info", s.handleWorkspaceInfo)
@@ -582,4 +583,24 @@ func (s *Server) handleWeave(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": res})
+}
+
+func (s *Server) handleHeatMap(c *gin.Context) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	if s.explorer.Graph == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Graph not loaded"})
+		return
+	}
+
+	results := make(map[string]*exploration.HeatMapResult)
+	for id := range s.explorer.Graph.Atoms {
+		res, err := s.explorer.GetHeatMapResult(id)
+		if err == nil {
+			results[id] = res
+		}
+	}
+
+	c.JSON(http.StatusOK, results)
 }

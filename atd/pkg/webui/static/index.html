@@ -49,6 +49,15 @@
                 </button>
             </div>
             <div class="header-tools">
+                <div class="heatmap-tools">
+                    <span class="tool-label">🔥 Heat:</span>
+                    <div class="btn-group" id="heatmap-toggles">
+                        <button class="btn btn-outline btn-xs active" data-heat="none" title="No heat map">Off</button>
+                        <button class="btn btn-outline btn-xs" data-heat="dependency" title="Dependency coupling">Dep</button>
+                        <button class="btn btn-outline btn-xs" data-heat="code" title="Code link density">Code</button>
+                        <button class="btn btn-outline btn-xs" data-heat="updates" title="Update frequency">Log</button>
+                    </div>
+                </div>
                 <div class="view-switcher">
                     <button class="view-btn active" id="view-waterfall" title="Waterfall View">▦</button>
                     <button class="view-btn" id="view-tree" title="Tree View">≡</button>

@@ -185,3 +185,8 @@ export async function switchProject(projectName) {
     }
     return resp.json();
 }
+export async function fetchHeatMap() {
+    const resp = await fetch('/api/heatmap');
+    if (!resp.ok) throw new Error('Failed to fetch heatmap');
+    return resp.json();
+}
