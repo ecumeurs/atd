@@ -80,6 +80,90 @@ docker exec -it ollama ollama pull nomic-embed-text
 ## Reference Project
 **`upsilonbattle`** serves as the primary reference project used to test and validate this skill. It demonstrates how ATD mechanics, API routes, and domain elements interact in a real-world scenario, acting as the testbed for the ATD toolchain's extraction, auditing, and generation capabilities.
 
+## Workspace & Multi-Project Support
+
+ATD supports **workspaces** for managing multiple related projects with a shared documentation infrastructure. A workspace is a directory tree containing multiple projects, each with their own `.atd` configuration and `docs/` folder.
+
+### What is a Workspace?
+
+A workspace allows you to:
+- **Manage multiple projects** from a single root (e.g., a monorepo or multi-module project)
+- **Share common atoms** across projects via cross-references
+- **Aggregate statistics** across all projects
+- **Switch context** between projects without changing directories
+
+### Workspace Structure
+
+```
+workspace-root/
+├── .atd                    # Root workspace config (optional)
+├── project-a/
+│   ├── .atd                # Project-specific config
+│   ├── docs/               # Project A's atoms
+│   └── src/                # Project A's code
+├── project-b/
+│   ├── .atd                # Project-specific config
+│   ├── docs/               # Project B's atoms
+│   └── src/                # Project B's code
+└── project-c/
+    ├── .atd                # Project-specific config
+    ├── docs/               # Project C's atoms
+    └── src/                # Project C's code
+```
+
+### MCP Workspace Tools
+
+When connected via MCP, the following tools provide workspace-aware operations:
+
+| Tool | Purpose | Scope |
+|---|---|---|
+| `atd_workspace_list` | List all projects in the workspace | Workspace |
+| `atd_workspace_use` | Switch the active project context | Workspace |
+| `atd_workspace_stats` | Aggregate health metrics across all projects | Workspace |
+| `atd_*` (all others) | Operate on the currently active project | Project |
+
+### Workflow
+
+1. **List available projects:**
+   ```json
+   {"name": "atd_workspace_list"}
+   ```
+
+2. **Switch to a specific project:**
+   ```json
+   {"name": "atd_workspace_use", "arguments": {"project": "project-a"}}
+   ```
+
+3. **Perform operations on the active project:**
+   - All subsequent `atd_*` calls (search, trace, stats, etc.) operate on `project-a`
+   - No need to specify project paths
+
+4. **Get workspace-wide statistics:**
+   ```json
+   {"name": "atd_workspace_stats"}
+   ```
+
+### Cross-Project Atom Sharing
+
+To reference an atom from another project, use the project prefix:
+
+```markdown
+---
+id: my_feature
+parents:
+  - [[other-project:shared_rule]]
+---
+```
+
+This enables sharing common rules (e.g., authentication patterns, data schemas) across multiple projects while maintaining each project's autonomy.
+
+### Best Practices
+
+- **Each project has its own `.atd` config** for project-specific settings (docs path, models, etc.)
+- **Use workspaces for related projects** (e.g., microservices in a system)
+- **Share common atoms via cross-references** to avoid duplication
+- **Switch context frequently** to ensure operations target the correct project
+
 ## Open Issues
 
 | Name | Date | Status | Severity | Oneliner |
