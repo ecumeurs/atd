@@ -4,6 +4,7 @@ package cmd
 import (
 	"atd-tools/config"
 	"atd-tools/pkg/exploration"
+	"atd-tools/pkg/workspace"
 	"encoding/json"
 	"fmt"
 
@@ -45,9 +46,19 @@ var statsCmd = &cobra.Command{
 	},
 }
 
-func runStats(srcPath, docsDir string, workspace bool) (string, error) {
-	explorer := exploration.NewExplorer(config.ProjectRoot(), docsDir)
-	if workspace {
+func runStats(srcPath, docsDir string, workspaceFlag bool) (string, error) {
+	explorer := exploration.NewExplorer(".", docsDir)
+	
+	if workspaceFlag {
+		ws, err := workspace.LoadWorkspace(".")
+		if err != nil {
+			return "", fmt.Errorf("failed to load workspace: %v", err)
+		}
+		explorer.Workspace = ws
+		idx, _ := ws.BuildIndex()
+		explorer.Index = idx
+		explorer.Resolver = workspace.NewResolver(ws, idx, "")
+
 		if err := explorer.LoadWorkspace(false); err != nil {
 			return "", err
 		}

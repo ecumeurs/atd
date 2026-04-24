@@ -18,6 +18,7 @@ function activate(context) {
     outputChannel.appendLine("[ATD Linker] Extension activation started.");
 
     let docsPath = '';
+    let workspaceConfig = null;
 
     // Get the first open workspace folder
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -27,6 +28,19 @@ function activate(context) {
     }
     const workspaceRoot = workspaceFolder.uri.fsPath;
 
+    const loadWorkspace = () => {
+        const wsFile = path.join(workspaceRoot, '.atd.workspace');
+        try {
+            if (fs.existsSync(wsFile)) {
+                const data = fs.readFileSync(wsFile, 'utf8');
+                workspaceConfig = JSON.parse(data);
+                outputChannel.appendLine(`[ATD Linker] Loaded workspace with ${workspaceConfig.projects?.length || 0} projects.`);
+            }
+        } catch (err) {
+            outputChannel.appendLine(`[ATD Linker ERROR] Failed to parse .atd.workspace: ${err}`);
+        }
+    };
+
     // @spec-link [[mechanic_vscode_atd_config]]
     // 1. Function to read the .atd configuration file
     const loadConfig = () => {
@@ -35,7 +49,7 @@ function activate(context) {
             if (fs.existsSync(atdFile)) {
                 const data = fs.readFileSync(atdFile, 'utf8');
                 const config = JSON.parse(data);
-                docsPath = config.docs_path || '';
+                docsPath = config.docs_path || 'docs/';
                 outputChannel.appendLine(`[ATD Linker] Loaded docs_path: ${docsPath}`);
             }
         } catch (err) {
@@ -43,13 +57,30 @@ function activate(context) {
         }
     };
 
+    loadWorkspace();
     loadConfig();
 
     const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(workspaceRoot, '.atd'));
     watcher.onDidChange(loadConfig);
     watcher.onDidCreate(loadConfig);
 
+    const wsWatcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(workspaceRoot, '.atd.workspace'));
+    wsWatcher.onDidChange(loadWorkspace);
+    wsWatcher.onDidCreate(loadWorkspace);
+
     const getTargetUri = (ATDId) => {
+        // Handle cross-project references [[project:atom_id]]
+        if (ATDId.includes(':') && workspaceConfig) {
+            const [projName, atomId] = ATDId.split(':');
+            const proj = workspaceConfig.projects.find(p => p.name === projName);
+            if (proj) {
+                const projDocs = proj.docs_path || 'docs/';
+                const targetPath = path.join(workspaceRoot, proj.path, projDocs, `${atomId}.atom.md`);
+                return vscode.Uri.file(targetPath);
+            }
+        }
+
+        // Default to local project
         const targetPath = path.join(workspaceRoot, docsPath, `${ATDId}.atom.md`);
         return vscode.Uri.file(targetPath);
     };
@@ -68,10 +99,10 @@ function activate(context) {
             const intentMatch = content.match(/## INTENT\n([^#]+)/);
 
             const getLinks = (section) => {
-                const sectionRegex = new RegExp(`${section}:\\s*\\n(?:\\s*-\\s*\\[\\[([a-zA-Z0-9_-]+)\\]\\]\\n?)*`, 'm');
+                const sectionRegex = new RegExp(`${section}:\\s*\\n(?:\\s*-\\s*\\[\\[([a-zA-Z0-9_\\-\\:]+)\\]\\]\\n?)*`, 'm');
                 const match = content.match(sectionRegex);
                 if (!match) return [];
-                return [...match[0].matchAll(/\[\[([a-zA-Z0-9_-]+)\]\]/g)].map(m => m[1]);
+                return [...match[0].matchAll(/\[\[([a-zA-Z0-9_\\-\\:]+)\]\]/g)].map(m => m[1]);
             };
 
             return {
@@ -217,11 +248,11 @@ function activate(context) {
     // @spec-link [[mechanic_vscode_hover_provider]]
     const hoverProvider = vscode.languages.registerHoverProvider('*', {
         async provideHover(document, position) {
-            const range = document.getWordRangeAtPosition(position, /@spec-link\s+\[\[([a-zA-Z0-9_-]+)\]\]/);
+            const range = document.getWordRangeAtPosition(position, /@spec-link\s+\[\[([a-zA-Z0-9_\-\:]+)\]\]/);
             if (!range) return null;
 
             const text = document.getText(range);
-            const match = text.match(/\[\[([a-zA-Z0-9_-]+)\]\]/);
+            const match = text.match(/\[\[([a-zA-Z0-9_\-\:]+)\]\]/);
             if (!match) return null;
 
             const atomId = match[1];
@@ -486,7 +517,7 @@ function activate(context) {
 
 
     context.subscriptions.push(
-        watcher, codeLensProvider, hoverProvider, linkProvider, definitionProvider, showDetailsCommand, renameAtomCommand, showGraphCommand
+        watcher, wsWatcher, codeLensProvider, hoverProvider, linkProvider, definitionProvider, showDetailsCommand, renameAtomCommand, showGraphCommand
     );
 }
 

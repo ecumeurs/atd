@@ -171,8 +171,8 @@ func runVerify(docsDir string, args []string, full bool, targetFile string, targ
 		stats.Total++
 		testFailed := false
 
-		atom, exists := explorer.Graph.Atoms[link.AtomID]
-		if !exists {
+		atom, err := explorer.ResolveAtom(link.AtomID)
+		if err != nil {
 			continue
 		}
 

@@ -5,6 +5,7 @@ package exploration
 import (
 	"atd-tools/config"
 	"atd-tools/pkg/atom"
+	"atd-tools/pkg/workspace"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,7 +21,9 @@ type Explorer struct {
 	Graph       *DependencyGraph
 	SpecLinks   []SpecLink
 	TestLinks   []TestLink
-	Workspace   *config.WorkspaceConfig
+	Workspace   *workspace.Workspace
+	Resolver    *workspace.Resolver
+	Index       *workspace.AtomIndex
 }
 
 func NewExplorer(root, docsDir string) *Explorer {
@@ -30,10 +33,26 @@ func NewExplorer(root, docsDir string) *Explorer {
 	if docsDir == "" {
 		docsDir = config.DocsDir()
 	}
+
+	ws, _ := workspace.LoadWorkspace(root)
+	var idx *workspace.AtomIndex
+	var resolver *workspace.Resolver
+	if ws != nil {
+		idx, _ = ws.BuildIndex()
+		currentProj := ws.FindProjectByCWD(root)
+		projName := ""
+		if currentProj != nil {
+			projName = currentProj.Name
+		}
+		resolver = workspace.NewResolver(ws, idx, projName)
+	}
+
 	return &Explorer{
 		ProjectRoot: root,
 		DocsDir:     docsDir,
-		Workspace:   config.ActiveConfig.Workspace,
+		Workspace:   ws,
+		Index:       idx,
+		Resolver:    resolver,
 	}
 }
 
@@ -53,8 +72,8 @@ func (e *Explorer) Load(force bool) error {
 	}
 
 	// Support [[id]], [id], or id formats
-	specLinkRegex := regexp.MustCompile(`@spec-link\s+\[?\[?([a-zA-Z0-9_\-\.]+)\]?\]?`)
-	testLinkRegex := regexp.MustCompile(`@test-link\s+\[?\[?([a-zA-Z0-9_\-\.]+)\]?\]?`)
+	specLinkRegex := regexp.MustCompile(`@spec-link\s+\[?\[?([a-zA-Z0-9_\-\.\:]+)\]?\]?`)
+	testLinkRegex := regexp.MustCompile(`@test-link\s+\[?\[?([a-zA-Z0-9_\-\.\:]+)\]?\]?`)
 
 	// 1. Process Atoms
 	for _, relPath := range files {
@@ -102,16 +121,40 @@ func (e *Explorer) Load(force bool) error {
 		for _, idx := range specIndices {
 			if len(idx) >= 4 {
 				atomID := contentStr[idx[2]:idx[3]]
-				if node, exists := e.Graph.Atoms[atomID]; exists {
-					// Count newlines before the match to get the correct line number
+				
+				var targetID string
+				found := false
+				
+				if e.Resolver != nil {
+					parsed, err := e.Resolver.Resolve(atomID)
+					if err == nil && parsed.Location != nil {
+						targetID = parsed.AtomID
+						if parsed.Type == workspace.ReferenceCrossProject {
+							targetID = fmt.Sprintf("%s:%s", parsed.Project, parsed.AtomID)
+						}
+						found = true
+					}
+				} else {
+					if _, exists := e.Graph.Atoms[atomID]; exists {
+						targetID = atomID
+						found = true
+					}
+				}
+
+				if found {
 					lineNum := strings.Count(contentStr[:idx[0]], "\n") + 1
 					location := fmt.Sprintf("%s:%d", relPath, lineNum)
-					node.Implementations = append(node.Implementations, location)
-					e.SpecLinks = append(e.SpecLinks, SpecLink{
-						AtomID:   atomID,
-						FilePath: relPath,
-						Line:     lineNum,
-					})
+					
+					// We need the node in the graph
+					node, err := e.ResolveAtom(targetID)
+					if err == nil {
+						node.Implementations = append(node.Implementations, location)
+						e.SpecLinks = append(e.SpecLinks, SpecLink{
+							AtomID:   targetID,
+							FilePath: relPath,
+							Line:     lineNum,
+						})
+					}
 				}
 			}
 		}
@@ -121,15 +164,38 @@ func (e *Explorer) Load(force bool) error {
 		for _, idx := range testIndices {
 			if len(idx) >= 4 {
 				atomID := contentStr[idx[2]:idx[3]]
-				lineNum := strings.Count(contentStr[:idx[0]], "\n") + 1
+				
+				var targetID string
+				found := false
+				
+				if e.Resolver != nil {
+					parsed, err := e.Resolver.Resolve(atomID)
+					if err == nil && parsed.Location != nil {
+						targetID = parsed.AtomID
+						if parsed.Type == workspace.ReferenceCrossProject {
+							targetID = fmt.Sprintf("%s:%s", parsed.Project, parsed.AtomID)
+						}
+						found = true
+					}
+				} else {
+					if _, exists := e.Graph.Atoms[atomID]; exists {
+						targetID = atomID
+						found = true
+					}
+				}
 
-				e.TestLinks = append(e.TestLinks, TestLink{
-					AtomID:   atomID,
-					TestFile: relPath,
-					Line:     lineNum,
-				})
-				if node, exists := e.Graph.Atoms[atomID]; exists {
-					node.HasTests = true
+				if found {
+					lineNum := strings.Count(contentStr[:idx[0]], "\n") + 1
+					e.TestLinks = append(e.TestLinks, TestLink{
+						AtomID:   targetID,
+						TestFile: relPath,
+						Line:     lineNum,
+					})
+					
+					node, err := e.ResolveAtom(targetID)
+					if err == nil {
+						node.HasTests = true
+					}
 				}
 			}
 		}
@@ -144,56 +210,126 @@ func (e *Explorer) LoadWorkspace(force bool) error {
 		return fmt.Errorf("no workspace active")
 	}
 
-	if !force && e.Graph != nil && len(e.Graph.Atoms) > 0 {
-		// Already loaded? Need to check if it's the full workspace graph
-		// For simplicity, always reload if LoadWorkspace is called for now
-	}
-
 	e.Graph = &DependencyGraph{Atoms: make(map[string]*atom.AtomData)}
 	
+	// Load all atoms from the workspace index
+	for atomID, loc := range e.Index.ByID {
+		a, err := atom.Parse(loc.Path)
+		if err != nil {
+			continue
+		}
+		
+		prefixedID := atomID
+		if loc.Project != "" && loc.Project != "shared" {
+			prefixedID = fmt.Sprintf("%s:%s", loc.Project, atomID)
+		}
+		
+		e.Graph.Atoms[prefixedID] = &a
+	}
+
+	// Crawl source for each project to find links
 	for _, p := range e.Workspace.Projects {
 		absProjPath := p.Path
 		if !filepath.IsAbs(absProjPath) {
 			absProjPath = filepath.Join(e.Workspace.LoadedFrom, p.Path)
 		}
-		
-		docsPath := p.DocsPath
-		if docsPath == "" {
-			docsPath = "docs/"
-		}
-		if !filepath.IsAbs(docsPath) {
-			docsPath = filepath.Join(absProjPath, docsPath)
-		}
 
-		// Temporary graph to load this project
-		projGraph := &DependencyGraph{Atoms: make(map[string]*atom.AtomData)}
-		if err := CrawlDocs(docsPath, projGraph); err != nil {
-			continue
-		}
-
-		// Crawl source for this project
 		codePaths := p.CodePaths
 		if len(codePaths) == 0 {
 			codePaths = []string{"."}
 		}
+		
+		// Create a temporary explorer for this project to use its context
+		projExplorer := NewExplorer(absProjPath, "")
+		projExplorer.Graph = e.Graph // Share the workspace graph
+		
 		for _, cp := range codePaths {
 			absCP := cp
 			if !filepath.IsAbs(absCP) {
 				absCP = filepath.Join(absProjPath, absCP)
 			}
-			CrawlSrc(absCP, projGraph)
+			
+			// Manually crawl and use ResolveAtom
+			filepath.Walk(absCP, func(path string, info os.FileInfo, err error) error {
+				if err != nil || info.IsDir() {
+					return nil
+				}
+				rel, _ := filepath.Rel(absProjPath, path)
+				projExplorer.loadFileLinks(rel)
+				return nil
+			})
 		}
-
-		// Merge into workspace graph with project prefix
-		for id, a := range projGraph.Atoms {
-			prefixedID := fmt.Sprintf("%s:%s", p.Name, id)
-			e.Graph.Atoms[prefixedID] = a
-			// Also keep original ID for local resolution if we are in that project?
-			// No, for workspace-wide, we use prefixes everywhere to avoid collisions
-		}
+		
+		// Merge links
+		e.SpecLinks = append(e.SpecLinks, projExplorer.SpecLinks...)
+		e.TestLinks = append(e.TestLinks, projExplorer.TestLinks...)
 	}
 
 	return nil
+}
+
+// loadFileLinks is a helper for LoadWorkspace to process a single file for links
+func (e *Explorer) loadFileLinks(relPath string) {
+	absPath := filepath.Join(e.ProjectRoot, relPath)
+	content, err := os.ReadFile(absPath)
+	if err != nil {
+		return
+	}
+	contentStr := string(content)
+
+	// Use regexes from Load()
+	specLinkRegex := regexp.MustCompile(`@spec-link\s+\[?\[?([a-zA-Z0-9_\-\.\:]+)\]?\]?`)
+	testLinkRegex := regexp.MustCompile(`@test-link\s+\[?\[?([a-zA-Z0-9_\-\.\:]+)\]?\]?`)
+
+	// Spec Links
+	specIndices := specLinkRegex.FindAllStringSubmatchIndex(contentStr, -1)
+	for _, idx := range specIndices {
+		if len(idx) >= 4 {
+			atomID := contentStr[idx[2]:idx[3]]
+			if parsed, err := e.Resolver.Resolve(atomID); err == nil && parsed.Location != nil {
+				targetID := parsed.AtomID
+				if parsed.Type == workspace.ReferenceCrossProject {
+					targetID = fmt.Sprintf("%s:%s", parsed.Project, parsed.AtomID)
+				}
+				
+				lineNum := strings.Count(contentStr[:idx[0]], "\n") + 1
+				location := fmt.Sprintf("%s:%d", relPath, lineNum)
+				
+				if node, ok := e.Graph.Atoms[targetID]; ok {
+					node.Implementations = append(node.Implementations, location)
+					e.SpecLinks = append(e.SpecLinks, SpecLink{
+						AtomID:   targetID,
+						FilePath: relPath,
+						Line:     lineNum,
+					})
+				}
+			}
+		}
+	}
+
+	// Test Links
+	testIndices := testLinkRegex.FindAllStringSubmatchIndex(contentStr, -1)
+	for _, idx := range testIndices {
+		if len(idx) >= 4 {
+			atomID := contentStr[idx[2]:idx[3]]
+			if parsed, err := e.Resolver.Resolve(atomID); err == nil && parsed.Location != nil {
+				targetID := parsed.AtomID
+				if parsed.Type == workspace.ReferenceCrossProject {
+					targetID = fmt.Sprintf("%s:%s", parsed.Project, parsed.AtomID)
+				}
+				
+				lineNum := strings.Count(contentStr[:idx[0]], "\n") + 1
+				e.TestLinks = append(e.TestLinks, TestLink{
+					AtomID:   targetID,
+					TestFile: relPath,
+					Line:     lineNum,
+				})
+				if node, ok := e.Graph.Atoms[targetID]; ok {
+					node.HasTests = true
+				}
+			}
+		}
+	}
 }
 
 // IsOrphan determines if an atom should be considered a "true orphan" based on type-aware rules.
@@ -524,60 +660,39 @@ func (e *Explorer) Query(field, search string) []*atom.AtomData {
 	return matches
 }
 
-// ResolveAtom finds an atom by ID, supporting [[project:id]] syntax.
+// ResolveAtom finds an atom by ID, supporting [[project:id]] syntax and workspace-wide search.
 func (e *Explorer) ResolveAtom(refID string) (*atom.AtomData, error) {
-	// Handle local prefix or no prefix
-	targetID := refID
-	projectID := ""
-
-	if strings.Contains(refID, ":") {
-		parts := strings.SplitN(refID, ":", 2)
-		projectID = parts[0]
-		targetID = parts[1]
-	}
-
-	if projectID == "" || projectID == "local" {
-		if node, ok := e.Graph.Atoms[targetID]; ok {
-			return node, nil
-		}
-		return nil, fmt.Errorf("atom '%s' not found in local project", targetID)
-	}
-
-	if e.Workspace == nil {
-		return nil, fmt.Errorf("cross-project reference '%s' but no workspace active", refID)
-	}
-
-	// Cross-project resolution
-	for _, p := range e.Workspace.Projects {
-		if p.Name == projectID {
-			absProjPath := p.Path
-			if !filepath.IsAbs(absProjPath) {
-				absProjPath = filepath.Join(e.Workspace.LoadedFrom, p.Path)
+	if e.Resolver != nil {
+		parsed, err := e.Resolver.Resolve(refID)
+		if err == nil && parsed.Location != nil {
+			// If already in graph, return it
+			id := parsed.AtomID
+			if parsed.Type == workspace.ReferenceCrossProject {
+				id = fmt.Sprintf("%s:%s", parsed.Project, parsed.AtomID)
 			}
-			
-			docsPath := p.DocsPath
-			if docsPath == "" {
-				docsPath = "docs/"
-			}
-			if !filepath.IsAbs(docsPath) {
-				docsPath = filepath.Join(absProjPath, docsPath)
-			}
-
-			// For now, we crawl the other project's docs to find the atom
-			// Optimization: use a cache of graphs for other projects
-			otherGraph := &DependencyGraph{Atoms: make(map[string]*atom.AtomData)}
-			if err := CrawlDocs(docsPath, otherGraph); err != nil {
-				return nil, err
-			}
-			
-			if node, ok := otherGraph.Atoms[targetID]; ok {
+			if node, ok := e.Graph.Atoms[id]; ok {
 				return node, nil
 			}
-			return nil, fmt.Errorf("atom '%s' not found in project '%s'", targetID, projectID)
+
+			// Load from file
+			a, err := atom.Parse(parsed.Location.Path)
+			if err != nil {
+				return nil, err
+			}
+			node := a
+			if e.Graph != nil {
+				e.Graph.Atoms[id] = &node
+			}
+			return &node, nil
 		}
 	}
 
-	return nil, fmt.Errorf("project '%s' not found in workspace", projectID)
+	// Fallback to legacy behavior if resolver not available or failed
+	if node, ok := e.Graph.Atoms[refID]; ok {
+		return node, nil
+	}
+
+	return nil, fmt.Errorf("atom '%s' not found", refID)
 }
 
 type DependencyGraph struct {
