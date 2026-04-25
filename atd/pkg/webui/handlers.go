@@ -349,7 +349,7 @@ func (s *Server) handleStats(c *gin.Context) {
 	defer s.mutex.RUnlock()
 
 	var total, covered, tested, orphans int
-	var byLayer = map[string]int{"CUSTOMER": 0, "ARCHITECTURE": 0, "IMPLEMENTATION": 0, "UNKNOWN": 0}
+	var byLayer = map[string]int{"BUSINESS": 0, "ARCHITECTURE": 0, "IMPLEMENTATION": 0, "UNKNOWN": 0}
 	var byStatus = map[string]int{"DRAFT": 0, "REVIEW": 0, "STABLE": 0, "UNKNOWN": 0}
 
 	if s.explorer.Graph != nil {
@@ -362,7 +362,7 @@ func (s *Server) handleStats(c *gin.Context) {
 				tested++
 			}
 			// Orphans: non-CUSTOMER atoms with no parents
-			if node.Layer != "CUSTOMER" && len(node.Parents) == 0 {
+			if node.Layer != "BUSINESS" && len(node.Parents) == 0 {
 				orphans++
 			}
 			if node.Layer != "" {

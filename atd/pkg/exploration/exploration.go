@@ -350,7 +350,7 @@ func (e *Explorer) IsOrphan(node *atom.AtomData) bool {
 	}
 
 	// 4. Handle Customer Layer exceptions (they are requirements, not implementation units)
-	if config.ActiveConfig.CustomerLayerException && node.Layer == "CUSTOMER" {
+	if config.ActiveConfig.CustomerLayerException && node.Layer == "BUSINESS" {
 		return false
 	}
 
@@ -493,7 +493,7 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 			if layer == "ARCHITECTURE" {
 				foundArchAnc = true
 			}
-			if layer == "CUSTOMER" {
+			if layer == "BUSINESS" {
 				foundCustAnc = true
 			}
 		}
@@ -514,7 +514,7 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 	}
 
 	switch target.Layer {
-	case "CUSTOMER":
+	case "BUSINESS":
 		if !foundArchDesc { snap.Warnings = append(snap.Warnings, "Customer atom has no Architecture dependents") }
 		if !foundImplDesc { snap.Warnings = append(snap.Warnings, "Customer atom has no Implementation dependents") }
 	case "ARCHITECTURE":
@@ -595,7 +595,7 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 	}
 
 	snap.HealthSummary.AncestryComplete = ancestryComplete
-	snap.HealthSummary.HasCustomerOrigin = foundCustAnc || target.Layer == "CUSTOMER"
+	snap.HealthSummary.HasCustomerOrigin = foundCustAnc || target.Layer == "BUSINESS"
 	if totalPool > 0 {
 		snap.HealthSummary.ImplementationRate = float64(implementedCount) / float64(totalPool)
 	}

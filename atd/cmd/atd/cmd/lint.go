@@ -79,7 +79,7 @@ func runLint(dir string) (string, error) {
 		if a.Layer == "" {
 			atomErrors = append(atomErrors, "Missing mandatory field: layer")
 		} else {
-			if a.Layer != "CUSTOMER" && a.Layer != "ARCHITECTURE" && a.Layer != "IMPLEMENTATION" {
+			if a.Layer != "BUSINESS" && a.Layer != "ARCHITECTURE" && a.Layer != "IMPLEMENTATION" {
 				atomErrors = append(atomErrors, fmt.Sprintf("Invalid layer enum: %s", a.Layer))
 			}
 		}

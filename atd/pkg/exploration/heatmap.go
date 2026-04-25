@@ -44,7 +44,7 @@ func (e *Explorer) CalculateDependencyHeat(a *atom.AtomData) HeatState {
 	// IMPLEMENTATION layer: May have 0 dependents (leaf nodes acceptable)
 	// CUSTOMER layer: May have 0 parents (top-level requirements acceptable)
 	isLeafOk := a.Layer == "IMPLEMENTATION"
-	isRootOk := a.Layer == "CUSTOMER"
+	isRootOk := a.Layer == "BUSINESS"
 
 	if p == 0 && d == 0 {
 		return HeatCold
@@ -204,7 +204,7 @@ func (e *Explorer) GetHeatMapResult(atomID string) (*HeatMapResult, error) {
 	if res.DependencyState == HeatHot {
 		res.Recommendations = append(res.Recommendations, "Excessive coupling detected. Consider splitting this atom.")
 	} else if res.DependencyState == HeatCold {
-		if a.Layer != "CUSTOMER" && a.Layer != "IMPLEMENTATION" {
+		if a.Layer != "BUSINESS" && a.Layer != "IMPLEMENTATION" {
 			res.Recommendations = append(res.Recommendations, "This atom is isolated. Ensure it is part of the dependency graph.")
 		}
 	}

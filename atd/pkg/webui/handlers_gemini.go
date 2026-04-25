@@ -362,7 +362,7 @@ func (s *Server) handleGeminiChat(c *gin.Context) {
 									},
 									"layer": {
 										Type: genai.TypeString,
-										Enum: []string{"CUSTOMER", "ARCHITECTURE", "IMPLEMENTATION"},
+										Enum: []string{"BUSINESS", "ARCHITECTURE", "IMPLEMENTATION"},
 									},
 									"priority":            {Type: genai.TypeString},
 									"tags":                {Type: genai.TypeArray, Items: &genai.Schema{Type: genai.TypeString}},

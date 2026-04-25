@@ -126,7 +126,7 @@ func Assemble(opts AssembleOptions) (string, error) {
 	if opts.Structured {
 		// Multi-pass LLM
 		groupedRaw := map[string]string{
-			"CUSTOMER":       "",
+			"BUSINESS":       "",
 			"ARCHITECTURE":   "",
 			"IMPLEMENTATION": "",
 		}
@@ -163,16 +163,16 @@ func Assemble(opts AssembleOptions) (string, error) {
 			return ""
 		}
 
-		customerSummary := queryLayer("CUSTOMER")
+		customerSummary := queryLayer("BUSINESS")
 		archSummary := queryLayer("ARCHITECTURE")
 		implSummary := queryLayer("IMPLEMENTATION")
 
 		if useFallback {
-			finalText := groupedRaw["CUSTOMER"] + "\n" + groupedRaw["ARCHITECTURE"] + "\n" + groupedRaw["IMPLEMENTATION"]
+			finalText := groupedRaw["BUSINESS"] + "\n" + groupedRaw["ARCHITECTURE"] + "\n" + groupedRaw["IMPLEMENTATION"]
 			
 			if opts.AsJSON {
 				out := AssembleJSON{
-					CustomerLayer:       groupedRaw["CUSTOMER"],
+					CustomerLayer:       groupedRaw["BUSINESS"],
 					ArchitectureLayer:   groupedRaw["ARCHITECTURE"],
 					ImplementationLayer: groupedRaw["IMPLEMENTATION"],
 					Content:             finalText,
