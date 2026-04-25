@@ -4,6 +4,7 @@ status: STABLE
 tags: webui,documentation,search,summarize
 dependents:
   - [[api_webui_atd_router]]
+  - [[rule_atd_atom_overrides]]
 human_name: WebUI Documentation Management
 layer: CUSTOMER
 priority: 5

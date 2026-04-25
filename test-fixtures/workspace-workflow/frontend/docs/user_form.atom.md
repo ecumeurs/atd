@@ -3,8 +3,7 @@ id: user_form
 type: UI
 layer: ARCHITECTURE
 status: STABLE
-dependents:
-  - [[backend:user_api]]
+dependents: []
 ---
 # User Form
 ## INTENT

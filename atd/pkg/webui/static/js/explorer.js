@@ -206,6 +206,7 @@ function createAtomCard(atom, atomMap) {
     }
 
     // Heat Map Integration
+    // @spec-link [[ui_webui_heatmap_explorer]]
     if (activeHeatLayer !== 'none' && heatMapData && heatMapData[atom.id]) {
         const heatResult = heatMapData[atom.id];
         let heatState = 'optimal';
@@ -235,12 +236,14 @@ function createAtomCard(atom, atomMap) {
                 const badgeEl = document.createElement('div');
                 badgeEl.className = 'heat-badge';
                 badgeEl.textContent = badge;
+                badgeEl.title = heatState === 'hot' ? 'Critical Heat: This atom is significantly overloaded and requires attention' : 'High Heat: This atom is becoming complex';
                 card.appendChild(badgeEl);
             }
 
             const metrics = heatResult.metrics;
             const tooltip = document.createElement('div');
             tooltip.className = 'heat-metrics-tooltip';
+            tooltip.title = `Detailed ${activeHeatLayer} metrics`;
 
             if (activeHeatLayer === 'dependency') {
                 tooltip.innerHTML = `

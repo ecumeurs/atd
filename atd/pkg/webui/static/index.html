@@ -50,12 +50,13 @@
             </div>
             <div class="header-tools">
                 <div class="heatmap-tools">
+                    <!-- @spec-link [[ui_webui_heatmap_explorer]] -->
                     <span class="tool-label">🔥 Heat:</span>
                     <div class="btn-group" id="heatmap-toggles">
-                        <button class="btn btn-outline btn-xs active" data-heat="none" title="No heat map">Off</button>
-                        <button class="btn btn-outline btn-xs" data-heat="dependency" title="Dependency coupling">Dep</button>
-                        <button class="btn btn-outline btn-xs" data-heat="code" title="Code link density">Code</button>
-                        <button class="btn btn-outline btn-xs" data-heat="updates" title="Update frequency">Log</button>
+                        <button class="btn btn-outline btn-xs active" data-heat="none" title="Disable Heat Map visualization">Off</button>
+                        <button class="btn btn-outline btn-xs" data-heat="dependency" title="Show Dependency Heat: identifies atoms with high coupling (HOT) or isolation (COLD)">Dep</button>
+                        <button class="btn btn-outline btn-xs" data-heat="code" title="Show Code Heat: identifies code files with high @spec-link density">Code</button>
+                        <button class="btn btn-outline btn-xs" data-heat="updates" title="Show Update Heat: identifies unstable atoms with frequent recent Git updates">Log</button>
                     </div>
                 </div>
                 <div class="view-switcher">

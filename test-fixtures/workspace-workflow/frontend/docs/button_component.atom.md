@@ -3,6 +3,7 @@ id: button_component
 type: UI
 layer: IMPLEMENTATION
 status: STABLE
+dependents: []
 ---
 # Button Component
 ## INTENT

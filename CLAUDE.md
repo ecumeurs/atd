@@ -62,6 +62,81 @@ Every layer validates the one below it:
 
 ---
 
+## Workspace & Multi-Project Workflow
+
+### When Working in a Multi-Project Environment
+
+**As an AI agent**, you may operate in a workspace containing multiple related projects. Each project has its own `.atd` configuration and `docs/` folder, but all are accessible from a single workspace root.
+
+### Agent Responsibilities for Workspace Operations
+
+1. **ALWAYS check the active project context** before performing any ATD operations
+2. **Use workspace-aware MCP tools** when available
+3. **Switch context explicitly** when moving between projects
+4. **Maintain awareness of cross-project dependencies**
+
+### Workspace MCP Tool Workflow
+
+```python
+# Step 1: Check if you're in a workspace
+# Call atd_workspace_list to see available projects
+workspace_projects = mcp__atd__atd_workspace_list()
+
+# Step 2: Identify the correct project for the task
+# Look at file paths, @spec-link tags, or ask the user
+
+# Step 3: Switch to the correct project context
+mcp__atd__atd_workspace_use(project="upsilonbattle")
+
+# Step 4: Perform ATD operations on the active project
+# All subsequent atd_* calls operate on upsilonbattle/docs/
+mcp__atd__atd_search(query="combat mechanics", scope="all")
+
+# Step 5: If working on a different project, switch again
+mcp__atd__atd_workspace_use(project="battleui")
+```
+
+### Determining the Active Project
+
+When the user gives you a task, determine the correct project by:
+
+1. **File path analysis**: If the task mentions `upsilonapi/` → use `upsilonapi` project
+2. **@spec-link context**: If you see `@spec-link [[api_auth_login]]` → find which project owns this atom
+3. **Module reference**: If the task mentions "Battle Engine" → use `upsilonbattle` project
+4. **Explicit user direction**: User may specify "in the API project" or "for the UI"
+
+**When uncertain, ask the user** which project to work on.
+
+### Cross-Project Atom References
+
+When creating atoms that reference other projects:
+
+```markdown
+---
+id: ui_login_form
+parents:
+  - [[upsilonapi:api_auth_login]]  # Cross-project reference
+---
+```
+
+The `project:` prefix tells ATD to look in a different project's docs folder.
+
+### Best Practices for Agents
+
+✅ **DO:**
+- Always call `atd_workspace_list` at the start of a workspace task
+- Switch project context explicitly before making changes
+- Verify the active project with `atd_config(list=true)` if unsure
+- Use cross-project references for shared logic
+
+❌ **DON'T:**
+- Assume you're working on the correct project without checking
+- Create atoms in the wrong project's docs folder
+- Ignore workspace context in monorepo environments
+- Fail to switch context when moving between modules
+
+---
+
 ## Development Workflow at UpsilonBattle
 
 ### Phase 1: Discovery & Planning 📋

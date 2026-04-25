@@ -167,11 +167,28 @@ func (e *Explorer) GetHeatMapResult(atomID string) (*HeatMapResult, error) {
 
 	updateState, updateCount, lastUpdated := e.CalculateUpdateHeat(a)
 
+	depHeat := e.CalculateDependencyHeat(a)
+	codeHeat := e.CalculateCodeHeat(a)
+
+	// Apply Overrides (ISS-093)
+	// @spec-link [[rule_atd_atom_overrides]]
+	switch a.HeatMap {
+	case "no_dep":
+		depHeat = HeatOptimal
+	case "no_code":
+		codeHeat = HeatOptimal
+	case "none":
+		depHeat = HeatOptimal
+		codeHeat = HeatOptimal
+		updateState = HeatStable
+	}
+
+	// @spec-link [[mechanic_atd_heatmap_calculation]]
 	res := &HeatMapResult{
 		Atom:            a.ID,
 		Layer:           a.Layer,
-		DependencyState: e.CalculateDependencyHeat(a),
-		CodeState:       e.CalculateCodeHeat(a),
+		DependencyState: depHeat,
+		CodeState:       codeHeat,
 		UpdateState:     updateState,
 		Metrics: HeatMetrics{
 			Parents:         len(a.Parents),

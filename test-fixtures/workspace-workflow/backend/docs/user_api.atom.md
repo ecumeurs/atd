@@ -5,6 +5,7 @@ layer: ARCHITECTURE
 status: STABLE
 parents:
   - [[frontend:user_form]]
+dependents: []
 ---
 # User API
 ## INTENT

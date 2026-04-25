@@ -151,7 +151,10 @@ func runFullAudit(docsDir string, threshold float64, workspace bool) error {
 
 		strictness := config.GetBloatingStrictness(data.Type)
 		bloatResult := "PASS"
-		if strictness > 0 {
+		// @spec-link [[rule_atd_atom_overrides]]
+		if data.Bloating == "off" {
+			bloatResult = "SKIP"
+		} else if strictness > 0 {
 			// Phase 1: Bloat Detection
 			intentPrompt := prompt.AuditBloatBuild("Architectural Linter", data.Intent, strictness)
 			logicPrompt := prompt.AuditBloatBuild("Architectural Linter", data.Logic, strictness)

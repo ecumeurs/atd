@@ -20,6 +20,7 @@ func stripQuotes(s string) string {
 }
 
 // AtomData holds parsed atom metadata and content sections.
+// @spec-link [[rule_atd_atom_overrides]]
 type AtomData struct {
 	ID          string   `json:"id"`
 	HumanName   string   `json:"human_name"`
@@ -39,6 +40,8 @@ type AtomData struct {
 	Implementations []string `json:"linked_codes"` // Linked source files
 	HasTests    bool              `json:"has_tests"`    // Detection of @test-link tags
 	Metadata    map[string]string `json:"metadata"`     // NEW: For project tagging
+	Bloating    string            `json:"bloating"`     // NEW: on/off (default on)
+	HeatMap     string            `json:"heatmap"`      // NEW: all/no_dep/no_code/none (default all)
 }
 
 // GetProject returns the project name from metadata if present.
@@ -107,6 +110,16 @@ func Parse(path string) (AtomData, error) {
 			}
 			if strings.HasPrefix(line, "priority:") {
 				data.Priority = stripQuotes(strings.TrimPrefix(line, "priority:"))
+				inParents = false
+				continue
+			}
+			if strings.HasPrefix(line, "bloating:") {
+				data.Bloating = stripQuotes(strings.TrimPrefix(line, "bloating:"))
+				inParents = false
+				continue
+			}
+			if strings.HasPrefix(line, "heatmap:") {
+				data.HeatMap = stripQuotes(strings.TrimPrefix(line, "heatmap:"))
 				inParents = false
 				continue
 			}
@@ -219,6 +232,13 @@ func Parse(path string) (AtomData, error) {
 	data.Interface = strings.TrimSpace(data.Interface)
 	data.Expectation = strings.TrimSpace(data.Expectation)
 
+	if data.Bloating == "" {
+		data.Bloating = "on"
+	}
+	if data.HeatMap == "" {
+		data.HeatMap = "all"
+	}
+
 	return data, scanner.Err()
 }
 
@@ -266,6 +286,8 @@ layer: %s
 version: %s
 status: %s
 priority: %s
+bloating: %s
+heatmap: %s
 tags: []
 parents: %s
 dependents: []
@@ -284,7 +306,7 @@ dependents: []
 
 ## EXPECTATION
 %s
-`, a.ID, a.HumanName, a.Type, a.Layer, a.Version, a.Status, a.Priority, strings.TrimRight(parentsStr.String(), "\n"), a.HumanName, a.Intent, a.Logic, a.ID, a.Expectation)
+`, a.ID, a.HumanName, a.Type, a.Layer, a.Version, a.Status, a.Priority, a.Bloating, a.HeatMap, strings.TrimRight(parentsStr.String(), "\n"), a.HumanName, a.Intent, a.Logic, a.ID, a.Expectation)
 }
 
 // BuildParentContent generates a MODULE parent .atom.md.
