@@ -49,8 +49,8 @@ issues --next-ref
 
 Examples:
 ```
-20260223_actor_deadlock_risk.md   →  ISS-001
-20260301_messagequeue_data_race.md  →  ISS-002
+Ref_20260223_actor_deadlock_risk.md   →  ISS-001
+Ref_20260301_messagequeue_data_race.md  →  ISS-002
 ```
 
 ---
@@ -60,7 +60,7 @@ Examples:
 Copy the template from `templates/issue.md` (path: `.agent/skills/issue_management/templates/issue.md`) and fill in every field.
 
 **Rules:**
-- `**ID:**` must match the filename (without `.md`).
+- `**ID:**` must match the filename (without `.md`, e.g. `Ref_20260223_actor_deadlock_risk`).
 - `**Ref:**` must be the `ISS-NNN` value obtained from `--next-ref`. Do not reuse or skip numbers.
 - `**Severity:**` must be one of: `Critical` / `High` / `Medium` / `Low`.
 - `**Status:**` starts as `Open`. Valid states: `Open` / `In Progress` / `Resolved` / `Wont Fix`.
@@ -73,9 +73,26 @@ Copy the template from `templates/issue.md` (path: `.agent/skills/issue_manageme
 
 ## Step 3 — Update the Index
 
+Open `/workspace/issues/README.md` and add a row to the index table:
+
+```markdown
+| ISS-NNN | [Ref_YYYYMMDD_slug.md](Ref_YYYYMMDD_slug.md) | Severity | Status | One-line summary |
+```
+
+Keep rows in **reverse-chronological order** (newest first).
+
+If the `README.md` does not yet have the index table, create it with this header:
+
+```markdown
+## Index
+
+| Ref | File | Severity | Status | Summary |
+|---|---|---|---|---|
+```
+
 
 ## Update the root README.md with an active issues table
-`issues --update-readme`
+issues --update-readme
 
 
 ---
@@ -88,13 +105,13 @@ After filing, tell the user:
 3. Your severity assessment and why.
 
 Example:
-> Filed **ISS-001** `20260223_actor_deadlock_risk` (Medium) — actor executor goroutine can deadlock when handler blocks on a local inter-actor reply channel. See `/workspace/issues/20260223_actor_deadlock_risk.md`.
+> Filed **ISS-001** `Ref_20260223_actor_deadlock_risk` (Medium) — actor executor goroutine can deadlock when handler blocks on a local inter-actor reply channel. See `/workspace/issues/Ref_20260223_actor_deadlock_risk.md`.
 
 ---
 
 ## Listing & Searching Issues
 
-Use `issues` to inspect the current state of the issue tracker.  
+Use the `issues` command in your path to inspect the current state of the issue tracker.  
 The script reads issue files directly — it never relies on the README index — so results are always accurate.
 
 ### Usage
@@ -129,11 +146,11 @@ issues --dir /path/to/issues
 
 ### When the Agent Should Run This
 
-- **Before filing a new issue**: run `--search <keyword>` to check whether a similar issue already exists. Do not file duplicates.
-- **When the user asks "do we have an issue on X?"**: run `--search X` and report the results.
-- **When the user asks "what's left to do?"**: run `--status open` and summarise the output.
-- **At the start of a debugging session** on a known risky component: run `--search <component>` to surface any pre-existing caveats.
-- **After creating or modifying an issue**: run `--update-readme` to ensure the project's root `README.md` reflects the current active issues.
+- **Before filing a new issue**: run `issues --search <keyword>` to check whether a similar issue already exists. Do not file duplicates.
+- **When the user asks "do we have an issue on X?"**: run `issues --search X` and report the results.
+- **When the user asks "what's left to do?"**: run `issues --status open` and summarise the output.
+- **At the start of a debugging session** on a known risky component: run `issues --search <component>` to surface any pre-existing caveats.
+- **After creating or modifying an issue**: run `issues --update-readme` to ensure the project's root `README.md` reflects the current active issues.
 
 ### Output Fields
 
@@ -185,7 +202,7 @@ Optionally add a final change log entry explaining the resolution.
 ## Quick Reference Checklist
 
 ```
-[ ] --next-ref run to determine ISS-NNN, replace Ref from the filename with the new ISS-NNN
+[ ] --next-ref run to determine ISS-NNN
 [ ] Date + slug chosen
 [ ] Issue file created from template
 [ ] All mandatory fields filled (ID, Ref, Date, Severity, Status, Component, Affects)

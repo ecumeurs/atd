@@ -19,6 +19,30 @@ function activate(context) {
 
     let docsPath = '';
     let workspaceConfig = null;
+    let activeProject = null;
+
+    // Status bar item showing the active project (workspace mode only)
+    const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+    statusBarItem.command = 'atd.switchProject';
+    statusBarItem.tooltip = 'ATD: click to switch active project';
+    context.subscriptions.push(statusBarItem);
+
+    // Sets the active project and updates docsPath + status bar accordingly.
+    const setActiveProject = (proj) => {
+        activeProject = proj;
+        const projAtdFile = path.join(workspaceRoot, proj.path, '.atd');
+        let projDocsPath = proj.docs_path || 'docs/';
+        try {
+            if (fs.existsSync(projAtdFile)) {
+                const cfg = JSON.parse(fs.readFileSync(projAtdFile, 'utf8'));
+                projDocsPath = cfg.docs_path || projDocsPath;
+            }
+        } catch (e) { /* keep default */ }
+        docsPath = path.join(proj.path, projDocsPath);
+        statusBarItem.text = `$(project) ATD: ${proj.name}`;
+        statusBarItem.show();
+        outputChannel.appendLine(`[ATD Linker] Active project: ${proj.name} (docs: ${docsPath})`);
+    };
 
     // Get the first open workspace folder
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -35,6 +59,10 @@ function activate(context) {
                 const data = fs.readFileSync(wsFile, 'utf8');
                 workspaceConfig = JSON.parse(data);
                 outputChannel.appendLine(`[ATD Linker] Loaded workspace with ${workspaceConfig.projects?.length || 0} projects.`);
+                // Auto-select the first project if none is active yet
+                if (!activeProject && workspaceConfig.projects?.length > 0) {
+                    setActiveProject(workspaceConfig.projects[0]);
+                }
             }
         } catch (err) {
             outputChannel.appendLine(`[ATD Linker ERROR] Failed to parse .atd.workspace: ${err}`);
@@ -241,6 +269,28 @@ function activate(context) {
         } catch (e) {
             outputChannel.appendLine(`[ATD Rename ERROR] ${e.message}`);
             vscode.window.showErrorMessage(`Failed to rename atom: ${e.message}`);
+        }
+    });
+
+    // @spec-link [[mechanic_vscode_switch_project]]
+    const switchProjectCommand = vscode.commands.registerCommand('atd.switchProject', async () => {
+        if (!workspaceConfig || !workspaceConfig.projects?.length) {
+            vscode.window.showInformationMessage('ATD: Not in a multi-project workspace.');
+            return;
+        }
+        const items = workspaceConfig.projects.map(p => ({
+            label: p.name,
+            description: p.path,
+            detail: activeProject?.name === p.name ? '$(check) currently active' : '',
+            project: p
+        }));
+        const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: 'Select active ATD project',
+            matchOnDescription: true
+        });
+        if (selected) {
+            setActiveProject(selected.project);
+            vscode.window.showInformationMessage(`ATD: Switched to project "${selected.label}"`);
         }
     });
 
@@ -517,7 +567,8 @@ function activate(context) {
 
 
     context.subscriptions.push(
-        watcher, wsWatcher, codeLensProvider, hoverProvider, linkProvider, definitionProvider, showDetailsCommand, renameAtomCommand, showGraphCommand
+        watcher, wsWatcher, codeLensProvider, hoverProvider, linkProvider, definitionProvider,
+        showDetailsCommand, renameAtomCommand, switchProjectCommand, showGraphCommand
     );
 }
 

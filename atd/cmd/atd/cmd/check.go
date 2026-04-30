@@ -10,14 +10,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var checkCmd = &cobra.Command{
-	Use:   "check",
-	Short: "Check configuration and model availability",
+var envCmd = &cobra.Command{
+	Use:   "env",
+	Short: "Check provider connectivity and model availability",
 	Long: `Validates the .atd configuration file, checks connectivity to LLM providers,
 and verifies that required models are available for configured tasks.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		force, _ := cmd.Flags().GetBool("force")
-		// In CLI, check always probes, but we could use this to clear persistent cache if any.
 		output, err := runCheck(force)
 		if err != nil {
 			return err
@@ -43,13 +42,13 @@ type TaskResolution struct {
 	Status    string   `json:"status"` // "Ready", "Missing", "IDE Fallback"
 }
 
-type CheckReport struct {
+type EnvReport struct {
 	Providers []ProviderStatus `json:"providers"`
 	Tasks     []TaskResolution `json:"tasks"`
 }
 
 func runCheck(force bool) (string, error) {
-	report := CheckReport{}
+	report := EnvReport{}
 	cfg := config.ActiveConfig.LLM
 
 	// 1. Check Providers
@@ -170,6 +169,6 @@ func runCheck(force bool) (string, error) {
 }
 
 func init() {
-	rootCmd.AddCommand(checkCmd)
-	checkCmd.Flags().BoolP("force", "f", false, "Force re-probing of all providers, bypassing health cache")
+	rootCmd.AddCommand(envCmd)
+	envCmd.Flags().BoolP("force", "f", false, "Force re-probing of all providers, bypassing health cache")
 }

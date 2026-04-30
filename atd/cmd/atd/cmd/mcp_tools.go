@@ -237,11 +237,6 @@ Supports auditing uncommitted changes (default), evolution from a base, or betwe
 		target := argString(args, "target", "")
 		full := argBool(args, "full")
 		file := argString(args, "file", "")
-		lineRaw, _ := args["line"]
-		line := 0
-		if f, ok := lineRaw.(float64); ok {
-			line = int(f)
-		}
 
 		verifyArgs := []string{}
 		if base != "" {
@@ -250,7 +245,7 @@ Supports auditing uncommitted changes (default), evolution from a base, or betwe
 		if target != "" {
 			verifyArgs = append(verifyArgs, target)
 		}
-		return runVerify(config.DocsDir(), verifyArgs, full, file, line)
+		return runCoverageCheck("diff", "", file, config.DocsDir(), full, false, verifyArgs)
 	})
 
 	// @spec-link [[api_atd_serve_assemble]]
@@ -315,7 +310,7 @@ Use during VERIFY stage to confirm test coverage per atom, or before modifying a
 		},
 	}, func(args map[string]any) (string, error) {
 		atomID := argString(args, "atom", "")
-		return runTestLinks(".", atomID, config.DocsDir())
+		return runCoverageCheck("atom", atomID, "", config.DocsDir(), false, false, nil)
 	})
 
 	// ── LLM-Backed Tools (require Ollama or IDE Agent fallback) ──────────
@@ -431,7 +426,7 @@ Use during cold-start to verify discovered file-atom links before applying @spec
 	}, func(args map[string]any) (string, error) {
 		atom := argString(args, "atom", "")
 		candidate := argString(args, "candidate", "")
-		return runRecon(atom, candidate)
+		return runMap(candidate, atom, config.DocsDir(), false)
 	})
 
 	// @spec-link [[api_atd_serve_discover]]
@@ -449,14 +444,7 @@ Use during IMPLEMENT stage to ensure new files are linked to the appropriate ato
 		},
 	}, func(args map[string]any) (string, error) {
 		file := argString(args, "file", "")
-		return captureStdout(func() error {
-			out, err := runDiscover(file, config.DocsDir())
-			if err != nil {
-				return err
-			}
-			fmt.Println(out)
-			return nil
-		})
+		return runMap(file, "", config.DocsDir(), false)
 	})
 
 	// ── Configuration & Diagnostics ──────────────────────────────────────

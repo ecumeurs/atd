@@ -2,10 +2,6 @@
 trigger: always_on
 ---
 
----
-trigger: always_on
----
-
 ## Script
 
 The `issues` script should be in the path. It allows listing issues `issues`, create new ref number `issues --next-ref`, and update the readme table `issues --update-readme`.
@@ -38,6 +34,12 @@ Use the current date. The slug must be lowercase with underscores, describing th
 
 
 ### Index Maintenance
+
+After creating an issue file, **add a row to `/workspace/issues/README.md`** in the index table:
+
+```markdown
+| [Ref_YYYYMMDD_slug.md](Ref_YYYYMMDD_slug.md) | Severity | Status | One-line summary |
+```
 
 
 Update the root README.md with an active issues table
