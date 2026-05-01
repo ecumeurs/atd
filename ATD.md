@@ -86,7 +86,7 @@ dependents:
 | `id` | ✅ | `snake_case` slug | Unique identifier. Convention: `<type_lowercase>_<descriptive_slug>`. |
 | `human_name` | ✅ | Quoted string | Human-readable title. |
 | `type` | ✅ | Enum (see §1.3) | Categorization of the atom's role. |
-| `layer` | ✅ | `CUSTOMER` / `ARCHITECTURE` / `IMPLEMENTATION` | Which layer of the documentation hierarchy this atom belongs to (see §1.4). |
+| `layer` | ✅ | `BUSINESS` / `ARCHITECTURE` / `IMPLEMENTATION` | Which layer of the documentation hierarchy this atom belongs to (see §1.4). |
 | `version` | ✅ | Semver (`1.0`) | Document version (currently advisory, see ISS-009). |
 | `status` | ✅ | `DRAFT` / `REVIEW` / `STABLE` | Maturity level. |
 | `priority` | ✅ | Integer `1`–`5` | Importance level. `1` = low priority, `5` = highest priority. |
@@ -142,73 +142,43 @@ The per-type overrides are set in `.atd`:
 
 ### 1.3 Document Types
 
-Atoms are categorized into five families, each with distinct responsibilities and granularity rules.
+Atoms are grouped into **9 consolidated types** across three functional families. The **Bloat Factor** column maps to the default `bloating_factor` per type in `.atd` config (1.0 = strictest, 0.1 = most relaxed).
 
-#### Architectural Types
-
-| Type | Purpose | Typical Layer | Granularity | `@spec-link` Placement |
-|---|---|---|---|---|
-| `MODULE` | High-level grouping (e.g., "The Auth System"). | ARCHITECTURE | Can be broad; acts as a parent. | Package/directory level or main entry point. |
-| `SERVICE` | Logical orchestrator or manager (e.g., `DocumentManager`). | ARCHITECTURE / IMPLEMENTATION | Single responsibility. | Above class/struct definitions. |
-| `ENTITY` | Data structures and state models (e.g., `UserRecord`). | ARCHITECTURE | Single responsibility. | Above type/struct definitions. |
-
-#### Logic Types
-
-| Type | Purpose | Typical Layer | Granularity | `@spec-link` Placement |
-|---|---|---|---|---|
-| `RULE` | Strict constraints or boolean checks ("Max file size is 5MB"). | CUSTOMER / ARCHITECTURE | One rule per atom. Strict. | At the validation point. |
-| `MECHANIC` | Procedural logic, algorithms ("How the diff is calculated"). | IMPLEMENTATION | One algorithm per atom. | Above the implementation function. |
-| `DOMAIN` | Business context, intent, "The Why". | CUSTOMER | Broader, narrative-driven. | Documentation or orchestration files. |
-
-#### Interface Types
-
-| Type | Purpose | Typical Layer | Granularity | `@spec-link` Placement |
-|---|---|---|---|---|
-| `API` | External/internal technical contracts (endpoints, RPC). | ARCHITECTURE / IMPLEMENTATION | One contract per atom. Should include sample payloads. | Above route handler. |
-| `UI` | Visual requirements and user interaction flows. | CUSTOMER / ARCHITECTURE | One screen or flow per atom. | Near component definition. |
-
-#### Operations Types
-
-| Type | Purpose | Typical Layer | Granularity | `@spec-link` Placement |
-|---|---|---|---|---|
-| `DATA` | Static configuration, database schemas, seed data. | IMPLEMENTATION | Per config domain. | Config files, DB migrations. |
-| `USAGE` | Tutorials, examples, "How-to-use" guides. | CUSTOMER | Per workflow or tutorial. | READMEs. Bloat-tolerance is relaxed. |
-| `BUILD` | CI/CD pipelines, environment setup, deployment. | IMPLEMENTATION | Per pipeline stage. | CI YAML files, scripts. |
-
-#### Requirements Types
-
-| Type | Purpose | Typical Layer | Granularity | `@spec-link` Placement |
-|---|---|---|---|---|
-| `REQUIREMENT` | High-level constraints ("The system must support Linux"). | CUSTOMER | Less granular than `RULE`. | Integration test suites. |
-| `SPECIFICATION` | Detailed technical specs grouping multiple rules. | CUSTOMER / ARCHITECTURE | Can reference multiple atoms. | Top-level spec documents. |
-| `USECASE` | End-to-end workflow narrative (multi-step). | CUSTOMER | Links to child atoms via `dependents`. | Bloat-check auto-passed. |
-| `USER_STORY` | Agile story: "As a [role], I want [X] so that [Y]". | CUSTOMER | Links to parent `USECASE` and tests. | Bloat-check auto-passed. |
+| Type | Family | Typical Layer | Bloat Factor | Granularity | `@spec-link` Placement |
+|---|---|---|---|---|---|
+| `REQUIREMENT` | Requirements | BUSINESS | 0.3 | High-level external contract or constraint | Integration test suites |
+| `USER_STORY` | Requirements | BUSINESS | 0.1 | User-facing workflow: "As a [role], I want [X]" | Bloat-check relaxed |
+| `RULE` | Logic | BUSINESS / ARCHITECTURE | 0.8 | Single business constraint or boolean check | At the validation point |
+| `DOMAIN` | Logic | BUSINESS | 0.8 | Narrative-driven context: "The Why" | Documentation or orchestration files |
+| `MECHANIC` | Logic | IMPLEMENTATION | 0.8 | One algorithm or procedural step | Above the implementation function |
+| `MODULE` | Architectural | ARCHITECTURE | 0.3 | High-level grouping; broad scope is acceptable | Package/directory level or main entry point |
+| `ENTITY` | Architectural | ARCHITECTURE | 0.8 | Single data structure or state model | Above type/struct definitions |
+| `API` | Interface | ARCHITECTURE | 0.1 | One contract per atom; include sample payloads | Above route handler |
+| `UI` | Interface | ARCHITECTURE | 0.8 | One screen or interaction flow | Near component definition |
 
 ### 1.4 Document Hierarchy & Layers
 
 Atoms are organized into three **layers** that reflect the documentation's relationship to change and human oversight. This hierarchy is the backbone of ATD's traceability model.
 
-
 ```
-  CUSTOMER                    ARCHITECTURE                IMPLEMENTATION
+  BUSINESS                    ARCHITECTURE                IMPLEMENTATION
   ─────────────────           ─────────────────           ─────────────────
   REQUIREMENT                 MODULE                      MECHANIC
-  SPECIFICATION               SERVICE                     DATA / BUILD
-  USECASE / USER_STORY        ENTITY                      USAGE (dev guides)
-  DOMAIN                      API / UI                    RULE (technical)
-  USAGE (manuals)             RULE (business)
+  USER_STORY                  ENTITY                      RULE (technical)
+  RULE (business)             API / UI
+  DOMAIN
 
   Volatility: LOW ◄──────────────────────────────────────────────► HIGH
   Human gate: HEAVY                MODERATE                    LIGHT
 ```
 
-#### CUSTOMER Layer
+#### BUSINESS Layer
 
-Atoms that capture **what the customer wants and why**. These include requirements, specifications, use cases, user stories, domain context, and user-facing documentation (instruction manuals).
+Atoms that capture **what the business wants and why**. These include requirements, user stories, business rules, and domain context.
 
 - **Volatility:** Low. Once `STABLE`, these atoms are near-immutable. Alterations require high precautions and heavy human involvement (stakeholder sign-off, formal change requests).
-- **Typical types:** `REQUIREMENT`, `SPECIFICATION`, `USECASE`, `USER_STORY`, `DOMAIN`, `USAGE` (manuals).
-- **Traceability role:** The **origin** of the traceability chain. Every `ARCHITECTURE` and `IMPLEMENTATION` atom should trace back to a `CUSTOMER` atom.
+- **Typical types:** `REQUIREMENT`, `USER_STORY`, `RULE` (business constraints), `DOMAIN`.
+- **Traceability role:** The **origin** of the traceability chain. Every `ARCHITECTURE` and `IMPLEMENTATION` atom should trace back to a `BUSINESS` atom.
 
 #### ARCHITECTURE Layer
 
@@ -224,7 +194,7 @@ Atoms that capture **how the code works in practice**. These include mechanics, 
 
 - **Volatility:** High. Expected to change frequently during development. Subject to the doc-code co-evolution principle (§1.1, point 3).
 - **Typical types:** `MECHANIC`, `DATA`, `BUILD`, `USAGE` (dev guides), `RULE` (technical constraints).
-- **Traceability role:** The **leaf nodes** — linked directly to source code via `@spec-link` and to tests via `@test-link`.
+- **Traceability role:** The **leaf nodes** — linked directly to source code via `@spec-link` and to tests via `@test-link`. Must have at least one ancestor in the BUSINESS layer (enforced by the pre-commit hook via `parents:` field).
 
 ### 1.5 Relationships & Graph Model
 
@@ -343,7 +313,7 @@ DRAFT ──► REVIEW ──► STABLE ──► (DEPRECATED) ──► (ARCHIV
 - **STABLE:** Approved and enforced. Code must comply. Changes require impact analysis.
 - **DEPRECATED / ARCHIVED:** End-of-life (see ISS-033).
 
-> **Layer-specific governance:** `CUSTOMER` layer atoms at `STABLE` require heavy human sign-off to modify. `ARCHITECTURE` atoms require impact analysis. `IMPLEMENTATION` atoms can be updated more freely as code evolves.
+> **Layer-specific governance:** `BUSINESS` layer atoms at `STABLE` require heavy human sign-off to modify. `ARCHITECTURE` atoms require impact analysis. `IMPLEMENTATION` atoms can be updated more freely as code evolves.
 
 ### 1.7 Configuration
 
@@ -366,12 +336,12 @@ All tools read from a **`.atd`** JSON file at project root (created by `atd init
 
 ## 2. MCP Toolset Reference
 
-The `atd serve` command starts a JSON-RPC 2.0 / MCP (spec 2025-11-25) server exposing **19 tools** via two transports:
+The `atd serve` command starts a JSON-RPC 2.0 / MCP (spec 2025-11-25) server via two transports:
 
 - **stdio** (default): `atd serve` — host launches as subprocess.
 - **HTTP**: `atd serve --http --port 7474` — single `/mcp` endpoint.
 
-The server currently exposes **19 tools**.
+The server currently exposes **25 tools**.
 
 ### VS Code Configuration (`.mcp.json`)
 
@@ -490,28 +460,30 @@ These tools NEVER call an LLM. They are safe, cheap, and fast.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| *(none)* | — | — | Operates on the full project. |
+| `workspace` | boolean | ❌ | If `true`, aggregate stats from all projects in the workspace. |
 
-**Output:** JSON report with quantitative health metrics.
+**Output:** JSON report with quantitative health metrics (per-project when workspace=true).
 
-**When to use:** During **Verify** stage to assess overall documentation quality, or in CI to generate health badges.
+**When to use:** During **Verify** stage to assess overall documentation quality, or in CI to generate health badges. Use `workspace:true` for a monorepo-wide view.
 
 ---
 
 #### `atd_verify`
 
-**Purpose:** Run `git diff`, extract impacted `@spec-link` tags, and produce a structured audit prompt.
+**Purpose:** Unified coverage report: lists `@spec-link` (impl) and `@test-link` (test) coverage for every atom touched by the current diff or the full project.
 
 | Parameter | Type | Required | Description |
-| `full` | boolean | ❌ | If `true`, Audit the entire project. |
+|---|---|---|---|
+| `full` | boolean | ❌ | If `true`, audit the entire project regardless of changed files. |
 | `file` | string | ❌ | Target a specific file for verification. |
 | `line` | integer | ❌ | Target a specific line for verification (requires `file`). |
-| `base` | string | ❌ | Optional: base commit/ref to compare from (e.g. 'HEAD~5'). |
-| `target` | string | ❌ | Optional: target commit/ref to compare to (defaults to working tree). |
+| `base` | string | ❌ | Base commit/ref to compare from (e.g. `HEAD~5`). |
+| `target` | string | ❌ | Target commit/ref to compare to (defaults to working tree). |
+| `semantic` | boolean | ❌ | Add LLM compliance check per `@spec-link` link. Returns PASS/FAIL per link. **Uses LLM — consumes tokens.** |
 
-**Output:** Structured audit prompt containing the changed code and each atom it's linked to. Also produces a structured JSON recap for granular verification.
+**Output:** Structured coverage report with impl/test link status per atom. With `semantic:true`, each impl link also gets a PASS/FAIL compliance verdict from the configured LLM.
 
-**When to use:** During **Verify** stage (pre-commit or CI) to check whether code changes still comply with their linked atom specifications.
+**When to use:** During **Verify** stage (pre-commit or CI). Use without `semantic` for fast structural checks; add `semantic:true` for full spec compliance verification before promoting an atom to `STABLE`.
 
 ---
 
@@ -560,9 +532,9 @@ These tools NEVER call an LLM. They are safe, cheap, and fast.
 
 ---
 
-#### `atd_check`
+#### `atd_env`
 
-**Purpose:** Unified environment smoke test. Validates `.atd` config, checks provider connectivity, and verifies model availability.
+**Purpose:** Unified environment smoke test. Validates `.atd` config, checks provider connectivity, and verifies model availability. CLI equivalent: `atd env`.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -602,6 +574,90 @@ These tools NEVER call an LLM. They are safe, cheap, and fast.
 **Output:** List of structural violations (missing fields, broken links, empty sections).
 
 **When to use:** During **Verify** stage as a cheap first-pass before running the heavier `atd_audit`.
+
+---
+
+#### `atd_workspace_list`
+
+**Purpose:** List all projects registered in the current `.atd.workspace` file.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| *(none)* | — | — | Reads the workspace config from the project root. |
+
+**Output:** JSON array of project names and their paths.
+
+**When to use:** At the start of any workspace task to discover available projects before switching context.
+
+---
+
+#### `atd_workspace_use`
+
+**Purpose:** Switch the active project context to a specific project in the workspace.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `project` | string | ✅ | The project name to activate (must match a name in `.atd.workspace`). |
+
+**Output:** Confirmation of the active project switch.
+
+**When to use:** Before any ATD operation targeting a specific sub-project. Must be called explicitly — tools do not auto-switch context.
+
+---
+
+#### `atd_workspace_stats`
+
+**Purpose:** Aggregate documentation health metrics across all projects in the workspace.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| *(none)* | — | — | Reads all registered workspace projects. |
+
+**Output:** Per-project and workspace-wide atom counts, status breakdowns, and coverage summaries.
+
+**When to use:** For workspace-level health dashboards and cross-project comparison. Equivalent to running `atd_stats` on each project and aggregating the results.
+
+---
+
+#### `atd_heatmap`
+
+**Purpose:** Get heat map metrics for a specific atom across three layers: dependency coupling, code implementation density, and update instability.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `atom` | string | ✅ | Atom ID or path to the `.atom.md` file. |
+
+**Output:** JSON heat metrics: dependency score, code link count, change instability score.
+
+**When to use:** To identify "hot" atoms — highly connected, frequently changed, or over-implemented — before modifying or splitting them.
+
+---
+
+#### `atd_heatmap_code`
+
+**Purpose:** Get heat map metrics for a specific source file based on `@spec-link` density and implementation pressure.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `file` | string | ✅ | Path to the source file. |
+
+**Output:** JSON heat metrics for the file: number of linked atoms, spec-link density, instability score.
+
+**When to use:** To spot over-documented or under-documented source files, and to prioritize review effort.
+
+---
+
+#### `atd_heatmap_project`
+
+**Purpose:** Get a project-wide heat map summary ranked by documentation hotspots.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `layer` | string | ❌ | Heat layer to focus on: `dependency`, `code`, `updates`, or `all` (default). |
+
+**Output:** Ranked list of atoms and files by heat score per selected layer.
+
+**When to use:** During architecture reviews or sprint planning to identify which parts of the system carry the most documentation risk.
 
 ---
 
@@ -702,20 +758,25 @@ These tools require an Ollama provider (local or remote) or fall back to IDE Age
 
 ---
 
-#### `atd_discover`
+#### `atd_map`
 
-**Purpose:** Extract architectural intent from an undocumented source file and recommend `@spec-link` tags to apply.
+**Purpose:** Three-mode tool for linking source code to ATD atoms. CLI equivalent: `atd map`.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `file` | string | ✅ | Path to the undocumented source file. |
+| `file` | string | ✅ | Path to the source file to analyse. |
+| `atom` | string | ❌ | **Confirm mode:** atom ID to validate against the file. Returns a confidence score and rationale. |
+| `new` | boolean | ❌ | **Propose mode:** return a new atom skeleton (id, type, layer, intent, logic) ready to pass to `atd_update`. |
 
-**Output:** List of recommended `@spec-link [[atom_id]]` tags with placement suggestions and confidence scores.
+**Modes:**
+- **Default** (`file` only): Searches existing atoms for candidates and recommends `@spec-link` placements following surgical attachment rules.
+- **Confirm** (`file` + `atom`): Validates whether the file implements the given atom. Equivalent to `atd_recon` but accepts an atom ID instead of a file path.
+- **Propose** (`file` + `new: true`): Extracts architectural intent and proposes a brand-new atom skeleton when no existing atom fits.
 
 **When to use:**
-- During **Implement** stage to ensure new files are linked to the appropriate atoms.
-- Auto-tagging undocumented code during cold-start or legacy sweeps.
-- **Constraint:** Follows the Surgical Attachment rules (no global headers, logic-boundary placement).
+- **Default:** During **Implement** stage to link new or legacy files to the right atoms.
+- **Confirm:** Before applying `@spec-link` tags during cold-start or after refactoring to verify the match.
+- **Propose:** When adding a file that has no existing atom — use this to bootstrap a new DRAFT atom.
 
 ---
 
@@ -723,24 +784,32 @@ These tools require an Ollama provider (local or remote) or fall back to IDE Age
 
 | Scenario | Tool(s) | LLM? |
 |---|---|---|
-| "Find all atoms of type RULE" | `atd_query --field type --search RULE` | No |
-| "What atoms does this code implement?" | `atd_crawl --src .` | No |
-| "Find STABLE atoms with no code links" | `atd_crawl --gaps` | No |
+| "Find all atoms of type RULE" | `atd_query` (field=type) | No |
+| "What atoms does this code implement?" | `atd_crawl` | No |
+| "Find STABLE atoms with no code links" | `atd_crawl` (gaps=true) | No |
 | "Synchronize parent/dependent graph" | `atd_weave` | No |
-| "Change an atom's status to STABLE" | `atd_update --file X --set status=STABLE` | No |
-| "Batch promote all test atoms to STABLE" | `atd_update --filter "type=TEST" --set status=STABLE` | No |
-| "What files are most complex?" | `atd_roadmap --dir ./src` | No |
-| "Did my code changes break a spec?" | `atd_verify` | No |
-| "Generate a project overview" | `atd_assemble --starts root_atom_id` | No (unless `--snapshot`) |
-| "Which tests cover this atom?" | `atd_test_links --atom my_atom` | No |
-| "Break a file into atoms" | `atd_dissect --file X` | Yes |
+| "Change an atom's status to STABLE" | `atd_update` (set=["status=STABLE"]) | No |
+| "Batch promote matching atoms" | `atd_update` (filter="type=RULE,status=DRAFT") | No |
+| "What files are most complex?" | `atd_roadmap` | No |
+| "Check impl/test link coverage" | `atd_verify` | No |
+| "Check if code still complies with spec" | `atd_verify` (semantic=true) | Yes |
+| "Generate a project overview" | `atd_assemble` | No (unless snapshot) |
+| "Which tests cover this atom?" | `atd_test_links` | No |
+| "Which atoms is this file linked to?" | `atd_heatmap_code` | No |
+| "Which atoms are riskiest to modify?" | `atd_heatmap_project` | No |
+| "Is this provider configured correctly?" | `atd_env` | No |
+| "List workspace projects" | `atd_workspace_list` | No |
+| "Switch active project" | `atd_workspace_use` | No |
+| "Workspace-wide health report" | `atd_workspace_stats` | No |
+| "Break a file into atoms" | `atd_dissect` | Yes |
 | "Build a searchable index" | `atd_index` | Yes (embed) |
-| "Find code related to authentication" | `atd_search --query "authentication"` | Yes (embed) |
+| "Find code related to authentication" | `atd_search` (query=...) | Yes (embed) |
 | "Is this documentation bloated?" | `atd_audit` | Yes |
-| "Does this code match this atom?" | `atd_audit --atom X --code Y` | Yes |
-| "Does this file implement this atom?" | `atd_recon --atom X --candidate Y` | Yes |
-| "Tag this file with the right atoms" | `atd_discover --file X` | Yes |
-| "Inject @spec-link without manual edit" | `atd_update --spec-link ID --spec-link-file X` | No |
+| "Does this code match this atom?" | `atd_audit` (atom=X, code=Y) | Yes |
+| "Find matching atoms for this file" | `atd_map` | Yes |
+| "Confirm this file implements this atom" | `atd_map` (atom=id) | Yes |
+| "Propose a new atom for this file" | `atd_map` (new=true) | Yes |
+| "Inject @spec-link without manual edit" | `atd_update` (spec_link=id) | No |
 
 ---
 

@@ -18,7 +18,7 @@ Think of ATD as your **project's constitution**—it defines the rules that ever
 ### The Power Model
 
 ```
-Customer Need
+Business Need
      ↓
 Design Solution (Architecture)
      ↓  
@@ -28,7 +28,7 @@ Test Verification
 ```
 
 Every layer validates the one below it:
-- **Customer**: "Does this meet the user need?"
+- **Business**: "Does this meet the user need?"
 - **Architecture**: "Is this the right technical approach?"  
 - **Implementation**: "Did we build it correctly?"
 
@@ -41,23 +41,26 @@ Every layer validates the one below it:
 - **Code Paths**: `upsilonapi/`, `upsilonbattle/`, `battleui/`, `upsiloncli/`
 - **ATD Tools**: Located at `/home/bastien/work/skill/` (accessed via MCP)
 
-### Type System (Simplified for UpsilonBattle)
+### Type System
 
-| Type | Purpose | Examples |
-|---|---|---|
-| **REQUIREMENT** | Customer business requirements | `req_matchmaking`, `req_security` |
-| **RULE** | Single business rules | `rule_password_policy`, `rule_progression` |
-| **MECHANIC** | Implementation algorithms | `mech_initiative`, `mech_action_economy` |
-| **API** | Interface contracts | `api_auth_login`, `api_matchmaking` |
-| **ENTITY** | Data models | `entity_player`, `entity_character` |
-| **MODULE** | Architectural grouping | `module_frontend`, `module_backend` |
+| Type | Layer | Purpose | Examples |
+|---|---|---|---|
+| **REQUIREMENT** | BUSINESS | High-level business constraints | `req_matchmaking`, `req_security` |
+| **USER_STORY** | BUSINESS | "As a [role], I want [X]" workflows | `us_player_join_match` |
+| **RULE** | BUSINESS / ARCHITECTURE | Single business or technical constraint | `rule_password_policy`, `rule_progression` |
+| **DOMAIN** | BUSINESS | Narrative context, "The Why" | `domain_combat_philosophy` |
+| **MODULE** | ARCHITECTURE | High-level grouping / service boundary | `module_frontend`, `module_backend` |
+| **API** | ARCHITECTURE | Interface contracts (endpoints, RPC) | `api_auth_login`, `api_matchmaking` |
+| **ENTITY** | ARCHITECTURE | Data models and state structures | `entity_player`, `entity_character` |
+| **UI** | ARCHITECTURE | Screen or interaction flow | `ui_match_lobby`, `ui_character_sheet` |
+| **MECHANIC** | IMPLEMENTATION | Algorithms and procedural logic | `mech_initiative`, `mech_action_economy` |
 
 ### Layer System (3 Tiers)
 
 | Layer | Responsibility | Examples | Link Expectations |
 |---|---|---|---|
-| **CUSTOMER** | Business requirements | User stories, rules | **No code links** (children link down) |
-| **ARCHITECTURE** | System design & APIs | API contracts, UI components | **Links both ways** (to code + from customers) |
+| **BUSINESS** | Business requirements | User stories, rules | **No code links** (children link down) |
+| **ARCHITECTURE** | System design & APIs | API contracts, UI components | **Links both ways** (to code + from business) |
 | **IMPLEMENTATION** | Algorithms & logic | Mechanics, validation | **Only code links** (links up to architecture) |
 
 ---
@@ -170,7 +173,7 @@ The `project:` prefix tells ATD to look in a different project's docs folder.
    # Create new atom with proper structure
    mcp__atd__atd_update(
      file="docs/new_feature.atom.md",
-     set=["id=new_auth_flow", "type=REQUIREMENT", "layer=CUSTOMER", "status=DRAFT"],
+     set=["id=new_auth_flow", "type=REQUIREMENT", "layer=BUSINESS", "status=DRAFT"],
      intent="To provide secure session management",
      logic="The system must handle JWT tokens with 15-minute expiration"
    )
@@ -323,8 +326,11 @@ mcp__atd__atd_update(
 
 #### Checking Compliance
 ```bash
-# Verify changes match documentation
+# Check impl/test link coverage
 mcp__atd__atd_verify()
+
+# Add semantic LLM compliance check per @spec-link
+mcp__atd__atd_verify(semantic=true)
 
 # Check if new code violates existing atoms
 mcp__atd__atd_audit()
@@ -425,9 +431,9 @@ mcp__atd__atd_weave()
 ### File Organization
 ```
 docs/
-├── customer/           # Business requirements, user stories
-├── architecture/         # System design, APIs, data models  
-└── implementation/      # Mechanics, algorithms, validation rules
+├── business/           # Requirements, user stories, rules, domain context
+├── architecture/       # APIs, entities, modules, UI flows
+└── implementation/     # Mechanics, algorithms, validation rules
 ```
 
 ---
@@ -536,7 +542,7 @@ mcp__atd__atd_test_links(atom="implemented_feature")
 - **Documentation Coverage**: 100% of features have atoms
 - **Implementation Coverage**: 100% of code has @spec-link tags
 - **Test Coverage**: 100% of critical features have tests
-- **Traceability**: Perfect chain from customer requirement to code to test
+- **Traceability**: Perfect chain from business requirement to code to test
 
 ### Current Project Status (2026-04-17)
 
@@ -549,7 +555,7 @@ mcp__atd__atd_test_links(atom="implemented_feature")
 
 - **Reduce Implementation Atoms**: Move simple mechanics to DESIGN layer (-40% target)
 - **Improve Agent Guidance**: Add Claude Code specific patterns to ATD.md
-- **Enhance CI Integration**: Automated BRD compliance testing via customer scenarios
+- **Enhance CI Integration**: Automated BRD compliance testing via business scenarios
 - **Fix ATD Tooling**: Resolve indexing and orphan detection issues
 
 ---
@@ -562,7 +568,7 @@ mcp__atd__atd_test_links(atom="implemented_feature")
 mcp__atd__atd_query(field="type", search="RULE")
 
 # Create new atom
-mcp__atd__atd_update(file="docs/new.atom.md", set=["id=new", "type=RULE", "layer=CUSTOMER"])
+mcp__atd__atd_update(file="docs/new.atom.md", set=["id=new", "type=RULE", "layer=BUSINESS"])
 
 # Check implementation coverage
 mcp__atd__atd_trace(atom="your_atom_id")
@@ -589,7 +595,7 @@ mcp__atd__atd_stats()
 
 ATD is your **project's foundation**—not just documentation, but a living system that governs how UpsilonBattle evolves. When used correctly, it ensures:
 
-✅ **Clear requirements** through customer stories and rules  
+✅ **Clear requirements** through business stories and rules  
 ✅ **Solid architecture** through well-designed APIs and data models  
 ✅ **Correct implementation** through traceable code with @spec-link tags  
 ✅ **Verified quality** through tests with @test-link coverage  

@@ -219,17 +219,20 @@ Use during VERIFY stage to assess overall documentation quality, or in CI to gen
 	// @spec-link [[api_atd_serve_verify]]
 	r.Register(mcp.Tool{
 		Name: "atd_verify",
-		Description: `Run git diff, extract impacted @spec-link tags, and produce a structured audit prompt.
-Use during VERIFY stage (pre-commit or CI) to check whether code changes still comply with their linked atom specifications.
-Supports auditing uncommitted changes (default), evolution from a base, or between two specific commits.`,
+		Description: `Unified coverage report: lists impl links (@spec-link) and test links (@test-link) for every atom touched by the current diff or the full project.
+
+Default: audits uncommitted changes (git diff). Pass base/target to compare commits. Pass full:true to audit the entire project regardless of changes.
+
+When semantic:true is added, each impl link is also checked for LLM compliance — the linked code is compared against the atom specification and returns PASS/FAIL per link. This consumes tokens via the configured LLM provider.`,
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"base":   map[string]any{"type": "string", "description": "Optional: base commit/ref to compare from (e.g. 'HEAD~5')."},
-				"target": map[string]any{"type": "string", "description": "Optional: target commit/ref to compare to (defaults to working tree)."},
-				"full":   map[string]any{"type": "boolean", "description": "Optional: audit the entire project."},
-				"file":   map[string]any{"type": "string", "description": "Optional: target a specific file for verification."},
-				"line":   map[string]any{"type": "integer", "description": "Optional: target a specific line for verification (requires 'file')."},
+				"base":     map[string]any{"type": "string", "description": "Optional: base commit/ref to compare from (e.g. 'HEAD~5')."},
+				"target":   map[string]any{"type": "string", "description": "Optional: target commit/ref to compare to (defaults to working tree)."},
+				"full":     map[string]any{"type": "boolean", "description": "Optional: audit the entire project instead of just the diff."},
+				"file":     map[string]any{"type": "string", "description": "Optional: target a specific file for verification."},
+				"line":     map[string]any{"type": "integer", "description": "Optional: target a specific line for verification (requires 'file')."},
+				"semantic": map[string]any{"type": "boolean", "description": "Optional: add LLM compliance check per impl link (consumes tokens). Returns PASS/FAIL per @spec-link."},
 			},
 		},
 	}, func(args map[string]any) (string, error) {
@@ -237,6 +240,7 @@ Supports auditing uncommitted changes (default), evolution from a base, or betwe
 		target := argString(args, "target", "")
 		full := argBool(args, "full")
 		file := argString(args, "file", "")
+		semantic := argBool(args, "semantic")
 
 		verifyArgs := []string{}
 		if base != "" {
@@ -245,7 +249,7 @@ Supports auditing uncommitted changes (default), evolution from a base, or betwe
 		if target != "" {
 			verifyArgs = append(verifyArgs, target)
 		}
-		return runCoverageCheck("diff", "", file, config.DocsDir(), full, false, verifyArgs)
+		return runCoverageCheck("diff", "", file, config.DocsDir(), full, semantic, verifyArgs)
 	})
 
 	// @spec-link [[api_atd_serve_assemble]]
@@ -431,26 +435,34 @@ Use during cold-start to verify discovered file-atom links before applying @spec
 
 	// @spec-link [[api_atd_serve_discover]]
 	r.Register(mcp.Tool{
-		Name: "atd_discover",
-		Description: `Extract architectural intent from an undocumented source file and recommend @spec-link tags to apply.
-Searches the ATD index for matching atoms and suggests placements following surgical attachment rules (no global headers, logic-boundary placement).
-Use during IMPLEMENT stage to ensure new files are linked to the appropriate atoms.`,
+		Name: "atd_map",
+		Description: `Three-mode tool for linking source code to ATD atoms.
+
+Default mode (file only): extracts architectural intent from an undocumented file and recommends @spec-link tags to apply. Follows surgical attachment rules (no global headers, logic-boundary placement).
+
+Confirm mode (file + atom): validates whether a specific file implements the given atom. Returns a confidence score and rationale. Shorthand for atd_recon without requiring explicit atom file path.
+
+Propose mode (file + new:true): treats the file as entirely undocumented and returns a proposed new atom skeleton (id, type, layer, intent, logic) ready to be passed to atd_update.`,
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"file": map[string]any{"type": "string", "description": "Path to the undocumented source file."},
+				"file": map[string]any{"type": "string", "description": "Path to the source file to analyse."},
+				"atom": map[string]any{"type": "string", "description": "Confirm mode: atom ID or path to validate against the file."},
+				"new":  map[string]any{"type": "boolean", "description": "Propose mode: return a new atom skeleton for the file instead of searching existing atoms."},
 			},
 			"required": []string{"file"},
 		},
 	}, func(args map[string]any) (string, error) {
 		file := argString(args, "file", "")
-		return runMap(file, "", config.DocsDir(), false)
+		atom := argString(args, "atom", "")
+		isNew := argBool(args, "new")
+		return runMap(file, atom, config.DocsDir(), isNew)
 	})
 
 	// ── Configuration & Diagnostics ──────────────────────────────────────
 
 	r.Register(mcp.Tool{
-		Name: "atd_check",
+		Name: "atd_env",
 		Description: `Unified environment smoke test: validates .atd config, checks provider connectivity, and verifies model availability.
 Use to diagnose 'Connection Refused' or 'Model Not Found' errors, or to verify a new provider/model is correctly configured.`,
 		InputSchema: map[string]any{
