@@ -129,5 +129,5 @@ func init() {
 	searchCmd.Flags().IntP("limit", "l", 5, "Number of results to return")
 	searchCmd.Flags().StringP("grep", "g", "", "Literal keyword search (grep mode)")
 	searchCmd.Flags().String("scope", "all", "Search scope: code|docs|all")
-	searchCmd.Flags().BoolP("paths-only", "p", false, "Return only a list of file paths")
+	searchCmd.Flags().BoolP("paths-only", "P", false, "Return only a list of file paths")
 }

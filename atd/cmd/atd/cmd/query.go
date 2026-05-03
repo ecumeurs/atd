@@ -59,5 +59,5 @@ func init() {
 	rootCmd.AddCommand(queryCmd)
 	queryCmd.Flags().StringP("field", "f", "", "Metadata field to search (e.g., id, human_name, status). Omit to search all fields.")
 	queryCmd.Flags().StringP("search", "s", "", "Keyword to match")
-	queryCmd.Flags().BoolP("paths-only", "p", false, "Return only a list of file paths")
+	queryCmd.Flags().BoolP("paths-only", "P", false, "Return only a list of file paths")
 }

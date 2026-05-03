@@ -218,7 +218,7 @@ Use during VERIFY stage to assess overall documentation quality, or in CI to gen
 
 	// @spec-link [[api_atd_serve_verify]]
 	r.Register(mcp.Tool{
-		Name: "atd_verify",
+		Name: "atd_check",
 		Description: `Unified coverage report: lists impl links (@spec-link) and test links (@test-link) for every atom touched by the current diff or the full project.
 
 Default: audits uncommitted changes (git diff). Pass base/target to compare commits. Pass full:true to audit the entire project regardless of changes.

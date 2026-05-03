@@ -25,7 +25,8 @@ type CheckAtomRow struct {
 	ImplLinks int    `json:"impl_links"`
 	TestLinks int    `json:"test_links"`
 	Semantic  string `json:"semantic"` // "PASS" | "FAIL" | "PENDING" | "-"
-	Status    string `json:"status"`   // "OK" | "NO_IMPL" | "NO_TESTS" | "SEMANTIC_FAIL"
+	Resolution string `json:"resolution,omitempty"`
+	Status    string `json:"status"` // "OK" | "NO_IMPL" | "NO_TESTS" | "SEMANTIC_FAIL"
 }
 
 // CheckSummary aggregates coverage counts.
@@ -153,34 +154,63 @@ func buildCoverageReport(mode string, atomIDs []string, explorer *exploration.Ex
 		if semantic && len(implLinks) > 0 {
 			atomData, err := explorer.ResolveAtom(id)
 			if err == nil {
-				atomContent, err := os.ReadFile(atomData.FilePath)
-				if err == nil {
-					sl := implLinks[0]
-					snippet, _ := getSnippet(sl.FilePath, sl.Line, 30)
-					auditPrompt := prompt.AuditCodeBuild(string(atomContent), snippet)
-					resp, queryErr := ollama.Query("audit_code", auditPrompt, prompt.AuditCodeFormat())
-					if queryErr == ollama.ErrIDEFallback {
-						row.Semantic = "PENDING"
-						pipeline.WritePromptFile("check_semantic_"+id, auditPrompt)
-						pipeline.WriteTaskList("check --semantic --atom "+id, []pipeline.PendingTask{
-							{
-								PromptFile:   "check_semantic_" + id + ".prompt",
-								ResultFile:   "check_semantic_" + id + ".result",
-								Instruction:  "validate if code implements atom",
-								OutputSchema: `{"passed": bool, "resolutionMessage": "string"}`,
-							},
-						})
-					} else if queryErr == nil {
-						var result struct {
-							Passed bool `json:"passed"`
+				// Determine Persona
+				persona := prompt.PersonaTechLead
+				if atomData.Layer == "BUSINESS" {
+					persona = prompt.PersonaPM
+				}
+
+				// Curate context
+				curated := prompt.CuratedAuditAtom{
+					ID:          atomData.ID,
+					Type:        atomData.Type,
+					Layer:       atomData.Layer,
+					Intent:      atomData.Intent,
+					Logic:       atomData.Logic,
+					Expectation: atomData.Expectation,
+				}
+
+				sl := implLinks[0]
+				snippet, _ := getSnippet(sl.FilePath, sl.Line, 30)
+				auditPrompt := prompt.AuditCodeBuild(persona, curated, snippet)
+				resp, queryErr := ollama.Query("audit_code", auditPrompt, prompt.AuditCodeFormat())
+
+				if queryErr == nil && resp != nil {
+					fmt.Fprintf(os.Stderr, "[DEBUG] LLM Response: %s\n", resp.Response)
+				}
+
+				if queryErr == ollama.ErrIDEFallback {
+					row.Semantic = "PENDING"
+					pipeline.WritePromptFile("check_semantic_"+id, auditPrompt)
+					pipeline.WriteTaskList("check --semantic --atom "+id, []pipeline.PendingTask{
+						{
+							PromptFile:   "check_semantic_" + id + ".prompt",
+							ResultFile:   "check_semantic_" + id + ".result",
+							Instruction:  "validate if code implements atom",
+							OutputSchema: `{"passed": bool, "resolutionMessage": "string"}`,
+						},
+					})
+				} else if queryErr == nil {
+					var rawResult map[string]interface{}
+					if json.Unmarshal([]byte(resp.Response), &rawResult) == nil {
+						if msg, ok := rawResult["resolutionMessage"].(string); ok {
+							row.Resolution = msg
+						} else if msg, ok := rawResult["resolution_message"].(string); ok {
+							row.Resolution = msg
+						} else if msg, ok := rawResult["message"].(string); ok {
+							row.Resolution = msg
 						}
-						if json.Unmarshal([]byte(resp.Response), &result) == nil {
-							if result.Passed {
-								row.Semantic = "PASS"
-							} else {
-								row.Semantic = "FAIL"
-								row.Status = "SEMANTIC_FAIL"
-							}
+
+						passed := false
+						if p, ok := rawResult["passed"].(bool); ok {
+							passed = p
+						}
+
+						if passed {
+							row.Semantic = "PASS"
+						} else {
+							row.Semantic = "FAIL"
+							row.Status = "SEMANTIC_FAIL"
 						}
 					}
 				}
@@ -253,6 +283,19 @@ func formatCheckReport(r *CheckReport) string {
 			r.Summary.SemanticPass, r.Summary.SemanticFail))
 	}
 	sb.WriteString("\n")
+
+	// Print details for semantic failures
+	hasFailures := false
+	for _, row := range r.Rows {
+		if row.Semantic == "FAIL" && row.Resolution != "" {
+			if !hasFailures {
+				sb.WriteString("\n--- Semantic Failure Details ---\n")
+				hasFailures = true
+			}
+			sb.WriteString(fmt.Sprintf("[%s]: %s\n", row.AtomID, row.Resolution))
+		}
+	}
+
 	return sb.String()
 }
 
