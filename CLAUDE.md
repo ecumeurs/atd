@@ -45,15 +45,17 @@ Every layer validates the one below it:
 
 | Type | Layer | Purpose | Examples |
 |---|---|---|---|
-| **REQUIREMENT** | BUSINESS | High-level business constraints | `req_matchmaking`, `req_security` |
-| **USER_STORY** | BUSINESS | "As a [role], I want [X]" workflows | `us_player_join_match` |
-| **RULE** | BUSINESS / ARCHITECTURE | Single business or technical constraint | `rule_password_policy`, `rule_progression` |
+| **CONTRACT** | BUSINESS | **Unique**; project-wide mandatory rules | `contract_atd` |
+| **VISION** | BUSINESS | **Unique**; project-wide scope/philosophy | `vision_atd` |
+| **REQUIREMENT** | BUSINESS | High-level business constraints | `req_matchmaking` |
+| **USER_STORY** | BUSINESS | "As a [role], I want [X]" (synonym: `USECASE`, `WORKFLOW`) | `us_player_join_match` |
+| **RULE** | BUSINESS / ARCHITECTURE | Single business or technical constraint | `rule_password_policy` |
 | **DOMAIN** | BUSINESS | Narrative context, "The Why" | `domain_combat_philosophy` |
-| **MODULE** | ARCHITECTURE | High-level grouping / service boundary | `module_frontend`, `module_backend` |
-| **API** | ARCHITECTURE | Interface contracts (endpoints, RPC) | `api_auth_login`, `api_matchmaking` |
-| **ENTITY** | ARCHITECTURE | Data models and state structures | `entity_player`, `entity_character` |
-| **UI** | ARCHITECTURE | Screen or interaction flow | `ui_match_lobby`, `ui_character_sheet` |
-| **MECHANIC** | IMPLEMENTATION | Algorithms and procedural logic | `mech_initiative`, `mech_action_economy` |
+| **MODULE** | ARCHITECTURE | High-level grouping / service boundary | `module_frontend` |
+| **API** | ARCHITECTURE | Interface contracts (endpoints, RPC) | `api_auth_login` |
+| **ENTITY** | ARCHITECTURE | Data models and state structures | `entity_player` |
+| **UI** | ARCHITECTURE | Screen or interaction flow | `ui_match_lobby` |
+| **MECHANIC** | IMPLEMENTATION | Algorithms and procedural logic | `mech_initiative` |
 
 ### Layer System (3 Tiers)
 
@@ -165,6 +167,9 @@ The `project:` prefix tells ATD to look in a different project's docs folder.
 
 **Decision Point**: Create new DRAFT atoms or proceed with existing architecture?
 
+> [!IMPORTANT]
+> **The "No Parent, No Code" Rule**: If the user asks to implement a feature or mechanic, you MUST first execute `atd_search`. If no parent BUSINESS or ARCHITECTURE atom exists for this feature, **STOP**. Do not write code. Do not write the IMPLEMENTATION atom. You must first propose the missing BUSINESS/ARCHITECTURE atoms to the user and ask for their approval to create them.
+
 ### Phase 2: Specification 📝
 **Question**: "How should this work?"
 
@@ -195,7 +200,13 @@ The `project:` prefix tells ATD to look in a different project's docs folder.
 ### Phase 3: Implementation 💻
 **Question**: "Did we build it correctly?"
 
-1. **Write Code with Traceability**
+1. **Investigation Phase**
+   ```bash
+   # MANDATORY: Get vertical context before modifying any code
+   mcp__atd__atd_trace(atom="your_atom_id", summary=true)
+   ```
+
+2. **Write Code with Traceability**
    ```go
    // Add @spec-link tags directly to implementation
    // @spec-link [[mech_action_economy_action_cost_rules]]
@@ -572,6 +583,9 @@ mcp__atd__atd_update(file="docs/new.atom.md", set=["id=new", "type=RULE", "layer
 
 # Check implementation coverage
 mcp__atd__atd_trace(atom="your_atom_id")
+
+# Get narrative contextual summary (MANDATORY during investigation)
+mcp__atd__atd_trace(atom="your_atom_id", summary=true)
 
 # Find orphaned atoms
 mcp__atd__atd_crawl(gaps=true)

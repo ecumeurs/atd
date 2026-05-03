@@ -425,8 +425,25 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 			CodeLinks:  []string{},
 			TestLinks:  []string{},
 		},
+		Context:  make(map[string]AtomBrief),
 		Warnings: []string{},
 	}
+
+	// Helper to add to context
+	addContext := func(id string, node *atom.AtomData) {
+		if _, ok := snap.Context[id]; !ok {
+			snap.Context[id] = AtomBrief{
+				ID:        node.ID,
+				HumanName: node.HumanName,
+				Type:      node.Type,
+				Layer:     node.Layer,
+				Intent:    node.Intent,
+				Logic:     node.Logic,
+			}
+		}
+	}
+
+	addContext(targetID, target)
 
 	// 1. Walk UP
 	ancestryComplete := true
@@ -435,6 +452,7 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 		if id != targetID {
 			snap.GraphSlice.Parents = append(snap.GraphSlice.Parents, id)
 			node := e.Graph.Atoms[id]
+			addContext(id, node)
 			if node.Status != "STABLE" {
 				ancestryComplete = false
 			}
@@ -446,6 +464,9 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 	e.Graph.WalkDown(targetID, visitedDown, func(id string) {
 		if id != targetID {
 			snap.GraphSlice.Dependents = append(snap.GraphSlice.Dependents, id)
+			if node, ok := e.Graph.Atoms[id]; ok {
+				addContext(id, node)
+			}
 		}
 	})
 
@@ -712,12 +733,22 @@ type TestLink struct {
 }
 
 type TraceSnapshot struct {
-	TargetID      string          `json:"target_id"`
-	Layer         string          `json:"layer"`
-	HealthSummary HealthSummary   `json:"health_summary"`
-	Metrics       TraceMetrics    `json:"metrics"`
-	GraphSlice    TraceGraphSlice `json:"graph_slice"`
-	Warnings      []string        `json:"warnings"`
+	TargetID      string               `json:"target_id"`
+	Layer         string               `json:"layer"`
+	HealthSummary HealthSummary        `json:"health_summary"`
+	Metrics       TraceMetrics         `json:"metrics"`
+	GraphSlice    TraceGraphSlice      `json:"graph_slice"`
+	Context       map[string]AtomBrief `json:"context"`
+	Warnings      []string             `json:"warnings"`
+}
+
+type AtomBrief struct {
+	ID        string `json:"id"`
+	HumanName string `json:"human_name"`
+	Type      string `json:"type"`
+	Layer     string `json:"layer"`
+	Intent    string `json:"intent"`
+	Logic     string `json:"logic"`
 }
 
 type HealthSummary struct {

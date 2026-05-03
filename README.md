@@ -168,6 +168,8 @@ This enables sharing common rules (e.g., authentication patterns, data schemas) 
 
 | Name | Date | Status | Severity | Oneliner |
 |---|---|---|---|---|
+| [Naive LLM Semantic Testing Protocol](issues/ISS-095_20260503_atd_naive_llm_testing_protocol.md) | 2026-05-03 | Open | High | The current `atd_verify --semantic` flag uses a generic "ATD Auditor" prompt ... |
+| [`atd trace --summary` Narrative Mode](issues/ISS-094_20260503_atd_trace_narrative_summary.md) | 2026-05-03 | Open | Medium | Currently, `atd trace` provides a purely structural and quantitative snapshot... |
 | [ATD Workspace & Multi-Project Support](issues/ISS-091_20260423_atd_workspace_multi_project_support.md) | 2026-04-23 | Open | High | ATD currently assumes a single `.atd` configuration per directory tree. In mo... |
 | [E2E Test @test-link Overcrowding](issues/ISS-090_20260422_e2e_test_link_overcrowding.md) | 2026-04-22 | Open | Medium | The current ATD model requires individual `@test-link` tags for each atom imp... |
 | [WebUI Search and Document Generation Regression](issues/ISS-089_20260419_webui_search_docgen_regression.md) | 2026-04-19 | Open | High | Critical functionality in the WebUI has regressed: 1. The **Command Palette (... |

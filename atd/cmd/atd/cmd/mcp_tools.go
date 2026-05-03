@@ -289,16 +289,18 @@ Supports structured layer-by-layer summarization by the LLM by passing structure
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"atom": map[string]any{"type": "string", "description": "Target ID of the atom to trace."},
+				"atom":    map[string]any{"type": "string", "description": "Target ID of the atom to trace."},
+				"summary": map[string]any{"type": "boolean", "description": "If true, returns a narrative contextual summary instead of raw JSON."},
 			},
 			"required": []string{"atom"},
 		},
 	}, func(args map[string]any) (string, error) {
-		atomID, ok := args["atom"].(string)
-		if !ok || atomID == "" {
+		atomID, _ := args["atom"].(string)
+		summary, _ := args["summary"].(bool)
+		if atomID == "" {
 			return "", fmt.Errorf("atom is required")
 		}
-		return runTrace(atomID, config.DocsDir(), ".")
+		return runTrace(atomID, config.DocsDir(), ".", summary)
 	})
 
 	// @spec-link [[api_atd_serve_test_links]]

@@ -21,12 +21,12 @@
       {
         "name": "remote",
         "base_url": "http://192.168.1.10:11434",
-        "timeout_ms": 10000
+        "timeout_ms": 2000
       },
       {
         "name": "local",
         "base_url": "http://localhost:11434",
-        "timeout_ms": 5000
+        "timeout_ms": 500
       },
       {
         "name": "ide_agent",
@@ -38,12 +38,7 @@
         "tasks": [
           "audit_bloat",
           "intent_extract",
-          "snapshot",
-          "assemble",
-          "assemble_layer_CUSTOMER",
-          "assemble_layer_ARCHITECTURE",
-          "assemble_layer_IMPLEMENTATION",
-          "assemble_final"
+          "snapshot"
         ]
       },
       "llama3.1:8b": {
@@ -72,8 +67,7 @@
           "dissect",
           "recon",
           "snapshot"
-        ],
-        "priority": 10
+        ]
       },
       "nomic-embed-text": {
         "tasks": [
@@ -81,8 +75,6 @@
         ]
       }
     },
-    "fallback_model": "llama3.2",
-    "health_ttl_ms": 300000,
-    "model_ttl_ms": 300000
+    "fallback_model": "llama3.2"
   }
 }

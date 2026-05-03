@@ -142,12 +142,14 @@ The per-type overrides are set in `.atd`:
 
 ### 1.3 Document Types
 
-Atoms are grouped into **9 consolidated types** across three functional families. The **Bloat Factor** column maps to the default `bloating_factor` per type in `.atd` config (1.0 = strictest, 0.1 = most relaxed).
+Atoms are grouped into **11 consolidated types** across three functional families. The **Bloat Factor** column maps to the default `bloating_factor` per type in `.atd` config (1.0 = strictest, 0.1 = most relaxed).
 
 | Type | Family | Typical Layer | Bloat Factor | Granularity | `@spec-link` Placement |
 |---|---|---|---|---|---|
+| `CONTRACT` | Governance | BUSINESS | 0.1 | **Unique**; project-wide mandatory rules | Root of Business layer |
+| `VISION` | Governance | BUSINESS | 0.1 | **Unique**; project-wide scope/philosophy | Root of Business layer |
 | `REQUIREMENT` | Requirements | BUSINESS | 0.3 | High-level external contract or constraint | Integration test suites |
-| `USER_STORY` | Requirements | BUSINESS | 0.1 | User-facing workflow: "As a [role], I want [X]" | Bloat-check relaxed |
+| `USER_STORY` | Requirements | BUSINESS | 0.1 | User-facing workflow (synonym: `USECASE`, `WORKFLOW`) | Bloat-check relaxed |
 | `RULE` | Logic | BUSINESS / ARCHITECTURE | 0.8 | Single business constraint or boolean check | At the validation point |
 | `DOMAIN` | Logic | BUSINESS | 0.8 | Narrative-driven context: "The Why" | Documentation or orchestration files |
 | `MECHANIC` | Logic | IMPLEMENTATION | 0.8 | One algorithm or procedural step | Above the implementation function |
@@ -156,7 +158,18 @@ Atoms are grouped into **9 consolidated types** across three functional families
 | `API` | Interface | ARCHITECTURE | 0.1 | One contract per atom; include sample payloads | Above route handler |
 | `UI` | Interface | ARCHITECTURE | 0.8 | One screen or interaction flow | Near component definition |
 
-### 1.4 Document Hierarchy & Layers
+### 1.4 Project Governance: CONTRACT & VISION
+
+`CONTRACT` and `VISION` are specialized, unique atoms that govern the evolution of the entire project.
+
+1. **Uniqueness**: There must be exactly ONE `CONTRACT` atom and ONE `VISION` atom per project.
+2. **Gating Role**:
+    - **`CONTRACT`**: Represents the "hard" object of the project. It MUST be read whenever a `BUSINESS` layer atom is added, removed, or updated. It prevents the removal of atoms that are mandatory to the project's current stable setup.
+    - **`VISION`**: Represents the "philosophical" object of the project. It MUST be read whenever a `BUSINESS` layer atom is added or updated. It prevents adding atoms that are beyond the project's intended purview (scope creep protection).
+3. **Overrides**: While the user can override these gates, doing so REQUIRES that the `CONTRACT` and/or `VISION` atoms be updated to reflect the new state of the project.
+4. **Bootstrapping**: If either is missing, the Agent MUST propose a definition based on the existing documentation and code.
+
+### 1.5 Document Hierarchy & Layers
 
 Atoms are organized into three **layers** that reflect the documentation's relationship to change and human oversight. This hierarchy is the backbone of ATD's traceability model.
 
@@ -294,9 +307,9 @@ Once the ATD base is established, atoms and code co-evolve through recurring sta
 |---|---|---|---|
 | **Plan** | Feature request, brainstorm, early iteration | `query`, `search`, `assemble` | Explore existing atoms, identify related specs, brainstorm new features. Create `DRAFT` atoms for ideas still "in the air" — these document what's *being considered* without committing to implementation. Use `assemble` to pull together context for planning sessions. |
 | **Specify** | Requirements & design | `update` (create), `weave` | Create or update atoms: `REQUIREMENT`, `USECASE`, `SPECIFICATION`, `MODULE`, `SERVICE`, etc. Set `status: DRAFT`. Link to parent atoms. Run `weave` to maintain the graph. |
-| **Implement** | Coding & testing | `update`, `discover` | Write code, annotate with `@spec-link [[atom_id]]` and `@test-link [[atom_id]]`. Update `IMPLEMENTATION`-layer atoms (`MECHANIC`, etc.) as code solidifies. Promote atoms to `REVIEW` when implementation is ready. |
+| **Implement** | Investigation, Coding & testing | `trace`, `update`, `discover` | **Investigation Phase:** Before modifying any code, the agent MUST run `atd_trace(atom=..., summary=true)` to get a 500-word narrative assessment of the atom's vertical context and impact. Write code, annotate with `@spec-link [[atom_id]]` and `@test-link [[atom_id]]`. Update `IMPLEMENTATION`-layer atoms (`MECHANIC`, etc.) as code solidifies. Promote atoms to `REVIEW` when implementation is ready. |
 | **Verify** | Validation | `audit`, `verify`, `test-links`, `crawl --gaps` | Run `verify` to check code-spec alignment. Run `audit` for bloat and collisions. Run `test-links` to confirm test coverage per atom. Run `crawl --gaps` to find orphaned atoms. |
-| **Evolve** | Change management | `crawl`, `update` | Before modifying an atom, run `crawl` to assess impact (ripple effect). Apply surgical edits via `update`. Promote stable atoms to `STABLE`. Loop back to **Plan** for new feature requests or discovered issues. |
+| **Evolve** | Change management | `crawl`, `trace`, `update` | Before modifying an atom, run `atd_crawl` for blast radius (structural) and `atd_trace(summary=true)` for vertical context (semantic). Apply surgical edits via `update`. Promote stable atoms to `STABLE`. |
 
 #### Status Transitions
 
@@ -520,15 +533,19 @@ These tools NEVER call an LLM. They are safe, cheap, and fast.
 
 #### `atd_trace`
 
-**Purpose:** Get a structured Health Snapshot JSON for a specific atom by traversing its graph ancestry and descendants.
+**Purpose:** Get a structured Health Snapshot JSON or a narrative contextual summary for a specific atom by traversing its graph ancestry and descendants.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `atom` | string | ✅ | Target ID of the atom to trace. |
+| `summary` | boolean | ❌ | If `true`, returns a ~500-word narrative contextual summary via LLM instead of raw JSON. **Uses LLM.** |
 
-**Output:** JSON Health Snapshot with layer compliance warnings and coverage metrics.
+**Output:** JSON Health Snapshot OR a Narrative Summary (if `summary: true`).
 
-**When to use:** To diagnose an atom's health, check its dependency chain, or verify its implementation/test coverage.
+**When to use:** 
+- **MANDATORY** during investigation phase prior to updating any code. 
+- To diagnose an atom's health, check its dependency chain, or understand its vertical impact.
+- *Note: Narrative summary can be slow on lower-capability hardware but is essential for semantic context.*
 
 ---
 
@@ -798,6 +815,10 @@ These tools require an Ollama provider (local or remote) or fall back to IDE Age
 | "Which atoms is this file linked to?" | `atd_heatmap_code` | No |
 | "Which atoms are riskiest to modify?" | `atd_heatmap_project` | No |
 | "Is this provider configured correctly?" | `atd_env` | No |
+### 2.3 Tool Decision Matrix
+
+| Task | Tool | LLM? |
+|---|---|---|
 | "List workspace projects" | `atd_workspace_list` | No |
 | "Switch active project" | `atd_workspace_use` | No |
 | "Workspace-wide health report" | `atd_workspace_stats` | No |
@@ -813,7 +834,24 @@ These tools require an Ollama provider (local or remote) or fall back to IDE Age
 
 ---
 
-## 3. Gap Analysis & Recommendations
+## 3. Agent Behavioral Rules (Intransigence Guidelines)
+
+To maintain graph integrity, all agents MUST follow these "hard behavioral triggers":
+
+### 3.1 The "No Parent, No Code" Rule
+If the user asks to implement a feature or mechanic:
+1. **Search**: You MUST first execute `atd_search` to find relevant atoms.
+2. **Verify Ancestry**: Check if a parent `BUSINESS` or `ARCHITECTURE` atom exists for this feature.
+3. **STOP**: If no such parent exists, **STOP**. Do not write code. Do not write the `IMPLEMENTATION` atom.
+4. **Interview**: You must first propose the missing `BUSINESS`/`ARCHITECTURE` atoms to the user and ask for their approval to create them.
+
+### 3.2 Governance Check
+Before adding or modifying any `BUSINESS` layer atom, you MUST read the project's `CONTRACT` and `VISION` atoms.
+- If the change violates the `CONTRACT` (removal of mandatory features) or `VISION` (scope creep), you must warn the user and require explicit confirmation.
+
+---
+
+## 4. Gap Analysis & Recommendations
 
 The following gaps and improvement opportunities are identified from the current backlog, system analysis, and real-world usage patterns.
 

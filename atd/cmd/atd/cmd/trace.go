@@ -4,6 +4,9 @@ package cmd
 
 import (
 	"atd-tools/pkg/exploration"
+	"atd-tools/pkg/ollama"
+	"atd-tools/pkg/pipeline"
+	"atd-tools/pkg/prompt"
 	"encoding/json"
 	"fmt"
 
@@ -17,8 +20,9 @@ var traceCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		docsDir, _ := cmd.Flags().GetString("docs")
 		srcPath, _ := cmd.Flags().GetString("src")
+		summary, _ := cmd.Flags().GetBool("summary")
 
-		out, err := runTrace(args[0], docsDir, srcPath)
+		out, err := runTrace(args[0], docsDir, srcPath, summary)
 		if err != nil {
 			return err
 		}
@@ -31,9 +35,10 @@ func init() {
 	rootCmd.AddCommand(traceCmd)
 	traceCmd.Flags().String("docs", "", "Override docs directory")
 	traceCmd.Flags().String("src", "", "Override source directory (defaults to project root)")
+	traceCmd.Flags().Bool("summary", false, "Generate a narrative contextual summary via LLM")
 }
 
-func runTrace(targetID, docsDir, srcPath string) (string, error) {
+func runTrace(targetID, docsDir, srcPath string, summary bool) (string, error) {
 	explorer := exploration.NewExplorer(srcPath, docsDir)
 	if err := explorer.Load(false); err != nil {
 		return "", err
@@ -42,6 +47,52 @@ func runTrace(targetID, docsDir, srcPath string) (string, error) {
 	snap, err := explorer.Trace(targetID)
 	if err != nil {
 		return "", err
+	}
+
+	if summary {
+		// Curate the context
+		ctx := prompt.TraceSummaryContext{
+			Target:     prompt.AtomBrief(snap.Context[targetID]),
+			Ancestry:   []prompt.AtomBrief{},
+			Dependents: []prompt.AtomBrief{},
+		}
+		for _, p := range snap.GraphSlice.Parents {
+			if brief, ok := snap.Context[p]; ok {
+				ctx.Ancestry = append(ctx.Ancestry, prompt.AtomBrief(brief))
+			}
+		}
+		for _, d := range snap.GraphSlice.Dependents {
+			if brief, ok := snap.Context[d]; ok {
+				ctx.Dependents = append(ctx.Dependents, prompt.AtomBrief(brief))
+			}
+		}
+
+		tracePrompt := prompt.TraceSummaryBuild(ctx)
+		
+		resp, queryErr := ollama.Query("trace_summary", tracePrompt, prompt.TraceSummaryFormat())
+		if queryErr == ollama.ErrIDEFallback {
+			promptFile := "trace_summary_" + targetID
+			pipeline.WritePromptFile(promptFile, tracePrompt)
+			pipeline.WriteTaskList("trace --summary "+targetID, []pipeline.PendingTask{
+				{
+					PromptFile:   promptFile + ".prompt",
+					ResultFile:   promptFile + ".result",
+					Instruction:  "Generate a narrative trace summary",
+					OutputSchema: `{"summary": "string"}`,
+				},
+			})
+			return fmt.Sprintf("LLM provider unavailable. Prompt generated: %s.prompt\nRun with result file to complete.", promptFile), nil
+		} else if queryErr != nil {
+			return "", queryErr
+		}
+
+		var result struct {
+			Summary string `json:"summary"`
+		}
+		if err := json.Unmarshal([]byte(resp.Response), &result); err != nil {
+			return resp.Response, nil // Fallback to raw response
+		}
+		return result.Summary, nil
 	}
 
 	out, _ := json.MarshalIndent(snap, "", "  ")
