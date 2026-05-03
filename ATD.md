@@ -481,7 +481,7 @@ These tools NEVER call an LLM. They are safe, cheap, and fast.
 
 ---
 
-#### `atd_verify`
+#### `atd_check`
 
 **Purpose:** Unified coverage report: lists `@spec-link` (impl) and `@test-link` (test) coverage for every atom touched by the current diff or the full project.
 
@@ -808,8 +808,8 @@ These tools require an Ollama provider (local or remote) or fall back to IDE Age
 | "Change an atom's status to STABLE" | `atd_update` (set=["status=STABLE"]) | No |
 | "Batch promote matching atoms" | `atd_update` (filter="type=RULE,status=DRAFT") | No |
 | "What files are most complex?" | `atd_roadmap` | No |
-| "Check impl/test link coverage" | `atd_verify` | No |
-| "Check if code still complies with spec" | `atd_verify` (semantic=true) | Yes |
+| "Check impl/test link coverage" | `atd_check` | No |
+| "Check if code still complies with spec" | `atd_check` (semantic=true) | Yes |
 | "Generate a project overview" | `atd_assemble` | No (unless snapshot) |
 | "Which tests cover this atom?" | `atd_test_links` | No |
 | "Which atoms is this file linked to?" | `atd_heatmap_code` | No |

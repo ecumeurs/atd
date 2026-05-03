@@ -72,7 +72,7 @@ Use this table to determine the correct `type`, `layer`, and expected granularit
 * **Delegate LLM tasks:** When semantic analysis, complex extraction, or auditing is required, do not do the analysis yourself. Instead, use the MCP's LLM-backed tools to offload the work to ATD's configured models and save your own context window:
   - `atd_discover` — three modes: find matching atoms for undocumented code (default), confirm a specific match (`atom` param), or propose a new atom skeleton (`new: true`)
   - `atd_recon` — shorthand confirm mode: validate whether a candidate file implements a specific atom
-  - `atd_verify` — unified coverage report: impl links (`@spec-link`) and test links (`@test-link`) in one pass; add `semantic: true` for LLM compliance check per link
+  - `atd_check` — unified coverage report: impl links (`@spec-link`) and test links (`@test-link`) in one pass; add `semantic: true` for LLM compliance check per link
   - `atd_search`, `atd_audit`, `atd_dissect` — semantic search, atom quality audit (bloat + collision), document decomposition
   - `atd_trace(summary=true)` — **MANDATORY** for getting narrative vertical context before code changes
 
@@ -81,7 +81,7 @@ When asked to build a feature, fix a bug, or update code, you must follow this l
 * **Plan:** Use `atd_query` or `atd_search` to find existing relevant atoms. Create new `DRAFT` atoms using `atd_update` to capture new requirements before writing code.
 * **Specify:** Ensure every new atom links upward using the `parents` field in the frontmatter. Run `atd_weave` to establish the downward dependency graph (`dependents`).
 * **Implement:** Before writing any code, you MUST run `atd_trace(atom=..., summary=true)` to get a narrative assessment of the atom's context and impact. Then write the code. You must annotate the source code with `@spec-link [[atom_id]]` to map it to the implementation. Annotate tests with `@test-link [[atom_id]]`.
-* **Verify:** Run `atd_verify` to get a unified coverage report (impl links + test links) for the atoms touched by your changes. Then run `atd_trace` for the full health snapshot of each atom. Ensure implementation and test coverage metrics meet the required standards. Always ensure that a new atom has a link toward the upper layers (Business ← Architecture ← Implementation). If none are present that fits the need, raise the issue to the user. 
+* **Verify:** Run `atd_check` to get a unified coverage report (impl links + test links) for the atoms touched by your changes. Then run `atd_trace` for the full health snapshot of each atom. Ensure implementation and test coverage metrics meet the required standards. Always ensure that a new atom has a link toward the upper layers (Business ← Architecture ← Implementation). If none are present that fits the need, raise the issue to the user. 
 * **Evolve:** Before modifying any `STABLE` atom, you must run `atd_crawl` to assess the blast radius and impact on the rest of the system.
 
 ### 6. Surgical Traceability (Tag Placement)
@@ -160,8 +160,8 @@ atd_update(file="docs/new.atom.md", set=["id=new", "type=RULE", "layer=BUSINESS"
 atd_weave()                          # rebuild dependency graph
 
 # Traceability
-atd_verify()                         # impl + test link coverage report
-atd_verify(semantic=true)            # + LLM compliance check per link
+atd_check()                         # impl + test link coverage report
+atd_check(semantic=true)            # + LLM compliance check per link
 atd_trace(atom="your_atom_id")       # full health snapshot
 atd_trace(atom="your_atom_id", summary=true) # narrative contextual summary
 

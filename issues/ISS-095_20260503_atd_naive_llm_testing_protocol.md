@@ -4,9 +4,9 @@
 **Ref:** `ISS-095`
 **Date:** 2026-05-03
 **Severity:** High
-**Status:** Open
+**Status:** In Progress (Protocol Deployed)
 **Component:** `atd/pkg/prompt`, `atd/pkg/pipeline`
-**Affects:** `atd_verify`, documentation quality, architectural governance
+**Affects:** `atd_check`, documentation quality, architectural governance
 
 ---
 
@@ -62,6 +62,25 @@ A `USER_STORY` (Business) atom that describes a database table instead of a user
 **Short term:** Add the "Synthetic PM" and "Synthetic Tech Lead" prompts to `atd/pkg/prompt`.  
 **Medium term:** Update `runCoverageCheck` in `check_coverage.go` to select the correct prompt based on the atom's layer.  
 **Long term:** Integrate with local Naive models (Ollama 7B/8B) to ensure zero-cost, high-rigor validation.
+
+## Current Progress (2026-05-03)
+
+### Completed
+- [x] **Synthetic Persona Implementation**: Added `Synthetic PM` and `Synthetic Tech Lead` prompt builders in `atd/pkg/prompt`.
+- [x] **Pipeline Integration**: Refactored `atd check --semantic` to select personas based on atom layer.
+- [x] **Data Curation**: Implemented `CuratedAuditAtom` to strip technical bloat and focus LLM on semantic intent/logic.
+- [x] **Report Enhancements**: Added `ResolutionMessage` capture and reporting for semantic failures.
+- [x] **Tooling Synchronization**: Renamed `atd_verify` to `atd_check` across all docs, CLI, and MCP tools.
+
+### Observations
+- **Rigor Increase**: Initial tests show that `llama3.2` is significantly less likely to "hallucinate" compliance when given a curated, persona-driven prompt.
+- **Failures Detected**: Several atoms (e.g., `rule_dto_strict_typing`) are now failing semantic audits that were previously passing, indicating that the new personas are catching documentation-code mismatches.
+- **Divergence**: Discovered that some `BUSINESS` layer atoms still contain implementation details that the `Synthetic PM` persona correctly flags as "technical jargon".
+
+### Next Steps
+- [ ] **Unpack Failures**: Analyze specific failure modes for `rule_dto_strict_typing` and other failing atoms.
+- [ ] **Protocol Refinement**: Adjust prompt temperatures or few-shot examples if personas are *too* strict.
+- [ ] **Bulk Verification**: Run `atd check --full --semantic` on `upsilon-hub` to establish a new baseline.
 
 ---
 

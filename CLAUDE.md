@@ -338,10 +338,10 @@ mcp__atd__atd_update(
 #### Checking Compliance
 ```bash
 # Check impl/test link coverage
-mcp__atd__atd_verify()
+mcp__atd__atd_check()
 
 # Add semantic LLM compliance check per @spec-link
-mcp__atd__atd_verify(semantic=true)
+mcp__atd__atd_check(semantic=true)
 
 # Check if new code violates existing atoms
 mcp__atd__atd_audit()
@@ -586,6 +586,12 @@ mcp__atd__atd_trace(atom="your_atom_id")
 
 # Get narrative contextual summary (MANDATORY during investigation)
 mcp__atd__atd_trace(atom="your_atom_id", summary=true)
+
+# Unified coverage report (impl + test links)
+mcp__atd__atd_check()
+
+# Semantic compliance audit (slow, uses LLM)
+mcp__atd__atd_check(semantic=true)
 
 # Find orphaned atoms
 mcp__atd__atd_crawl(gaps=true)
