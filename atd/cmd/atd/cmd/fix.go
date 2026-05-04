@@ -108,7 +108,7 @@ func runFix(auditPath, docsDir string, dryRun bool) error {
 		content, _ := os.ReadFile(path)
 		requestPrompt := prompt.FixSplitBuild(string(content))
 
-		resp, err := ollama.Query("fix_split", requestPrompt, prompt.FixSplitFormat())
+		resp, err := ollama.Query("text_generation", requestPrompt, prompt.FixSplitFormat())
 		if err == ollama.ErrIDEFallback {
 			basename := strings.TrimSuffix(filename, filepath.Ext(filename))
 			promptName := "fix_split_" + basename

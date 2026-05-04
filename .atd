@@ -12,7 +12,6 @@
       "API": 0.1
     }
   },
-  "model": "llama3.2",
   "logging": {
     "log_path": ".agent/logs/atd_trace.log"
   },
@@ -34,45 +33,29 @@
       }
     ],
     "models": {
-      "llama3.2": {
-        "tasks": [
-          "audit_bloat",
-          "intent_extract",
-          "snapshot"
-        ]
-      },
-      "llama3.1:8b": {
-        "tasks": [
-          "audit_bloat",
-          "intent_extract",
-          "snapshot",
-          "dissect",
-          "recon"
-        ]
+      "qwen2.5-coder:14b": {
+        "tasks": ["code_analysis"],
+        "priority": 50
       },
       "deepseek-r1:7b": {
         "tasks": [
-          "audit_code",
-          "compare",
-          "congruence",
-          "reconcile",
-          "fix_split",
-          "audit_bloat",
-          "intent_extract",
-          "snapshot"
-        ]
+          "code_analysis",
+          "text_analysis",
+          "text_generation"
+        ],
+        "priority": 40
       },
-      "qwen2.5-coder:14b": {
-        "tasks": [
-          "dissect",
-          "recon",
-          "snapshot"
-        ]
+      "llama3.1:8b": {
+        "tasks": ["*"],
+        "priority": 20
+      },
+      "llama3.2": {
+        "tasks": ["*"],
+        "priority": 10
       },
       "nomic-embed-text": {
-        "tasks": [
-          "embed"
-        ]
+        "tasks": ["embedding"],
+        "priority": 100
       }
     },
     "fallback_model": "llama3.2"

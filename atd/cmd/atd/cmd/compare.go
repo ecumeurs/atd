@@ -85,7 +85,7 @@ func runCompare(aPath, bPath, outPath string) error {
 	requestPrompt := prompt.CompareBuild(pdA, pdB)
 
 	var resolution string
-	resp, err := ollama.Query("compare", requestPrompt, prompt.CompareFormat())
+	resp, err := ollama.Query("text_generation", requestPrompt, prompt.CompareFormat())
 	if err == ollama.ErrIDEFallback {
 		promptName := fmt.Sprintf("compare_%s_%s", atomA.ID, atomB.ID)
 		pipeline.WritePromptFile(promptName, requestPrompt)

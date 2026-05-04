@@ -37,7 +37,7 @@ Returns a JSON mapping of proposed IDs to their relationship with existing atoms
 
 		requestPrompt := prompt.ReconcileBuild(string(storeContent), string(inboundContent))
 
-		resp, err := ollama.Query("reconcile", requestPrompt, prompt.ReconcileFormat())
+		resp, err := ollama.Query("code_analysis", requestPrompt, prompt.ReconcileFormat())
 		if err == ollama.ErrIDEFallback {
 			taskList, _ := pipeline.WriteTaskList("reconcile --new "+newPath, []pipeline.PendingTask{
 				{

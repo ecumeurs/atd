@@ -40,7 +40,7 @@ Example:
 
 		p := string(promptData)
 
-		resp, err := ollama.Query("dissect", p, prompt.DissectFormat())
+		resp, err := ollama.Query("code_analysis", p, prompt.DissectFormat())
 		if err == ollama.ErrIDEFallback {
 			basename := strings.TrimSuffix(filepath.Base(dissectFile), filepath.Ext(dissectFile))
 			promptName := "generate_" + basename

@@ -6,7 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"strings"
+
 	"atd-tools/config"
+	"atd-tools/pkg/ollama"
 
 	"github.com/spf13/cobra"
 )
@@ -108,4 +111,146 @@ func init() {
 	rootCmd.AddCommand(configCmd)
 	configCmd.AddCommand(configListCmd)
 	configCmd.AddCommand(bloatingFactorCmd)
+	configCmd.AddCommand(configModelCmd)
+	configModelCmd.Flags().BoolP("force", "f", false, "Force re-probing of all providers, bypassing health cache")
+}
+
+var configModelCmd = &cobra.Command{
+	Use:   "model",
+	Short: "Check provider connectivity and model availability",
+	Long: `Validates the .atd configuration file, checks connectivity to LLM providers,
+and verifies that required models are available for configured tasks.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		force, _ := cmd.Flags().GetBool("force")
+		output, err := runCheck(force)
+		if err != nil {
+			return err
+		}
+		fmt.Println(output)
+		return nil
+	},
+}
+
+type ProviderStatus struct {
+	Name   string   `json:"name"`
+	URL    string   `json:"url"`
+	Status string   `json:"status"` // "Online", "Offline", "Passthrough"
+	Models []string `json:"models,omitempty"`
+	Error  string   `json:"error,omitempty"`
+}
+
+type TaskResolution struct {
+	Task       string   `json:"task"`
+	Candidates []string `json:"candidates"`
+	Resolved   string   `json:"resolved_model"`
+	Provider   string   `json:"provider"`
+	Status     string   `json:"status"` // "Ready", "Missing", "IDE Fallback"
+}
+
+type EnvReport struct {
+	Providers []ProviderStatus `json:"providers"`
+	Tasks     []TaskResolution `json:"tasks"`
+}
+
+func runCheck(force bool) (string, error) {
+	report := EnvReport{}
+	cfg := config.ActiveConfig.LLM
+
+	// 1. Check Providers
+	for _, p := range cfg.Providers {
+		status := ProviderStatus{
+			Name: p.Name,
+			URL:  p.BaseURL,
+		}
+
+		if p.Type == "passthrough" {
+			status.Status = "Passthrough"
+		} else {
+			// Bypass cache if force is true, otherwise ListModels is direct but we could check ResolveProviderEx later
+			models, err := ollama.ListModels(p.BaseURL, p.TimeoutMs)
+			if err != nil {
+				status.Status = "Offline"
+				status.Error = err.Error()
+			} else {
+				status.Status = "Online"
+				status.Models = models
+			}
+		}
+		report.Providers = append(report.Providers, status)
+	}
+
+	// 2. Resolve Tasks
+	// Simplified categories
+	tasks := []string{"code_analysis", "text_analysis", "text_generation", "embedding"}
+
+	for _, t := range tasks {
+		res := TaskResolution{
+			Task:       t,
+			Candidates: config.ModelForTask(t),
+		}
+
+		// Use the actual ResolveProviderEx logic to ensure consistency and cache usage
+		resolvedRes, _ := ollama.ResolveProviderEx(t, force)
+
+		if resolvedRes.Provider != "" {
+			res.Resolved = resolvedRes.Model
+			res.Provider = resolvedRes.Provider
+			if strings.Contains(resolvedRes.Model, "Fallback") || resolvedRes.IsIDE {
+				res.Status = "Ready (Fallback)"
+				if resolvedRes.IsIDE {
+					res.Status = "IDE Fallback"
+				}
+			} else {
+				res.Status = "Ready"
+			}
+		} else {
+			res.Status = "Missing"
+		}
+
+		report.Tasks = append(report.Tasks, res)
+	}
+
+	// Format output
+	var sb strings.Builder
+	sb.WriteString("ATD Model Configuration & Connectivity\n")
+	sb.WriteString("======================================\n\n")
+
+	sb.WriteString("Providers:\n")
+	for _, p := range report.Providers {
+		indicator := "[ ]"
+		if p.Status == "Online" {
+			indicator = "[✓]"
+		} else if p.Status == "Offline" {
+			indicator = "[✗]"
+		} else {
+			indicator = "[-]"
+		}
+		sb.WriteString(fmt.Sprintf("%s %-12s %-30s %s\n", indicator, p.Name, p.URL, p.Status))
+		if p.Error != "" {
+			sb.WriteString(fmt.Sprintf("    Error: %s\n", p.Error))
+		}
+		if len(p.Models) > 0 {
+			sb.WriteString(fmt.Sprintf("    Available Models: %s\n", strings.Join(p.Models, ", ")))
+		}
+	}
+
+	sb.WriteString("\nTask Resolution (Simplified):\n")
+	for _, t := range report.Tasks {
+		statusIcon := "[✓]"
+		if t.Status == "Missing" {
+			statusIcon = "[✗]"
+		} else if strings.Contains(t.Status, "Fallback") {
+			statusIcon = "[!]"
+		}
+
+		modelInfo := t.Resolved
+		if modelInfo == "" {
+			modelInfo = "N/A"
+		}
+
+		sb.WriteString(fmt.Sprintf("%s %-15s -> %-20s (Provider: %-10s) %s\n",
+			statusIcon, t.Task, modelInfo, t.Provider, t.Status))
+	}
+
+	return sb.String(), nil
 }

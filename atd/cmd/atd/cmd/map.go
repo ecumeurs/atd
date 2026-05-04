@@ -64,7 +64,7 @@ func runMapConfirm(filePath, fileContent, atomID string) (string, error) {
 
 	requestPrompt := prompt.ReconBuild(string(atomContent), fileContent)
 
-	resp, err := ollama.Query("recon", requestPrompt, prompt.ReconFormat())
+	resp, err := ollama.Query("code_analysis", requestPrompt, prompt.ReconFormat())
 	if err == ollama.ErrIDEFallback {
 		pipeline.WritePromptFile("map_confirm", requestPrompt)
 		taskList, _ := pipeline.WriteTaskList("map --file "+filePath+" --atom "+atomID, []pipeline.PendingTask{
@@ -93,7 +93,7 @@ func runMapConfirm(filePath, fileContent, atomID string) (string, error) {
 func runMapPropose(filePath, fileContent string) (string, error) {
 	intentPrompt := prompt.IntentExtractBuild(fileContent)
 
-	resp, err := ollama.Query("intent_extract", intentPrompt, prompt.IntentExtractFormat())
+	resp, err := ollama.Query("text_analysis", intentPrompt, prompt.IntentExtractFormat())
 	if err == ollama.ErrIDEFallback {
 		pipeline.WritePromptFile("map_propose_intent", intentPrompt)
 		taskList, _ := pipeline.WriteTaskList("map --file "+filePath+" --new", []pipeline.PendingTask{
@@ -147,7 +147,7 @@ func runMapDiscover(filePath, fileContent, docsDir string) (string, error) {
 	intentPrompt := prompt.IntentExtractBuild(fileContent)
 
 	var codeIntent string
-	resp, err := ollama.Query("intent_extract", intentPrompt, prompt.IntentExtractFormat())
+	resp, err := ollama.Query("text_analysis", intentPrompt, prompt.IntentExtractFormat())
 	if err == ollama.ErrIDEFallback {
 		codeIntent = "IDE_FALLBACK_PENDING"
 	} else if err != nil {
@@ -208,7 +208,7 @@ func runMapDiscover(filePath, fileContent, docsDir string) (string, error) {
 	}
 
 	fmt.Println("Prompting LLM for final recommendation...")
-	respRec, err := ollama.Query("intent_extract", requestPrompt, prompt.DiscoverLinksFormat())
+	respRec, err := ollama.Query("text_analysis", requestPrompt, prompt.DiscoverLinksFormat())
 	if err == ollama.ErrIDEFallback {
 		pipeline.WritePromptFile("map_discover_recommend", requestPrompt)
 		taskList, _ := pipeline.WriteTaskList("map --file "+filePath, []pipeline.PendingTask{

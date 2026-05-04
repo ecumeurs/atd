@@ -148,7 +148,7 @@ func Assemble(opts AssembleOptions) (string, error) {
 				return ""
 			}
 			promptLayer := prompt.LayerPassBuild(layer, opts.Length, groupedRaw[layer])
-			resp, err := ollama.Query("assemble_layer_"+layer, promptLayer, prompt.AssembleFormat())
+			resp, err := ollama.Query("text_generation", promptLayer, prompt.AssembleFormat())
 			if err == ollama.ErrIDEFallback {
 				useFallback = true
 				return ""
@@ -186,7 +186,7 @@ func Assemble(opts AssembleOptions) (string, error) {
 
 		// Final pass
 		finalPrompt := prompt.FinalAssembleBuild(opts.Intent, opts.Length, customerSummary, archSummary, implSummary)
-		finalResp, err := ollama.Query("assemble_final", finalPrompt, prompt.AssembleFormat())
+		finalResp, err := ollama.Query("text_generation", finalPrompt, prompt.AssembleFormat())
 		var finalContent string
 		if err == nil {
 			var res struct {
@@ -213,7 +213,7 @@ func Assemble(opts AssembleOptions) (string, error) {
 
 	// Unstructured mode (Single-pass)
 	requestPrompt := prompt.AssembleBuild(opts.Intent, opts.Length, assembledRaw)
-	resp, err := ollama.Query("assemble", requestPrompt, prompt.AssembleFormat())
+	resp, err := ollama.Query("text_generation", requestPrompt, prompt.AssembleFormat())
 	
 	if err == ollama.ErrIDEFallback {
 		taskList, _ := pipeline.WriteTaskList("assemble", []pipeline.PendingTask{

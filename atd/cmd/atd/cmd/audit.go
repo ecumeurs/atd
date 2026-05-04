@@ -159,8 +159,8 @@ func runFullAudit(docsDir string, threshold float64, workspace bool) error {
 			intentPrompt := prompt.AuditBloatBuild("Architectural Linter", data.Intent, strictness)
 			logicPrompt := prompt.AuditBloatBuild("Architectural Linter", data.Logic, strictness)
 
-			resI, errI := ollama.Query("audit_bloat", intentPrompt, prompt.AuditBloatFormat())
-			resL, errL := ollama.Query("audit_bloat", logicPrompt, prompt.AuditBloatFormat())
+			resI, errI := ollama.Query("text_analysis", intentPrompt, prompt.AuditBloatFormat())
+			resL, errL := ollama.Query("text_analysis", logicPrompt, prompt.AuditBloatFormat())
 
 			if errI == ollama.ErrIDEFallback || errL == ollama.ErrIDEFallback {
 				promptName := "audit_bloat_" + data.ID

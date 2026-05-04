@@ -43,7 +43,7 @@ func runDissect(target string, useLLM bool) (string, error) {
 	}
 
 	// --llm: route through tiered provider
-	resp, err := ollama.Query("dissect", p, prompt.DissectFormat())
+	resp, err := ollama.Query("code_analysis", p, prompt.DissectFormat())
 	if err == ollama.ErrIDEFallback {
 		basename := strings.TrimSuffix(filepath.Base(target), filepath.Ext(target))
 		promptName := "dissect_" + basename

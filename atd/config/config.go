@@ -489,7 +489,7 @@ func ModelForTask(taskType string) []string {
 
 	for modelName, mc := range ActiveConfig.LLM.Models {
 		for _, t := range mc.Tasks {
-			if t == taskType {
+			if t == taskType || t == "*" {
 				candidates = append(candidates, candidate{modelName, mc.Priority})
 			}
 		}

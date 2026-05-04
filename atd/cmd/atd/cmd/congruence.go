@@ -122,7 +122,7 @@ Checks parents, dependents, and tag-siblings for contradictions in their INTENT 
 		requestPrompt := prompt.CongruenceBuild(targetAtom, specContents.String())
 
 		// 4. Resolve and Query
-		resp, err := ollama.Query("congruence", requestPrompt, prompt.CongruenceFormat())
+		resp, err := ollama.Query("code_analysis", requestPrompt, prompt.CongruenceFormat())
 		if err == ollama.ErrIDEFallback {
 			taskList, _ := pipeline.WriteTaskList("congruence --target "+targetAtom, []pipeline.PendingTask{
 				{

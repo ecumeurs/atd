@@ -173,7 +173,7 @@ func buildCoverageReport(mode string, atomIDs []string, explorer *exploration.Ex
 				sl := implLinks[0]
 				snippet, _ := getSnippet(sl.FilePath, sl.Line, 30)
 				auditPrompt := prompt.AuditCodeBuild(persona, curated, snippet)
-				resp, queryErr := ollama.Query("audit_code", auditPrompt, prompt.AuditCodeFormat())
+				resp, queryErr := ollama.Query("code_analysis", auditPrompt, prompt.AuditCodeFormat())
 
 				if queryErr == nil && resp != nil {
 					fmt.Fprintf(os.Stderr, "[DEBUG] LLM Response: %s\n", resp.Response)
