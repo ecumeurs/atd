@@ -27,7 +27,7 @@ type Config struct {
 	DiscoveryMethod   DiscoveryMethod
 	OrphanExcludedTypes map[string]bool
 	HierarchicalOrphanCheck bool
-	CustomerLayerException bool
+	BusinessLayerException bool
 	GitignorePatterns []string
 	MaxDepth         int
 
@@ -176,10 +176,12 @@ func GetDiscoveryMethod() DiscoveryMethod {
 func GetOrphanExcludedTypes() map[string]bool {
 	if ActiveConfig.OrphanExcludedTypes == nil {
 		return map[string]bool{
-			"MODULE":         true,
-			"SPECIFICATION":  true,
-			"USECASE":        true,
-			"USER_STORY":    true,
+			"MODULE":      true,
+			"REQUIREMENT": true,
+			"USER_STORY":  true,
+			"CONTRACT":    true,
+			"VISION":      true,
+			"API":         true,
 		}
 	}
 	return ActiveConfig.OrphanExcludedTypes
@@ -189,8 +191,8 @@ func SetHierarchicalOrphanCheck(enabled bool) {
 	ActiveConfig.HierarchicalOrphanCheck = enabled
 }
 
-func SetCustomerLayerException(enabled bool) {
-	ActiveConfig.CustomerLayerException = enabled
+func SetBusinessLayerException(enabled bool) {
+	ActiveConfig.BusinessLayerException = enabled
 }
 
 func GetGitignorePatterns() []string {
@@ -243,7 +245,7 @@ func LoadFromDirLegacy(dir string) error {
 			"USER_STORY":   true,
 		},
 		HierarchicalOrphanCheck: true,
-		CustomerLayerException: true,
+		BusinessLayerException: true,
 		GitignorePatterns: []string{
 			"node_modules/",
 			".git/",

@@ -29,7 +29,7 @@ func AuditCodeBuild(persona AuditPersona, atom CuratedAuditAtom, codeContent str
 	var instruction string
 	switch persona {
 	case PersonaPM:
-		systemObjective = "You are a Synthetic Product Manager (PM). Your goal is to ensure that the code fulfills the BUSINESS INTENT and high-level logic. Ignore minor technical implementation details; focus on functional correctness and customer value."
+		systemObjective = "You are a Synthetic Product Manager (PM). Your goal is to ensure that the code fulfills the BUSINESS INTENT and high-level logic. Ignore minor technical implementation details; focus on functional correctness and business value."
 		instruction = "Does this code implement the business intent and logic described? Focus on the 'What' and 'Why'."
 	case PersonaTechLead:
 		systemObjective = "You are a Synthetic Tech Lead. Your goal is to ensure technical rigor and interface compliance. Verify that the logic is correctly implemented at the code level, checking for edge cases defined in the rule."

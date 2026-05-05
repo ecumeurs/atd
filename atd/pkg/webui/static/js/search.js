@@ -167,7 +167,7 @@ async function performSearch(query, resultsContainer, hint) {
             item.className = 'search-result-item';
 
             const layerColors = {
-                CUSTOMER: 'var(--color-customer)',
+                BUSINESS: 'var(--color-business)',
                 ARCHITECTURE: 'var(--color-architecture)',
                 IMPLEMENTATION: 'var(--color-implementation)',
             };

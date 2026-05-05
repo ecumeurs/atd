@@ -16,7 +16,7 @@ Updated `.atd` config files in 3 locations:
 - Increased timeouts: remote (2s→10s), local (500ms→5s)
 - Added missing assembly tasks to `llama3.2`:
   - `assemble`
-  - `assemble_layer_CUSTOMER`
+  - `assemble_layer_BUSINESS`
   - `assemble_layer_ARCHITECTURE`
   - `assemble_layer_IMPLEMENTATION`
   - `assemble_final`
@@ -50,7 +50,7 @@ Updated `.atd` config files in 3 locations:
 **File**: `atd/pkg/webui/handlers.go`
 - Fixed `handleStats` to use correct field name (`HasTests` instead of `Tests`)
 - Added `ByLayer` and `ByStatus` breakdowns
-- Properly counts orphans (non-CUSTOMER atoms with no parents)
+- Properly counts orphans (non-BUSINESS atoms with no parents)
 
 ### 5. UI Enhancements
 
@@ -97,7 +97,7 @@ Updated `.atd` config files in 3 locations:
     "assemble": "remote:llama3.2:latest",
     "assemble_final": "remote:llama3.2:latest",
     "assemble_layer_ARCHITECTURE": "remote:llama3.2:latest",
-    "assemble_layer_CUSTOMER": "remote:llama3.2:latest",
+    "assemble_layer_BUSINESS": "remote:llama3.2:latest",
     "assemble_layer_IMPLEMENTATION": "remote:llama3.2:latest",
     "audit_bloat": "remote:llama3.2:latest",
     "audit_code": "remote:deepseek-r1:7b",

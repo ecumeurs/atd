@@ -23,6 +23,11 @@
         "timeout_ms": 2000
       },
       {
+        "name": "minimax",
+        "base_url": "https://api.minimax.chat/v1",
+        "type": "openai"
+      },
+      {
         "name": "local",
         "base_url": "http://localhost:11434",
         "timeout_ms": 500

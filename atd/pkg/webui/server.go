@@ -61,6 +61,7 @@ func (s *Server) setupRoutes() {
 
 	api := s.Engine.Group("/api")
 	s.registerATDRoutes(api)
+	s.registerLLMRoutes(api)
 }
 
 func (s *Server) Start() error {

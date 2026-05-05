@@ -10,7 +10,7 @@ let foundationContainer;
 let heatMapData = null;
 let activeHeatLayer = 'none';
 
-const LANE_LAYERS = ['CUSTOMER', 'ARCHITECTURE', 'IMPLEMENTATION'];
+const LANE_LAYERS = ['BUSINESS', 'ARCHITECTURE', 'IMPLEMENTATION'];
 
 // Heat state mapping to classes
 const HEAT_CLASSES = {
@@ -114,7 +114,7 @@ export function renderWaterfall(atomsData) {
     atoms.forEach(atom => {
         const health = classifyAtom(atom, atomMap);
         // Customer atoms stay in their lane even if 'done' (ISS-087)
-        if (health === 'done' && atom.layer !== 'CUSTOMER') {
+        if (health === 'done' && atom.layer !== 'BUSINESS') {
             foundationAtoms.push(atom);
         } else {
             activeAtoms.push(atom);
@@ -125,7 +125,7 @@ export function renderWaterfall(atomsData) {
 
     // Group active atoms by layer
     const lanes = {
-        CUSTOMER: [],
+        BUSINESS: [],
         ARCHITECTURE: [],
         IMPLEMENTATION: [],
     };
@@ -195,7 +195,7 @@ function createAtomCard(atom, atomMap) {
     card.dataset.atomId = atom.id;
 
     // Special style for stable Customer atoms in the lane (ISS-087)
-    if (health === 'done' && atom.layer === 'CUSTOMER') {
+    if (health === 'done' && atom.layer === 'BUSINESS') {
         card.classList.add('card-stable-lane');
     }
 

@@ -21,11 +21,11 @@ func TestTraceRecursiveTraversal(t *testing.T) {
 	if err != nil { t.Fatal(err) }
 
 	// 2. Create atoms: C1 -> A1 -> I1
-	// C1 (Customer)
+	// C1 (Business)
 	c1Content := `---
 id: c1
-human_name: "Customer 1"
-layer: CUSTOMER
+human_name: "Business 1"
+layer: BUSINESS
 dependents:
   - [[a1]]
 ---
@@ -99,8 +99,8 @@ parents:
 	}
 
 	// 7. Verify Health Metrics
-	if !snap.HealthSummary.HasCustomerOrigin {
-		t.Error("Expected atom a1 to have customer origin (c1)")
+	if !snap.HealthSummary.HasBusinessOrigin {
+		t.Error("Expected atom a1 to have business origin (c1)")
 	}
 	if snap.Metrics.ImplementedDependents != 1 {
 		t.Errorf("Expected 1 implemented dependent (i1), got %d", snap.Metrics.ImplementedDependents)

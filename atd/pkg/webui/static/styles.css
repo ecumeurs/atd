@@ -19,7 +19,7 @@
     --color-grey: #546e7a;
     --color-grey-light: #78909c;
 
-    --color-customer: #e879f9;
+    --color-business: #e879f9;
     --color-architecture: #60a5fa;
     --color-implementation: #34d399;
 
@@ -250,11 +250,11 @@ body {
     letter-spacing: 1px;
 }
 
-.lane-customer .lane-header h3 { color: var(--color-customer); }
+.lane-business .lane-header h3 { color: var(--color-business); }
 .lane-architecture .lane-header h3 { color: var(--color-architecture); }
 .lane-implementation .lane-header h3 { color: var(--color-implementation); }
 
-.lane-customer .lane-header { border-bottom-color: rgba(232, 121, 249, 0.2); }
+.lane-business .lane-header { border-bottom-color: rgba(232, 121, 249, 0.2); }
 .lane-architecture .lane-header { border-bottom-color: rgba(96, 165, 250, 0.2); }
 .lane-implementation .lane-header { border-bottom-color: rgba(52, 211, 153, 0.2); }
 
@@ -380,7 +380,7 @@ body {
 }
 
 .card-ancestor {
-    border-color: var(--color-customer) !important;
+    border-color: var(--color-business) !important;
     box-shadow: 0 0 0 2px rgba(232, 121, 249, 0.3);
     z-index: 2;
 }

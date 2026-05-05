@@ -42,8 +42,6 @@ func (s *Server) registerATDRoutes(api *gin.RouterGroup) {
 	api.GET("/documents", s.handleListDocuments)
 	api.GET("/documents/:id", s.handleGetDocument)
 
-	// Gemini integration
-	s.registerGeminiRoutes(api)
 }
 
 func (s *Server) refreshAtoms() error {
@@ -361,7 +359,7 @@ func (s *Server) handleStats(c *gin.Context) {
 			if node.HasTests {
 				tested++
 			}
-			// Orphans: non-CUSTOMER atoms with no parents
+			// Orphans: non-BUSINESS atoms with no parents
 			if node.Layer != "BUSINESS" && len(node.Parents) == 0 {
 				orphans++
 			}
@@ -428,7 +426,7 @@ func (s *Server) handleHealth(c *gin.Context) {
 	tasks := map[string]string{
 		"embed":                        "",
 		"assemble":                     "",
-		"assemble_layer_CUSTOMER":      "",
+		"assemble_layer_BUSINESS":      "",
 		"assemble_layer_ARCHITECTURE":  "",
 		"assemble_layer_IMPLEMENTATION": "",
 		"assemble_final":               "",

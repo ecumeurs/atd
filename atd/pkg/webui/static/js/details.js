@@ -66,9 +66,9 @@ export function showDetails(atom) {
     dom.dLayer.textContent = atom.layer || 'UNKNOWN';
 
     // Layer Badge color
-    if (atom.layer === 'CUSTOMER') {
+    if (atom.layer === 'BUSINESS') {
         dom.dLayer.style.backgroundColor = 'rgba(232, 121, 249, 0.2)';
-        dom.dLayer.style.color = 'var(--color-customer)';
+        dom.dLayer.style.color = 'var(--color-business)';
     } else if (atom.layer === 'ARCHITECTURE') {
         dom.dLayer.style.backgroundColor = 'rgba(96, 165, 250, 0.2)';
         dom.dLayer.style.color = 'var(--color-architecture)';

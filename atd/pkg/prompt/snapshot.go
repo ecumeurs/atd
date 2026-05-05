@@ -48,13 +48,13 @@ func LayerPassBuild(layer, length, content string) string {
 }
 
 // FinalAssembleBuild constructs the final assessment prompt from structured layer summaries in JSON format.
-func FinalAssembleBuild(intent, length, customer, arch, impl string) string {
+func FinalAssembleBuild(intent, length, business, arch, impl string) string {
 	words := mapLengthToWords(length)
 	msg := map[string]interface{}{
 		"system_objective": "You are an ATD Analyst.",
 		"intent":           intent,
 		"target_length":    words + " words",
-		"customer_layer":   customer,
+		"business_layer":   business,
 		"arch_layer":       arch,
 		"impl_layer":       impl,
 		"instruction":      "Produce your final output ensuring it achieves the exact intent specified.",

@@ -129,7 +129,7 @@ function updateFoundDisplay() {
     document.getElementById('doc-setup-found-count').textContent = `${foundAtoms.length} found`;
 
     const layerColors = {
-        CUSTOMER: 'var(--color-customer)',
+        BUSINESS: 'var(--color-business)',
         ARCHITECTURE: 'var(--color-architecture)',
         IMPLEMENTATION: 'var(--color-implementation)',
     };
@@ -213,7 +213,7 @@ function updateSelectedDisplay() {
         tag.style.transition = 'transform 0.2s, background 0.2s';
 
         const layerColors = {
-            CUSTOMER: '#4CAF50',
+            BUSINESS: '#4CAF50',
             ARCHITECTURE: '#2196F3',
             IMPLEMENTATION: '#FF9800',
         };

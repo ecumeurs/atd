@@ -42,7 +42,7 @@ func (e *Explorer) CalculateDependencyHeat(a *atom.AtomData) HeatState {
 
 	// Special Rules:
 	// IMPLEMENTATION layer: May have 0 dependents (leaf nodes acceptable)
-	// CUSTOMER layer: May have 0 parents (top-level requirements acceptable)
+	// BUSINESS layer: May have 0 parents (top-level requirements acceptable)
 	isLeafOk := a.Layer == "IMPLEMENTATION"
 	isRootOk := a.Layer == "BUSINESS"
 

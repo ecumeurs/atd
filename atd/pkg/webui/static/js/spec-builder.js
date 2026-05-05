@@ -1,6 +1,6 @@
 /**
  * Spec Builder — Chat Logic
- * Manages conversation with Gemini API for ATD spec creation.
+ * Manages conversation with various LLM APIs for ATD spec creation.
  */
 (function () {
     'use strict';
@@ -20,6 +20,8 @@
         exhaustedModels: new Set(), // Model IDs that reached quota (429)
         totalTokens: 0,
         chatModeEnabled: true,
+        providers: [],      // Available providers from backend
+        keys: {},           // { providerName: apiKey } loaded from localStorage
     };
 
     // ============================================
@@ -46,6 +48,19 @@
         dom.debugCheck = document.getElementById('check-debug-mode');
         dom.chatModeCheck = document.getElementById('check-chat-mode');
         dom.totalTokensDisplay = document.getElementById('total-tokens');
+        
+        // Settings Modal
+        dom.settingsBtn = document.getElementById('btn-llm-settings');
+        dom.settingsModal = document.getElementById('llm-settings-modal');
+        dom.closeSettingsBtn = document.getElementById('close-llm-settings');
+        dom.saveSettingsBtn = document.getElementById('btn-save-llm-settings');
+        
+        dom.accessMethod = document.getElementById('llm-access-method');
+        dom.settingsGemini = document.getElementById('settings-gemini');
+        dom.settingsOpenAI = document.getElementById('settings-openai');
+        dom.geminiKeyInput = document.getElementById('input-gemini-key');
+        dom.openaiKeyInput = document.getElementById('input-openai-key');
+        dom.openaiUrlInput = document.getElementById('input-openai-url');
     }
 
     // ============================================
@@ -87,8 +102,30 @@
             dom.newSessionBtn.addEventListener('click', resetSession);
         }
 
+        // Load keys from localStorage
+        loadKeys();
+
         // Load available models from API
         loadModels();
+
+        // Settings Modal Events
+        if (dom.settingsBtn) {
+            dom.settingsBtn.addEventListener('click', openSettings);
+        }
+        if (dom.closeSettingsBtn) {
+            dom.closeSettingsBtn.addEventListener('click', () => dom.settingsModal.style.display = 'none');
+        }
+        if (dom.saveSettingsBtn) {
+            dom.saveSettingsBtn.addEventListener('click', saveSettings);
+        }
+
+        if (dom.accessMethod) {
+            dom.accessMethod.addEventListener('change', () => {
+                const method = dom.accessMethod.value;
+                dom.settingsGemini.style.display = method === 'gemini' ? 'block' : 'none';
+                dom.settingsOpenAI.style.display = method === 'openai' ? 'block' : 'none';
+            });
+        }
 
         // Wire bulk actions
         if (dom.acceptAllBtn) {
@@ -164,7 +201,9 @@
 
             // Focus chat input on any printable key if not in a modal
             if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
-                const modalOpen = document.getElementById('context-search-modal') || document.querySelector('.context-search-modal');
+                const modalOpen = document.getElementById('context-search-modal') || 
+                                 document.querySelector('.context-search-modal') ||
+                                 (dom.settingsModal && dom.settingsModal.style.display === 'flex');
                 if (document.activeElement !== dom.chatInput && !modalOpen) {
                     dom.chatInput.focus();
                 }
@@ -175,50 +214,115 @@
     // ============================================
     // MODEL LOADING
     // ============================================
-    // @spec-link [[mechanic_webui_gemini_proxy]]
+    // @spec-link [[mechanic_webui_llm_model_list]]
     async function loadModels() {
         try {
-            const resp = await fetch('/api/gemini/models');
+            const headers = {};
+            const method = state.keys.access_method || 'gemini';
+            if (method === 'openai' && state.keys.openai_url) {
+                headers['X-LLM-Base-URL'] = state.keys.openai_url;
+                if (state.keys.openai) headers['X-LLM-Key'] = state.keys.openai;
+            }
+
+            const resp = await fetch('/api/llm/models', { headers });
             if (!resp.ok) return;
             const data = await resp.json();
             if (!data.models || !dom.modelSelect) return;
 
-            // Filter to gemini models and populate dropdown
+            // Track providers
+            const providersSet = new Set();
+            data.models.forEach(m => {
+                if (m.provider) providersSet.add(m.provider);
+            });
+            state.providers = Array.from(providersSet);
+
+            // Populate dropdown
             const currentValue = dom.modelSelect.value;
             dom.modelSelect.innerHTML = '';
+            
+            // Group by provider
+            const grouped = {};
             data.models.forEach(m => {
-                // Stricter Filter:
-                // 1. Must be a Gemini model
-                const isGemini = m.id.toLowerCase().includes('gemini');
-                if (!isGemini) return;
-
-                // 2. Must support standard text generation
-                const canGenerate = m.actions && (
-                    m.actions.includes('generate_content') || 
-                    m.actions.includes('generateContent')
-                );
-                if (!canGenerate) return;
-
-                const opt = document.createElement('option');
-                opt.value = m.id;
-                
-                // Add warning sign if model is exhausted
-                const isExhausted = state.exhaustedModels.has(m.id);
-                opt.textContent = (m.display_name || m.id) + (isExhausted ? ' ⚠️ (Quota Exceeded)' : '');
-                
-                if (m.id === (data.default || 'models/gemini-3.1-flash-lite-preview')) {
-                    opt.selected = true;
-                }
-                dom.modelSelect.appendChild(opt);
+                if (!grouped[m.provider]) grouped[m.provider] = [];
+                grouped[m.provider].push(m);
             });
-            // Restore previous selection if it still exists AND isn't our default
-            if (currentValue && currentValue !== 'models/gemini-3.1-flash-lite-preview') {
+
+            Object.keys(grouped).forEach(provider => {
+                const group = document.createElement('optgroup');
+                group.label = provider.charAt(0).toUpperCase() + provider.slice(1);
+                
+                grouped[provider].forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.id;
+                    opt.dataset.provider = provider;
+                    
+                    const isExhausted = state.exhaustedModels.has(m.id);
+                    opt.textContent = (m.display_name || m.id) + (isExhausted ? ' ⚠️ (Quota Exceeded)' : '');
+                    
+                    if (m.id === data.default) {
+                        opt.selected = true;
+                    }
+                    group.appendChild(opt);
+                });
+                dom.modelSelect.appendChild(group);
+            });
+
+            if (currentValue) {
                 const exists = Array.from(dom.modelSelect.options).some(o => o.value === currentValue);
                 if (exists) dom.modelSelect.value = currentValue;
+            }
+            
+            // Refresh settings UI if open
+            if (dom.settingsModal && dom.settingsModal.style.display === 'flex') {
+                renderSettingsFields();
             }
         } catch (err) {
             console.warn('Failed to load models:', err);
         }
+    }
+
+    // ============================================
+    // KEY MANAGEMENT
+    // ============================================
+    function loadKeys() {
+        const saved = localStorage.getItem('atd_llm_keys');
+        if (saved) {
+            try {
+                state.keys = JSON.parse(saved);
+            } catch (e) {
+                console.error('Failed to parse saved keys');
+            }
+        }
+    }
+
+    function openSettings() {
+        if (!state.keys.access_method) state.keys.access_method = 'gemini';
+        
+        dom.accessMethod.value = state.keys.access_method;
+        dom.geminiKeyInput.value = state.keys.gemini || '';
+        dom.openaiKeyInput.value = state.keys.openai || '';
+        dom.openaiUrlInput.value = state.keys.openai_url || '';
+        
+        // Trigger toggle
+        dom.accessMethod.dispatchEvent(new Event('change'));
+        
+        dom.settingsModal.style.display = 'flex';
+    }
+
+    function saveSettings() {
+        state.keys.access_method = dom.accessMethod.value;
+        state.keys.gemini = dom.geminiKeyInput.value.trim();
+        state.keys.openai = dom.openaiKeyInput.value.trim();
+        state.keys.openai_url = dom.openaiUrlInput.value.trim();
+        
+        localStorage.setItem('atd_llm_keys', JSON.stringify(state.keys));
+        dom.settingsModal.style.display = 'none';
+        
+        // Refresh models with new keys/URL
+        loadModels();
+
+        // Show a small success notice in chat
+        renderActionInChat({ action: 'SETTINGS', atom_id: 'keys', impact_summary: 'LLM settings updated' }, 'accepted');
     }
 
     // ============================================
@@ -268,9 +372,26 @@
                 omit_history: !state.chatModeEnabled,
             };
 
-            const response = await fetch('/api/gemini/chat', {
+            const selectedOption = dom.modelSelect.options[dom.modelSelect.selectedIndex];
+            const provider = selectedOption ? selectedOption.dataset.provider : 'gemini';
+            const headers = { 'Content-Type': 'application/json' };
+            
+            // Inject key from settings
+            const method = state.keys.access_method || 'gemini';
+            if (method === 'gemini' && state.keys.gemini) {
+                headers['X-LLM-Key-Gemini'] = state.keys.gemini;
+            } else if (method === 'openai' && provider !== 'gemini') {
+                // For any non-gemini model, use the custom OpenAI settings if in OpenAI mode
+                if (state.keys.openai) headers['X-LLM-Key'] = state.keys.openai;
+                if (state.keys.openai_url) headers['X-LLM-Base-URL'] = state.keys.openai_url;
+            } else if (state.keys[provider]) {
+                // Fallback to provider-specific key if available
+                headers[`X-LLM-Key-${provider.charAt(0).toUpperCase() + provider.slice(1)}`] = state.keys[provider];
+            }
+
+            const response = await fetch('/api/llm/chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: headers,
                 body: JSON.stringify(payload),
             });
 
@@ -783,7 +904,7 @@
         // If accepted, apply the proposal
         if (action === 'accepted') {
             try {
-                const resp = await fetch('/api/gemini/apply-proposal', {
+                const resp = await fetch('/api/llm/apply-proposal', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

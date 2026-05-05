@@ -349,8 +349,8 @@ func (e *Explorer) IsOrphan(node *atom.AtomData) bool {
 		return false
 	}
 
-	// 4. Handle Customer Layer exceptions (they are requirements, not implementation units)
-	if config.ActiveConfig.CustomerLayerException && node.Layer == "BUSINESS" {
+	// 4. Handle Business Layer exceptions (they are requirements, not implementation units)
+	if config.ActiveConfig.BusinessLayerException && node.Layer == "BUSINESS" {
 		return false
 	}
 
@@ -536,15 +536,15 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 
 	switch target.Layer {
 	case "BUSINESS":
-		if !foundArchDesc { snap.Warnings = append(snap.Warnings, "Customer atom has no Architecture dependents") }
-		if !foundImplDesc { snap.Warnings = append(snap.Warnings, "Customer atom has no Implementation dependents") }
+		if !foundArchDesc { snap.Warnings = append(snap.Warnings, "Business atom has no Architecture dependents") }
+		if !foundImplDesc { snap.Warnings = append(snap.Warnings, "Business atom has no Implementation dependents") }
 	case "ARCHITECTURE":
 		// Only warn about missing Implementation dependents if atom has no direct @spec-link
 		// Architecture atoms may have direct code links (90% of cases) which is valid
 		if !foundImplDesc && len(target.Implementations) == 0 {
 			snap.Warnings = append(snap.Warnings, "Architecture atom has no Implementation dependents or direct @spec-link")
 		}
-		if !foundCustAnc { snap.Warnings = append(snap.Warnings, "Architecture atom has no Customer origin") }
+		if !foundCustAnc { snap.Warnings = append(snap.Warnings, "Architecture atom has no Business origin") }
 	case "IMPLEMENTATION":
 		if !foundArchAnc { snap.Warnings = append(snap.Warnings, "Implementation atom has no Architecture origin") }
 		if len(uniqueCodeForTargetOrDescendants) == 0 { snap.Warnings = append(snap.Warnings, "Implementation atom has no linked code") }
@@ -616,7 +616,7 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 	}
 
 	snap.HealthSummary.AncestryComplete = ancestryComplete
-	snap.HealthSummary.HasCustomerOrigin = foundCustAnc || target.Layer == "BUSINESS"
+	snap.HealthSummary.HasBusinessOrigin = foundCustAnc || target.Layer == "BUSINESS"
 	if totalPool > 0 {
 		snap.HealthSummary.ImplementationRate = float64(implementedCount) / float64(totalPool)
 	}
@@ -753,7 +753,7 @@ type AtomBrief struct {
 
 type HealthSummary struct {
 	AncestryComplete   bool    `json:"ancestry_complete"`
-	HasCustomerOrigin  bool    `json:"has_customer_origin"`
+	HasBusinessOrigin  bool    `json:"has_business_origin"`
 	ImplementationRate float64 `json:"implementation_rate"`
 	TestCoverageRate   float64 `json:"test_coverage_rate"`
 }

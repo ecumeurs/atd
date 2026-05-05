@@ -21,7 +21,7 @@ type AssembleMetadata struct {
 }
 
 type AssembleJSON struct {
-	CustomerLayer       string             `json:"customer_layer,omitempty"`
+	BusinessLayer       string             `json:"business_layer,omitempty"`
 	ArchitectureLayer   string             `json:"architecture_layer,omitempty"`
 	ImplementationLayer string             `json:"implementation_layer,omitempty"`
 	Content             string             `json:"content"`
@@ -163,7 +163,7 @@ func Assemble(opts AssembleOptions) (string, error) {
 			return ""
 		}
 
-		customerSummary := queryLayer("BUSINESS")
+		businessSummary := queryLayer("BUSINESS")
 		archSummary := queryLayer("ARCHITECTURE")
 		implSummary := queryLayer("IMPLEMENTATION")
 
@@ -172,7 +172,7 @@ func Assemble(opts AssembleOptions) (string, error) {
 			
 			if opts.AsJSON {
 				out := AssembleJSON{
-					CustomerLayer:       groupedRaw["BUSINESS"],
+					BusinessLayer:       groupedRaw["BUSINESS"],
 					ArchitectureLayer:   groupedRaw["ARCHITECTURE"],
 					ImplementationLayer: groupedRaw["IMPLEMENTATION"],
 					Content:             finalText,
@@ -185,7 +185,7 @@ func Assemble(opts AssembleOptions) (string, error) {
 		}
 
 		// Final pass
-		finalPrompt := prompt.FinalAssembleBuild(opts.Intent, opts.Length, customerSummary, archSummary, implSummary)
+		finalPrompt := prompt.FinalAssembleBuild(opts.Intent, opts.Length, businessSummary, archSummary, implSummary)
 		finalResp, err := ollama.Query("text_generation", finalPrompt, prompt.AssembleFormat())
 		var finalContent string
 		if err == nil {
@@ -198,7 +198,7 @@ func Assemble(opts AssembleOptions) (string, error) {
 
 		if opts.AsJSON {
 			out := AssembleJSON{
-				CustomerLayer:       customerSummary,
+				BusinessLayer:       businessSummary,
 				ArchitectureLayer:   archSummary,
 				ImplementationLayer: implSummary,
 				Content:             finalContent,

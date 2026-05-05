@@ -21,7 +21,7 @@ The WebUI operates as a lightweight, modular system integrated directly into the
 
 ## Key Features
 
-- **Waterfall of Intent:** A powerful three-column visualization sorting ATDs by their layer (`CUSTOMER`, `ARCHITECTURE`, `IMPLEMENTATION`). Provides an immediate, readable birds-eye view of how business requirements translate to implementation logic.
+- **Waterfall of Intent:** A powerful three-column visualization sorting ATDs by their layer (`BUSINESS`, `ARCHITECTURE`, `IMPLEMENTATION`). Provides an immediate, readable birds-eye view of how business requirements translate to implementation logic.
 - **Health-based Categorization:** Visual signaling of atom health (Done, Almost Done, WIP, Draft) based on implementation links and test coverage.
 - **Traceability Explorer:** Interactive Detail Panel mapping an ATD's complete ancestry (Parents upstream, Dependents downstream), implementation links, and real-time coverage.
 - **Gemini Spec Builder:** An interactive chat interface embedded within the WebUI, specifically tuned to act as an architectural discussion partner for scoping and creating compliant ATDs before code is written.
