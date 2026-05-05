@@ -23,11 +23,6 @@
         "timeout_ms": 2000
       },
       {
-        "name": "minimax",
-        "base_url": "https://api.minimax.chat/v1",
-        "type": "openai"
-      },
-      {
         "name": "local",
         "base_url": "http://localhost:11434",
         "timeout_ms": 500
@@ -39,7 +34,9 @@
     ],
     "models": {
       "qwen2.5-coder:14b": {
-        "tasks": ["code_analysis"],
+        "tasks": [
+          "code_analysis"
+        ],
         "priority": 50
       },
       "deepseek-r1:7b": {
@@ -51,15 +48,21 @@
         "priority": 40
       },
       "llama3.1:8b": {
-        "tasks": ["*"],
+        "tasks": [
+          "*"
+        ],
         "priority": 20
       },
       "llama3.2": {
-        "tasks": ["*"],
+        "tasks": [
+          "*"
+        ],
         "priority": 10
       },
       "nomic-embed-text": {
-        "tasks": ["embedding"],
+        "tasks": [
+          "embedding"
+        ],
         "priority": 100
       }
     },
