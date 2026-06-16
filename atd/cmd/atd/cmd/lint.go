@@ -9,6 +9,7 @@ import (
 	"atd-tools/config"
 	"atd-tools/pkg/atom"
 	"atd-tools/pkg/exploration"
+	"atd-tools/pkg/workspace"
 	"github.com/spf13/cobra"
 )
 
@@ -45,7 +46,6 @@ func runLint(dir string) (string, error) {
 		return "", fmt.Errorf("failed to scan for atoms: %w", err)
 	}
 
-	knownAtoms := make(map[string]bool)
 	var atoms []atom.AtomData
 
 	for _, f := range files {
@@ -54,9 +54,6 @@ func runLint(dir string) (string, error) {
 			return "", fmt.Errorf("failed to parse %s: %w", f, err)
 		}
 		atoms = append(atoms, a)
-		if a.ID != "" {
-			knownAtoms[a.ID] = true
-		}
 	}
 
 	var errors []string
@@ -114,13 +111,23 @@ func runLint(dir string) (string, error) {
 
 		// Links
 		for _, p := range a.Parents {
-			if !knownAtoms[strings.TrimSpace(p)] {
-				atomErrors = append(atomErrors, fmt.Sprintf("Unresolved parent link: [[%s]]", p))
+			cleanP := strings.TrimSpace(p)
+			if _, err := explorer.ResolveAtom(cleanP); err != nil {
+				if err == workspace.ErrUnknownProject {
+					atomErrors = append(atomErrors, fmt.Sprintf("Unresolved parent link (unknown project): [[%s]]", p))
+				} else {
+					atomErrors = append(atomErrors, fmt.Sprintf("Unresolved parent link: [[%s]]", p))
+				}
 			}
 		}
 		for _, p := range a.Dependents {
-			if !knownAtoms[strings.TrimSpace(p)] {
-				atomErrors = append(atomErrors, fmt.Sprintf("Unresolved dependent link: [[%s]]", p))
+			cleanP := strings.TrimSpace(p)
+			if _, err := explorer.ResolveAtom(cleanP); err != nil {
+				if err == workspace.ErrUnknownProject {
+					atomErrors = append(atomErrors, fmt.Sprintf("Unresolved dependent link (unknown project): [[%s]]", p))
+				} else {
+					atomErrors = append(atomErrors, fmt.Sprintf("Unresolved dependent link: [[%s]]", p))
+				}
 			}
 		}
 

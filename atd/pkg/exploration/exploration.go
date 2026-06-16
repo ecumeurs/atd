@@ -448,23 +448,25 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 	// 1. Walk UP
 	ancestryComplete := true
 	visitedUp := make(map[string]bool)
-	e.Graph.WalkUp(targetID, visitedUp, func(id string) {
+	e.WalkUp(targetID, visitedUp, func(id string) {
 		if id != targetID {
 			snap.GraphSlice.Parents = append(snap.GraphSlice.Parents, id)
-			node := e.Graph.Atoms[id]
-			addContext(id, node)
-			if node.Status != "STABLE" {
-				ancestryComplete = false
+			node, err := e.ResolveAtom(id)
+			if err == nil {
+				addContext(id, node)
+				if node.Status != "STABLE" {
+					ancestryComplete = false
+				}
 			}
 		}
 	})
 
 	// 2. Walk DOWN
 	visitedDown := make(map[string]bool)
-	e.Graph.WalkDown(targetID, visitedDown, func(id string) {
+	e.WalkDown(targetID, visitedDown, func(id string) {
 		if id != targetID {
 			snap.GraphSlice.Dependents = append(snap.GraphSlice.Dependents, id)
-			if node, ok := e.Graph.Atoms[id]; ok {
+			if node, err := e.ResolveAtom(id); err == nil {
 				addContext(id, node)
 			}
 		}
@@ -685,6 +687,9 @@ func (e *Explorer) Query(field, search string) []*atom.AtomData {
 func (e *Explorer) ResolveAtom(refID string) (*atom.AtomData, error) {
 	if e.Resolver != nil {
 		parsed, err := e.Resolver.Resolve(refID)
+		if err == workspace.ErrUnknownProject {
+			return nil, err
+		}
 		if err == nil && parsed.Location != nil {
 			// If already in graph, return it
 			id := parsed.AtomID
@@ -896,34 +901,34 @@ func CrawlSrc(dir string, graph *DependencyGraph) error {
 
 // WalkUp recursively visits parents of the given ID and calls the provided callback list on each.
 // Include self is determined by the caller logic; by default this function visits the target itself if not in visited map.
-func (g *DependencyGraph) WalkUp(id string, visited map[string]bool, onVisit func(string)) {
+func (e *Explorer) WalkUp(id string, visited map[string]bool, onVisit func(string)) {
 	if visited[id] {
 		return
 	}
 	visited[id] = true
-	node, ok := g.Atoms[id]
-	if !ok {
+	node, err := e.ResolveAtom(id)
+	if err != nil {
 		return
 	}
 	onVisit(id)
 	for _, p := range node.Parents {
-		g.WalkUp(p, visited, onVisit)
+		e.WalkUp(strings.TrimSpace(p), visited, onVisit)
 	}
 }
 
 // WalkDown recursively visits dependents of the given ID and calls the provided callback list on each.
 // Include self is determined by the caller logic; by default this function visits the target itself if not in visited map.
-func (g *DependencyGraph) WalkDown(id string, visited map[string]bool, onVisit func(string)) {
+func (e *Explorer) WalkDown(id string, visited map[string]bool, onVisit func(string)) {
 	if visited[id] {
 		return
 	}
 	visited[id] = true
-	node, ok := g.Atoms[id]
-	if !ok {
+	node, err := e.ResolveAtom(id)
+	if err != nil {
 		return
 	}
 	onVisit(id)
 	for _, d := range node.Dependents {
-		g.WalkDown(d, visited, onVisit)
+		e.WalkDown(strings.TrimSpace(d), visited, onVisit)
 	}
 }

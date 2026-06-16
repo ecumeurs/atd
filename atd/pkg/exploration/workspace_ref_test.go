@@ -50,10 +50,10 @@ human_name: "Atom A"
 	explorer := NewExplorer(projB, filepath.Join(projB, "docs"))
 	explorer.Graph = &DependencyGraph{Atoms: make(map[string]*atom.AtomData)}
 
-	// Test local resolution (fail)
+	// Test cross-project bare resolution (auto-discover)
 	_, err = explorer.ResolveAtom("atom-a")
-	if err == nil {
-		t.Errorf("expected error for non-existent local atom")
+	if err != nil {
+		t.Errorf("expected success for auto-discovered cross-project atom, got error: %v", err)
 	}
 
 	// Test cross-project resolution

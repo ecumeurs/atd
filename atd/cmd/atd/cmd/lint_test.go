@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"atd-tools/config"
 )
 
 func TestLintValidAtom(t *testing.T) {
@@ -84,6 +86,61 @@ This is the intent.
 		"Missing mandatory section: ## TECHNICAL INTERFACE",
 		"Missing mandatory section: ## EXPECTATION",
 		"Unresolved parent link: [[missing_parent]]",
+	}
+
+	for _, expected := range expectedErrors {
+		if !strings.Contains(out, expected) {
+			t.Errorf("Expected output to contain '%s', got: %s", expected, out)
+		}
+	}
+}
+
+func TestLintUnknownProject(t *testing.T) {
+	wsData := `{"workspace_name": "test_ws", "projects": [{"name": "proj1", "path": "."}]}`
+	tmpData := `---
+id: test_atom_invalid2
+human_name: "Test Atom"
+type: RULE
+layer: ARCHITECTURE
+version: 1.0
+priority: 5
+status: DRAFT
+parents:
+  - [[unknown_proj:missing_parent]]
+---
+
+# Test Atom Invalid
+
+## INTENT
+intent
+
+## THE RULE / LOGIC
+logic
+
+## TECHNICAL INTERFACE (The Bridge)
+bridge
+
+## EXPECTATION
+expectation
+`
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, ".atd.workspace"), []byte(wsData), 0644)
+	os.WriteFile(filepath.Join(tmpDir, ".atd"), []byte(`{"version": 1}`), 0644)
+	path := filepath.Join(tmpDir, "test_atom_invalid2.atom.md")
+	if err := os.WriteFile(path, []byte(tmpData), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	config.LoadFromDir(tmpDir)
+	defer func() { config.ActiveConfig.Workspace = nil }()
+
+	out, err := runLint(tmpDir)
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+
+	expectedErrors := []string{
+		"Unresolved parent link (unknown project): [[unknown_proj:missing_parent]]",
 	}
 
 	for _, expected := range expectedErrors {

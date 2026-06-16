@@ -6,10 +6,11 @@ import (
 	"os"
 	"strings"
 
+	"atd-tools/config"
+	"atd-tools/pkg/atom"
 	"atd-tools/pkg/ollama"
 	"atd-tools/pkg/pipeline"
 	"atd-tools/pkg/prompt"
-	"atd-tools/pkg/atom"
 )
 
 type AssembleMetadata struct {
@@ -50,7 +51,9 @@ func Assemble(opts AssembleOptions) (string, error) {
 		startIDs[i] = strings.TrimSpace(startIDs[i])
 	}
 
+	explorer := NewExplorer(config.ProjectRoot(), opts.DocsDir)
 	graph := &DependencyGraph{Atoms: make(map[string]*atom.AtomData)}
+	explorer.Graph = graph
 	
 	// Determine how to load atoms
 	if opts.Workspace {
@@ -89,15 +92,15 @@ func Assemble(opts AssembleOptions) (string, error) {
 		startID = strings.TrimSpace(strings.Trim(startID, "[]"))
 		
 		if doUp {
-			graph.WalkUp(startID, visited, func(id string) {
-				if node, ok := graph.Atoms[id]; ok {
+			explorer.WalkUp(startID, visited, func(id string) {
+				if node, err := explorer.ResolveAtom(id); err == nil {
 					gatheredAtoms = append(gatheredAtoms, node)
 				}
 			})
 		}
 		if doDown {
-			graph.WalkDown(startID, visited, func(id string) {
-				if node, ok := graph.Atoms[id]; ok {
+			explorer.WalkDown(startID, visited, func(id string) {
+				if node, err := explorer.ResolveAtom(id); err == nil {
 					gatheredAtoms = append(gatheredAtoms, node)
 				}
 			})

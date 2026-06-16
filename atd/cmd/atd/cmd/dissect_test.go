@@ -102,11 +102,11 @@ func TestDissectPromptContainsTags(t *testing.T) {
 	buf.ReadFrom(r)
 	output := buf.String()
 
-	if !strings.Contains(output, "<System_Context>") {
-		t.Errorf("Expected '<System_Context>' in prompt output:\n%s", output)
+	if !strings.Contains(output, "\"system_context\"") {
+		t.Errorf("Expected '\"system_context\"' in prompt output:\n%s", output)
 	}
-	if !strings.Contains(output, "<Document>") {
-		t.Errorf("Expected '<Document>' in prompt output:\n%s", output)
+	if !strings.Contains(output, "\"document\"") {
+		t.Errorf("Expected '\"document\"' in prompt output:\n%s", output)
 	}
 }
 

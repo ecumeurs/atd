@@ -16,6 +16,7 @@ const (
 )
 
 var ErrAtomNotFound = errors.New("atom not found")
+var ErrUnknownProject = errors.New("unknown project qualifier")
 
 // ParsedReference represents a parsed [[atom_id]] or [[project:atom_id]].
 type ParsedReference struct {
@@ -88,6 +89,24 @@ func (r *Resolver) Resolve(ref string) (*ParsedReference, error) {
 			parsed.Location = loc
 			return parsed, nil
 		}
+
+		// Check if project actually exists in workspace
+		projectExists := false
+		if parsed.Project == "shared" || parsed.Project == "parent" {
+			projectExists = true
+		} else if r.workspace != nil {
+			for _, p := range r.workspace.Projects {
+				if p.Name == parsed.Project {
+					projectExists = true
+					break
+				}
+			}
+		}
+
+		if !projectExists {
+			return parsed, ErrUnknownProject
+		}
+
 		return parsed, ErrAtomNotFound
 	}
 

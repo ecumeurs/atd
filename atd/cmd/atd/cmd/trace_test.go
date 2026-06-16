@@ -63,7 +63,7 @@ parents:
 	os.WriteFile(filepath.Join(srcDir, "logic.go"), []byte(srcContent), 0644)
 
 	// 4. Run Trace on A1
-	resultJSON, err := runTrace("a1", docsDir, tmpDir)
+	resultJSON, err := runTrace("a1", docsDir, tmpDir, false)
 	if err != nil {
 		t.Fatalf("runTrace failed: %v", err)
 	}
