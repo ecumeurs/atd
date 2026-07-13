@@ -12,12 +12,15 @@ output; where the defect only manifests through the MCP server's working-directo
 context I marked it **CONFIRMED (by code)** and explain why my standalone run
 didn't trip it.
 
-> **Resolution update — 2026-07-13.** The three highest-value quick wins are now
-> **FIXED and verified** in `atd/` (working tree, uncommitted): §2 + Addendum A + B
-> (id canonicalization / prefix stripping / loud failure), §3 (file-mode dedup), and
-> §7 (semantic-search honesty + index moved out of the working tree). Details and the
-> exact reproduction after the fix are recorded inline under each finding and
-> summarised in **"Resolution status"** at the end. §1, §4, §5, §6, §8 remain open.
+> **Resolution update — 2026-07-13.** **All eight findings + both addenda are now
+> FIXED and verified**, plus one deeper bug (§9) surfaced during the work.
+> Batch 1: §2 + Add A/B (id canonicalization / prefix stripping / loud failure), §3
+> (file-mode dedup), §7 (semantic-search honesty + index moved out of the tree).
+> Batch 2: §1 (diff-mode path base), §5 (trace consumes the live link index), §6
+> (stats population + inversion), §8 (map path + recon prompt), §4 (trace-summary
+> target primacy). §9 (new): workspace "current project" was always mis-detected as
+> the root project. Details inline under each finding; roll-up in **"Resolution
+> status"** at the end. Changes live on branch `fix/field-report-quickwins`.
 
 ---
 
@@ -25,14 +28,14 @@ didn't trip it.
 
 | # | Report item | Verdict | Status | Root cause | Fix effort |
 |---|---|---|---|---|---|
-| §1 | `atd_check` diff mode finds nothing | **CONFIRMED (by code)** | OPEN | `git diff` paths (repo-root-relative) vs `SpecLink.FilePath` (ProjectRoot-relative) mismatch under MCP | Medium |
+| §1 | `atd_check` diff mode finds nothing | **CONFIRMED (by code)** | ✅ **FIXED** | `git diff` paths (repo-root-relative) vs `SpecLink.FilePath` (ProjectRoot-relative) mismatch under MCP | Medium |
 | §2 | bare atom id → silent `NO_IMPL` | **REPRODUCED** | ✅ **FIXED** | check/test_links never canonicalize the input id through the resolver | Low |
 | §3 | `atd_check file:` duplicates rows | **REPRODUCED** | ✅ **FIXED** | file mode has no per-atom dedup (one row per tag occurrence) | Trivial |
-| §4 | `atd_trace summary:true` narrates wrong atom | **CONFIRMED (by code)** | OPEN | prompt gives target no primacy; no guard when target brief is empty | Low |
-| §5 | `atd_trace` link data contradicts check/query | **REPRODUCED** | OPEN | three tools derive "code links" from three sources; `Implementations` conflates frontmatter `linked_codes` with live crawl | Medium |
-| §6 | `atd_stats` internally inconsistent | **REPRODUCED** | OPEN | project scope counts cross-project atoms dragged in by `ResolveAtom`; `implemented_stable_count` counts *non-orphans*, not *implemented* | Medium |
+| §4 | `atd_trace summary:true` narrates wrong atom | **CONFIRMED (by code)** | ✅ **FIXED** | prompt gives target no primacy; no guard when target brief is empty | Low |
+| §5 | `atd_trace` link data contradicts check/query | **REPRODUCED** | ✅ **FIXED** | three tools derive "code links" from three sources; `Implementations` conflates frontmatter `linked_codes` with live crawl | Medium |
+| §6 | `atd_stats` internally inconsistent | **REPRODUCED** | ✅ **FIXED** | project scope counts cross-project atoms dragged in by `ResolveAtom`; `implemented_stable_count` counts *non-orphans*, not *implemented* | Medium |
 | §7 | semantic search: silent empty + index artifact in repo | **REPRODUCED** | ✅ **FIXED** | error swallowed by grep fallback; DB path is `docs/.atd_index.db` inside the working tree | Low |
-| §8 | `atd_map` path handling + unusable confirm output | **REPRODUCED** | OPEN | `runMap` reads file relative to cwd (not ProjectRoot); confirm returns raw LLM JSON | Low/Medium |
+| §8 | `atd_map` path handling + unusable confirm output | **REPRODUCED** | ✅ **FIXED** | `runMap` reads file relative to cwd (not ProjectRoot); confirm returns raw LLM JSON | Low/Medium |
 | Add A | bare-id is the highest-yield defect | same as §2 | ✅ **FIXED** | — | Low |
 | Add B | `requirement_`-prefixed id → silent not-found | **CONFIRMED (by code)** | ✅ **FIXED** | type/layer prefix not stripped, no loud failure | Low |
 
@@ -499,8 +502,10 @@ changes.
 
 ## Resolution status (2026-07-13)
 
-The three quick wins (§2 + Add A/B, §3, §7) were implemented and verified the same
-day. All changes are **uncommitted in the `atd/` working tree** — review then commit.
+All eight findings + both addenda are fixed, in two batches, on branch
+`fix/field-report-quickwins`. Batch 1 also merged as commit `3a94502`.
+
+### Batch 1 — quick wins (§2 + Add A/B, §3, §7)
 
 **Verified together, from `upsilon-hub/upsilonhub` with the rebuilt binary:**
 
@@ -540,7 +545,65 @@ confirmed **pre-existing** (present on stash/HEAD, untouched by this work):
   dir. The large pre-existing `.atd_index.db` files under `upsilon-hub/*/docs` (dated
   ~09:22) can be deleted at leisure — they are no longer read.
 
-**Still open (unchanged from the evaluation above):** §1 (diff-mode path base), §5
-(one link index for check/query/trace), §6 (stats semantics), §8 (map path + recon
-prompt), §4 (trace-summary target primacy). §1/§5/§6 are the shared-substrate fixes
-and remain the recommended next batch.
+### Batch 2 — shared-substrate + remaining (§1, §5, §6, §8, §4) + new §9
+
+**Verified together, from the `upsilon-hub` workspace with the rebuilt binary:**
+
+```
+§1  diff-mode check, run with cwd ≠ ProjectRoot (umbrella root, active project
+    upsilonhub) after touching a tagged file → now lists that file's atoms
+    (was "No atoms found"). git now runs `-C ProjectRoot` and rebases paths.
+§5  trace upsilonapi:api_shop_purchase → code/test links now sourced from the live
+    crawl (same as check): 2 code files / 2 tests, and the bogus "Architecture atom
+    has no Implementation dependents or direct @spec-link" warning is gone.
+§6  stats (project upsilonhub, 0 local atoms) → total_atoms 0 (was 75);
+    stats --workspace → implemented_stable 205 ≤ implemented_total 293 (inversion gone).
+§8  map --file <relative> --atom … from cwd ≠ ProjectRoot → file now found
+    (was "no such file"); confirm mode now returns itemized {aspect,expected,found}
+    mismatches with a calibrated confidence, not a raw yes/no.
+§4  trace --summary <bare id> → narrative now names and centres the target atom
+    (was narrating a dependent/parent); empty-target guard added.
+§9  stats/resolution for a project WITH local bare-tagged atoms (e.g. upsilonapi) →
+    implemented_total 10 (was 0): the "current project" is now detected correctly.
+```
+
+**Batch 2 files changed:**
+- `cmd/atd/cmd/check_coverage.go` (+ `check_coverage_test.go`) — §1: `git -C ProjectRoot` + path rebasing onto ProjectRoot; regression test for the nested/submodule case.
+- `cmd/atd/cmd/map.go` (+ `map_test.go`), `pkg/prompt/recon.go` — §8: resolve relative path against ProjectRoot; structured `Mismatches` schema + degenerate-verdict guard.
+- `pkg/exploration/exploration.go` — §5: `SpecLinksForAtom`/`TestLinksForAtom`; `Trace` derives code/test links + warnings from the live crawl, not frontmatter `linked_codes` (frontmatter seeding left intact for other consumers).
+- `cmd/atd/cmd/trace.go`, `pkg/prompt/trace_summary.go` — §4: look up the target brief by canonical id with a rebuild fallback; prompt names the target as the subject and labels ancestry/dependents as context only.
+- `cmd/atd/cmd/stats.go` — §6: `isLocalAtom` filter (exclude `project:`-prefixed and absolute-path atoms) applied to every aggregation in project scope; `implemented_stable_count` gated on `len(Implementations) > 0`.
+- `pkg/workspace/loader.go` — §9 (new, see below).
+
+### §9 (new) — workspace "current project" always mis-detected as the root project
+
+Surfaced while fixing §6. `Workspace.FindProjectByCWD` (`pkg/workspace/loader.go:120`)
+returned the **first** project whose path prefixes the cwd. Because the `shared`
+project has path `.` (= workspace root) and is listed first, it prefixes *every* cwd,
+so the "current project" resolved to `shared` no matter where you were. That silently
+mis-attributed every **bare** `@spec-link` tag to the wrong project — e.g. `upsilonapi`
+project-scope stats reported `implemented_total_count: 0` despite 45 real tags in its
+own code. Fix: pick the **longest (most specific)** matching project with a
+boundary-aware prefix check (`absCWD == projPath` or under `projPath + separator`), so
+a root-level project no longer shadows the real one. `implemented_total_count` for
+`upsilonapi` went 0 → 10 after the fix.
+
+*Residual (out of scope, noted for the maintainer):* the stats JSON `"project"` label
+still prints `shared` in some project-scoped runs — that value comes from
+`config.ActiveConfig.ActiveProject` (config load), a separate path from
+`FindProjectByCWD`, and is cosmetic (the atom numbers are now correct). Worth a
+follow-up to make the config's active-project detection use the same longest-match
+logic.
+
+### Build/test (both batches)
+
+`go build ./...` and `go vet ./...` clean in both modules. `go test ./...` green
+except two failures confirmed **pre-existing** (identical on clean HEAD via `git
+stash`): `pkg/prompt` build error in `dissect_test.go` (`AuditCodeBuild` arity) and
+`cmd/atd/cmd` `TestUpdateLinks`. New tests added: resolver strip-and-retry
+(`pkg/workspace/resolver_test.go`), diff-path rebasing + recon-degenerate + map-path
+(`check_coverage_test.go`, `map_test.go`). `upsilon-hub` left clean throughout.
+
+**Nothing from the original report remains open.** Recommended follow-ups (maintainer's
+call, not in the report): the §9 residual config-label mismatch above; and the two
+pre-existing unrelated test failures (`dissect_test.go` arity, `TestUpdateLinks`).

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"atd-tools/config"
 )
 
 func TestMapFlags(t *testing.T) {
@@ -64,6 +66,68 @@ func TestMapNewFlagProducesSkeleton(t *testing.T) {
 	// If no error, output should mention atom skeleton or delegation
 	if out == "" {
 		t.Error("expected non-empty output from propose path")
+	}
+}
+
+// TestMapResolvesRelativePathAgainstProjectRoot exercises the §8(a) fix:
+// a relative --file must be read relative to config.ProjectRoot(), not the
+// process cwd, so map accepts the same inputs as `atd check --file` under
+// the MCP server (where cwd is often a workspace umbrella root).
+func TestMapResolvesRelativePathAgainstProjectRoot(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tmp, ".atd"), []byte("{}"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "sample.go"), []byte("package main\nfunc main() {}"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	savedConfig := config.ActiveConfig
+	savedWD, _ := os.Getwd()
+	defer func() {
+		config.ActiveConfig = savedConfig
+		os.Chdir(savedWD)
+	}()
+
+	if err := config.LoadFromDir(tmp); err != nil {
+		t.Fatalf("config.LoadFromDir failed: %v", err)
+	}
+	if config.ProjectRoot() != tmp {
+		t.Fatalf("expected ProjectRoot %s, got %s", tmp, config.ProjectRoot())
+	}
+
+	// cwd deliberately differs from ProjectRoot.
+	elsewhere := t.TempDir()
+	if err := os.Chdir(elsewhere); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := runMap("sample.go", "nonexistent_atom_xyz", "", false)
+	if err == nil {
+		t.Fatal("expected an error (unknown atom), but the important thing is which error")
+	}
+	if strings.Contains(err.Error(), "failed to read file") {
+		t.Errorf("relative --file should resolve against ProjectRoot, not cwd; got: %v", err)
+	}
+}
+
+func TestReconResultIsDegenerate(t *testing.T) {
+	cases := []struct {
+		name   string
+		result ReconResult
+		want   bool
+	}{
+		{"empty mismatches", ReconResult{Confidence: 0, Mismatches: nil}, true},
+		{"blank single entry", ReconResult{Confidence: 0, Mismatches: []ReconMismatch{{}}}, true},
+		{"real mismatch", ReconResult{Confidence: 40, Mismatches: []ReconMismatch{
+			{Aspect: "locking", Expected: "mutex around purchase", Found: "not visible in this file"},
+		}}, false},
+	}
+
+	for _, c := range cases {
+		if got := c.result.isDegenerate(); got != c.want {
+			t.Errorf("%s: isDegenerate() = %v, want %v", c.name, got, c.want)
+		}
 	}
 }
 

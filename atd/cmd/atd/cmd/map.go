@@ -29,7 +29,16 @@ func runMap(filePath, atomID, docsDir string, isNew bool) (string, error) {
 		docsDir = config.DocsDir()
 	}
 
-	content, err := os.ReadFile(filePath)
+	// filePath is expected relative to the active project root (the same
+	// convention atd check uses), not the process cwd — under the MCP server
+	// the two differ (e.g. cwd is a workspace umbrella root). Resolve before
+	// reading so map accepts the same inputs as check.
+	readPath := filePath
+	if !filepath.IsAbs(readPath) {
+		readPath = filepath.Join(config.ProjectRoot(), readPath)
+	}
+
+	content, err := os.ReadFile(readPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read file %s: %v", filePath, err)
 	}
@@ -48,6 +57,35 @@ func runMap(filePath, atomID, docsDir string, isNew bool) (string, error) {
 	default:
 		return runMapDiscover(filePath, fileContent, docsDir)
 	}
+}
+
+// ReconMismatch is one itemized discrepancy between the atom's stated logic
+// and the candidate code, as returned by the recon LLM call.
+type ReconMismatch struct {
+	Aspect   string `json:"aspect"`
+	Expected string `json:"expected"`
+	Found    string `json:"found"`
+}
+
+// ReconResult is the structured recon verdict produced by atd map --atom
+// (confirm mode). See pkg/prompt/recon.go for the schema contract.
+type ReconResult struct {
+	Confidence int             `json:"Confidence"`
+	Mismatches []ReconMismatch `json:"Mismatches"`
+}
+
+// isDegenerate reports whether mismatches carry no actual rationale (either
+// the array is empty, or its entries are all blank placeholders).
+func (r ReconResult) isDegenerate() bool {
+	if len(r.Mismatches) == 0 {
+		return true
+	}
+	for _, m := range r.Mismatches {
+		if strings.TrimSpace(m.Aspect) != "" || strings.TrimSpace(m.Expected) != "" || strings.TrimSpace(m.Found) != "" {
+			return false
+		}
+	}
+	return true
 }
 
 // runMapConfirm validates whether filePath implements the given atom (recon path).
@@ -72,7 +110,7 @@ func runMapConfirm(filePath, fileContent, atomID string) (string, error) {
 				PromptFile:   "map_confirm.prompt",
 				ResultFile:   "map_confirm.result",
 				Instruction:  "validate if code implements the atom",
-				OutputSchema: `{"Confidence": int, "Mismatches": string}`,
+				OutputSchema: `{"Confidence": int, "Mismatches": [{"aspect": string, "expected": string, "found": string}]}`,
 			},
 		})
 		return fmt.Sprintf("Task delegated to IDE Agent: %s", taskList), nil
@@ -81,10 +119,21 @@ func runMapConfirm(filePath, fileContent, atomID string) (string, error) {
 		return "", fmt.Errorf("ollama query failed: %v", err)
 	}
 
-	var result interface{}
+	var result ReconResult
 	if err := json.Unmarshal([]byte(resp.Response), &result); err != nil {
+		// Model didn't honor the structured schema at all — surface the raw
+		// response rather than pretending we parsed a verdict.
 		return resp.Response, nil
 	}
+
+	if result.Confidence == 0 && result.isDegenerate() {
+		return fmt.Sprintf(
+			"Recon inconclusive: the model returned no usable rationale for %s against atom %s.\n"+
+				"This can happen when the atom's logic lives partly behind a service seam in another "+
+				"file this single-file review can't see — retry, or widen the review to include the "+
+				"collaborating files.", filePath, atomID), nil
+	}
+
 	beauty, _ := json.MarshalIndent(result, "", "  ")
 	return string(beauty), nil
 }

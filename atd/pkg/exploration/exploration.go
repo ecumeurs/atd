@@ -410,6 +410,33 @@ func (e *Explorer) GetTestLinks() []TestLink {
 	return e.TestLinks
 }
 
+// SpecLinksForAtom returns the live @spec-link crawl hits for a canonical atom id.
+// This is the same source `atd check` uses (e.SpecLinks), as opposed to the
+// atom's frontmatter `linked_codes` (AtomData.Implementations), which can be
+// stale or project-mismatched. Callers needing "does this atom have code" or
+// "how many impl sites" should use this instead of node.Implementations.
+func (e *Explorer) SpecLinksForAtom(id string) []SpecLink {
+	var out []SpecLink
+	for _, sl := range e.SpecLinks {
+		if sl.AtomID == id {
+			out = append(out, sl)
+		}
+	}
+	return out
+}
+
+// TestLinksForAtom returns the live @test-link crawl hits for a canonical atom id,
+// mirroring the source `atd check` uses (e.TestLinks).
+func (e *Explorer) TestLinksForAtom(id string) []TestLink {
+	var out []TestLink
+	for _, tl := range e.TestLinks {
+		if tl.AtomID == id {
+			out = append(out, tl)
+		}
+	}
+	return out
+}
+
 func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 	// Resolve the requested id (bare, prefixed, or type/layer-prefixed) to its
 	// canonical form workspace-wide before lookup, so bare ids from other
@@ -490,34 +517,24 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 	testFiles := make(map[string]bool)
 	uniqueCodeForTargetOrDescendants := make(map[string]bool)
 
-	// Helper to strip line number
-	getFile := func(impl string) string {
-		parts := strings.Split(impl, ":")
-		return parts[0]
-	}
-
-	processNode := func(id string, node *atom.AtomData) {
-		if len(node.Implementations) > 0 {
-			for _, impl := range node.Implementations {
-				f := getFile(impl)
-				codeFiles[f] = true
-				uniqueCodeForTargetOrDescendants[f] = true
-			}
+	// Code/test links are derived from the LIVE crawl index (e.SpecLinks /
+	// e.TestLinks), the same source `atd check` uses, NOT from the atom's
+	// frontmatter linked_codes (node.Implementations) — that field can be
+	// stale or mix in cross-project ghosts. See SpecLinksForAtom/TestLinksForAtom.
+	processNode := func(id string) {
+		for _, sl := range e.SpecLinksForAtom(id) {
+			codeFiles[sl.FilePath] = true
+			uniqueCodeForTargetOrDescendants[sl.FilePath] = true
 		}
-		// Test links from e.TestLinks
-		for _, tl := range e.TestLinks {
-			if tl.AtomID == id {
-				testFiles[tl.TestFile] = true
-				uniqueCodeForTargetOrDescendants[tl.TestFile] = true
-			}
+		for _, tl := range e.TestLinksForAtom(id) {
+			testFiles[tl.TestFile] = true
+			uniqueCodeForTargetOrDescendants[tl.TestFile] = true
 		}
 	}
 
-	processNode(targetID, target)
+	processNode(targetID)
 	for _, id := range snap.GraphSlice.Dependents {
-		if node, ok := e.Graph.Atoms[id]; ok {
-			processNode(id, node)
-		}
+		processNode(id)
 	}
 
 	// 4. Layers & Warnings
@@ -554,9 +571,11 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 		if !foundArchDesc { snap.Warnings = append(snap.Warnings, "Business atom has no Architecture dependents") }
 		if !foundImplDesc { snap.Warnings = append(snap.Warnings, "Business atom has no Implementation dependents") }
 	case "ARCHITECTURE":
-		// Only warn about missing Implementation dependents if atom has no direct @spec-link
-		// Architecture atoms may have direct code links (90% of cases) which is valid
-		if !foundImplDesc && len(target.Implementations) == 0 {
+		// Only warn about missing Implementation dependents if atom has no direct
+		// live @spec-link. Architecture atoms may have direct code links (90% of
+		// cases) which is valid. Checked against the live crawl (e.SpecLinks), not
+		// frontmatter linked_codes, so this agrees with `atd check`.
+		if !foundImplDesc && len(e.SpecLinksForAtom(targetID)) == 0 {
 			snap.Warnings = append(snap.Warnings, "Architecture atom has no Implementation dependents or direct @spec-link")
 		}
 		if !foundCustAnc { snap.Warnings = append(snap.Warnings, "Architecture atom has no Business origin") }
@@ -577,22 +596,19 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 	implementedCount := 0
 	testedCount := 0
 
-	checkHealth := func(id string, node *atom.AtomData) (bool, bool) {
-		impl := len(node.Implementations) > 0
-		test := false
-		for _, tl := range e.TestLinks {
-			if tl.AtomID == id {
-				test = true
-				break
-			}
-		}
+	// checkHealth reports impl/test presence from the live crawl index
+	// (e.SpecLinks / e.TestLinks), matching what `atd check` counts — not
+	// frontmatter linked_codes.
+	checkHealth := func(id string) (bool, bool) {
+		impl := len(e.SpecLinksForAtom(id)) > 0
+		test := len(e.TestLinksForAtom(id)) > 0
 		return impl, test
 	}
 
 	// Include IMPLEMENTATION layer atoms in health calculation
 	if target.Layer == "IMPLEMENTATION" {
 		totalPool++
-		impl, test := checkHealth(targetID, target)
+		impl, test := checkHealth(targetID)
 		if impl {
 			implementedCount++
 			if test { testedCount++ }
@@ -600,10 +616,10 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 	}
 
 	// Include ARCHITECTURE layer atoms with direct @spec-link in health calculation
-	if target.Layer == "ARCHITECTURE" && len(target.Implementations) > 0 {
+	if target.Layer == "ARCHITECTURE" && len(e.SpecLinksForAtom(targetID)) > 0 {
 		totalPool++
 		implementedCount++
-		_, test := checkHealth(targetID, target)
+		_, test := checkHealth(targetID)
 		if test { testedCount++ }
 	}
 
@@ -612,16 +628,16 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 			// Count IMPLEMENTATION layer dependents
 			if node.Layer == "IMPLEMENTATION" {
 				totalPool++
-				impl, test := checkHealth(id, node)
+				impl, test := checkHealth(id)
 				if impl {
 					implementedCount++
 					if test { testedCount++ }
 				}
 			}
 			// Count ARCHITECTURE dependents with direct @spec-link
-			if node.Layer == "ARCHITECTURE" && len(node.Implementations) > 0 {
+			if node.Layer == "ARCHITECTURE" && len(e.SpecLinksForAtom(id)) > 0 {
 				totalPool++
-				impl, test := checkHealth(id, node)
+				impl, test := checkHealth(id)
 				if impl {
 					implementedCount++
 					if test { testedCount++ }

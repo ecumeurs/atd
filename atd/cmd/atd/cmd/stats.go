@@ -1,12 +1,16 @@
 package cmd
+
 // @spec-link [[service_atd_stats]]
 
 import (
 	"atd-tools/config"
+	"atd-tools/pkg/atom"
 	"atd-tools/pkg/exploration"
 	"atd-tools/pkg/workspace"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -48,7 +52,7 @@ var statsCmd = &cobra.Command{
 
 func runStats(srcPath, docsDir string, workspaceFlag bool) (string, error) {
 	explorer := exploration.NewExplorer(".", docsDir)
-	
+
 	if workspaceFlag {
 		ws, err := workspace.LoadWorkspace(".")
 		if err != nil {
@@ -71,17 +75,54 @@ func runStats(srcPath, docsDir string, workspaceFlag bool) (string, error) {
 	graph := explorer.GetGraph()
 
 	report := &StatsReport{
-		TotalAtoms: len(graph.Atoms),
-		ByType:     make(map[string]int),
-		ByStatus:   make(map[string]int),
-		ByLayer:    make(map[string]int),
-		Project:    config.ActiveConfig.ActiveProject,
+		ByType:   make(map[string]int),
+		ByStatus: make(map[string]int),
+		ByLayer:  make(map[string]int),
+		Project:  config.ActiveConfig.ActiveProject,
+	}
+
+	// In project (non-workspace) scope, the link crawl resolves every
+	// @spec-link it encounters via ResolveAtom, which inserts the resolved
+	// atom into explorer.Graph.Atoms even when it lives in another project
+	// (see exploration.go ResolveAtom). Those cross-project atoms are usually
+	// keyed with a "project:" prefix, unlike local atoms which have a bare
+	// key -- but a bare (unqualified) @spec-link that resolves workspace-wide
+	// can still land in the graph under a bare key if the resolver's
+	// "current project" detection is off. To catch that case too, we also
+	// check FilePath: atoms found by this project's own file crawl always
+	// get a path relative to ProjectRoot (see Explorer.Load), while atoms
+	// pulled in via the workspace atom index (ResolveAtom) always carry an
+	// absolute AtomLocation.Path (see workspace.AtomIndex.BuildIndex). An
+	// absolute FilePath is therefore also a reliable cross-project signal,
+	// independent of how the id happened to get keyed.
+	// If we don't exclude these here, every aggregate below (total, by-type,
+	// by-status, by-layer, stable/orphan/implemented counts) ends up
+	// describing a mixed population that is neither "this project's atoms"
+	// nor "the workspace's atoms". Workspace scope legitimately aggregates
+	// atoms from every project via LoadWorkspace/the index, so no filter
+	// is applied there.
+	isLocalAtom := func(id string, node *atom.AtomData) bool {
+		if workspaceFlag {
+			return true
+		}
+		if strings.Contains(id, ":") {
+			return false
+		}
+		if node.FilePath != "" && filepath.IsAbs(node.FilePath) {
+			return false
+		}
+		return true
 	}
 
 	var stableCount int
 	var candidateCount int
 
-	for _, node := range graph.Atoms {
+	for id, node := range graph.Atoms {
+		if !isLocalAtom(id, node) {
+			continue
+		}
+
+		report.TotalAtoms++
 		report.ByType[node.Type]++
 		report.ByStatus[node.Status]++
 
@@ -100,11 +141,19 @@ func runStats(srcPath, docsDir string, workspaceFlag bool) (string, error) {
 			stableCount++
 			if explorer.IsOrphan(node) {
 				report.OrphanCount++
-			} else {
+			}
+			// Gate on actual implementation, not merely "not an orphan":
+			// IsOrphan returns false for many unimplemented atoms (BUSINESS
+			// layer exception, excluded types, parents "covered by proxy"),
+			// so "not an orphan" != "implemented". Without this, a STABLE
+			// atom with zero linked code inflates this count past
+			// ImplementedTotalCount, which is mathematically impossible for
+			// honest labels.
+			if isImplemented {
 				report.ImplementedStableCount++
 			}
 		}
-		
+
 		if node.Status == "STABLE" || node.Status == "REVIEW" {
 			candidateCount++
 		}
@@ -113,10 +162,13 @@ func runStats(srcPath, docsDir string, workspaceFlag bool) (string, error) {
 	if stableCount > 0 {
 		report.CoverageRatio = float64(report.ImplementedStableCount) / float64(stableCount)
 	}
-	
+
 	if candidateCount > 0 {
 		implementedCandidate := 0
-		for _, node := range graph.Atoms {
+		for id, node := range graph.Atoms {
+			if !isLocalAtom(id, node) {
+				continue
+			}
 			if (node.Status == "STABLE" || node.Status == "REVIEW") && len(node.Implementations) > 0 {
 				implementedCandidate++
 			}

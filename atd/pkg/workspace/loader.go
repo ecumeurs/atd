@@ -123,15 +123,27 @@ func (ws *Workspace) FindProjectByCWD(cwd string) *Project {
 		return nil
 	}
 
+	// Pick the most specific (longest-path) project that contains cwd, not the
+	// first prefix match. Otherwise a project rooted at the workspace root (path
+	// ".", e.g. "shared") prefixes every cwd and would always win, masking the
+	// real project the cwd lives in.
+	var best *Project
+	bestLen := -1
 	for i := range ws.Projects {
 		projPath := ws.Projects[i].Path
 		if !filepath.IsAbs(projPath) {
 			projPath = filepath.Join(ws.WorkspaceRoot, projPath)
 		}
+		projPath = filepath.Clean(projPath)
 
-		if strings.HasPrefix(absCWD, projPath) {
-			return &ws.Projects[i]
+		// Boundary-aware containment: cwd must equal projPath or sit beneath it,
+		// so "/ws/upsilonapi" doesn't spuriously match "/ws/upsilon".
+		if absCWD == projPath || strings.HasPrefix(absCWD, projPath+string(filepath.Separator)) {
+			if len(projPath) > bestLen {
+				best = &ws.Projects[i]
+				bestLen = len(projPath)
+			}
 		}
 	}
-	return nil
+	return best
 }

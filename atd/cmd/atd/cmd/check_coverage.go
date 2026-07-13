@@ -246,9 +246,18 @@ func buildCoverageReport(mode string, atomIDs []string, explorer *exploration.Ex
 }
 
 // diffChangedFiles runs git diff and splits results into code files and atom files.
+//
+// Both git and the `--name-only` output must be anchored at the project that
+// owns the code (config.ProjectRoot()), not at the process cwd: under the MCP
+// server, cwd is often the umbrella workspace root while ProjectRoot is a git
+// submodule, and running plain `git diff` there either sees the wrong repo or
+// returns paths relative to the wrong base. SpecLink.FilePath (see
+// exploration.go) is always stored relative to ProjectRoot, so the paths
+// returned here are rebased onto that same root before being handed back.
 func diffChangedFiles(gitArgs []string) (codeFiles, atomFiles []string, err error) {
-	args := []string{"diff", "--name-only"}
-	args = append(args, gitArgs...)
+	root := config.ProjectRoot()
+
+	args := append([]string{"-C", root, "diff", "--name-only"}, gitArgs...)
 
 	cmd := exec.Command("git", args...)
 	var out bytes.Buffer
@@ -257,17 +266,47 @@ func diffChangedFiles(gitArgs []string) (codeFiles, atomFiles []string, err erro
 		return nil, nil, fmt.Errorf("git diff failed: %v", runErr)
 	}
 
+	// git -C <root> resolves paths relative to the toplevel of the repo that
+	// contains <root>, which may not be <root> itself (e.g. root is a
+	// submodule of an umbrella repo). Rebase onto root when they differ.
+	toplevel, tlErr := gitToplevel(root)
+
 	for _, line := range strings.Split(strings.TrimSpace(out.String()), "\n") {
 		if line == "" {
 			continue
 		}
-		if strings.HasSuffix(line, ".atom.md") {
-			atomFiles = append(atomFiles, line)
+
+		relLine := line
+		if tlErr == nil && toplevel != "" && toplevel != root {
+			abs := filepath.Join(toplevel, line)
+			rel, relErr := filepath.Rel(root, abs)
+			if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				// Outside ProjectRoot (e.g. a change in a sibling submodule) — skip.
+				continue
+			}
+			relLine = rel
+		}
+
+		if strings.HasSuffix(relLine, ".atom.md") {
+			atomFiles = append(atomFiles, relLine)
 		} else {
-			codeFiles = append(codeFiles, line)
+			codeFiles = append(codeFiles, relLine)
 		}
 	}
 	return codeFiles, atomFiles, nil
+}
+
+// gitToplevel returns the toplevel directory of the git repository that
+// contains root, i.e. the base that `git -C root diff --name-only` paths are
+// relative to.
+func gitToplevel(root string) (string, error) {
+	cmd := exec.Command("git", "-C", root, "rev-parse", "--show-toplevel")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("git rev-parse --show-toplevel failed: %v", err)
+	}
+	return strings.TrimSpace(out.String()), nil
 }
 
 // formatCheckReport renders a CheckReport as a text table.

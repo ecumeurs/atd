@@ -50,9 +50,35 @@ func runTrace(targetID, docsDir, srcPath string, summary bool) (string, error) {
 	}
 
 	if summary {
-		// Curate the context
+		// Curate the context. IMPORTANT: snap.Context is keyed by the CANONICAL
+		// atom id (snap.TargetID), which Trace() resolves internally — it may
+		// differ from the raw, possibly bare/aliased `targetID` argument passed
+		// in above. Looking this up by the raw targetID silently misses and
+		// leaves ctx.Target as a zero-value AtomBrief, which pushes the LLM to
+		// narrate the ancestry/dependents (i.e. the parent) as if it were the
+		// target. Always look up by snap.TargetID.
+		targetBrief, ok := snap.Context[snap.TargetID]
+		if !ok {
+			// Defensive fallback: Trace() always seeds its own target into
+			// Context, so this should not happen. Rather than silently handing
+			// the prompt an empty target, rebuild the brief directly or fail
+			// loudly.
+			node, resolveErr := explorer.ResolveAtom(snap.TargetID)
+			if resolveErr != nil {
+				return "", fmt.Errorf("cannot build trace summary: no brief available for target '%s': %v", snap.TargetID, resolveErr)
+			}
+			targetBrief = exploration.AtomBrief{
+				ID:        node.ID,
+				HumanName: node.HumanName,
+				Type:      node.Type,
+				Layer:     node.Layer,
+				Intent:    node.Intent,
+				Logic:     node.Logic,
+			}
+		}
+
 		ctx := prompt.TraceSummaryContext{
-			Target:     prompt.AtomBrief(snap.Context[targetID]),
+			Target:     prompt.AtomBrief(targetBrief),
 			Ancestry:   []prompt.AtomBrief{},
 			Dependents: []prompt.AtomBrief{},
 		}
