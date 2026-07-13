@@ -165,3 +165,29 @@ func TestDetectActiveProject_Subdir(t *testing.T) {
 		t.Errorf("Expected active project 'proj-a', got '%s'", ActiveConfig.ActiveProject)
 	}
 }
+
+func TestDetectActiveProject_SharedRootDoesNotShadowSpecificProject(t *testing.T) {
+	tmp, err := os.MkdirTemp("", "atd-test-shared-shadow-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	projSpecific := filepath.Join(tmp, "upsilonapi")
+	os.MkdirAll(projSpecific, 0755)
+
+	// "shared" is listed FIRST and has path "." (the workspace root), so it
+	// prefixes every directory in the workspace. It must not shadow the more
+	// specific "upsilonapi" project when dir sits inside upsilonapi.
+	wsContent := `{"workspace_name": "test-ws", "projects": [{"name": "shared", "path": "."}, {"name": "upsilonapi", "path": "./upsilonapi"}]}`
+	os.WriteFile(filepath.Join(tmp, ".atd.workspace"), []byte(wsContent), 0644)
+
+	err = LoadFromDirLegacy(projSpecific)
+	if err != nil {
+		t.Fatalf("LoadFromDirLegacy failed: %v", err)
+	}
+
+	if ActiveConfig.ActiveProject != "upsilonapi" {
+		t.Errorf("Expected active project 'upsilonapi', got '%s'", ActiveConfig.ActiveProject)
+	}
+}

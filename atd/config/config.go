@@ -298,20 +298,34 @@ func LoadFromDirLegacy(dir string) error {
 		ActiveConfig.Workspace = ws
 		// If we don't have an active project yet (e.g. no .atd found or not in project dir), find it
 		if ActiveConfig.ActiveProject == "" {
+			// Pick the most specific (longest-path) project that contains dir, not
+			// the first prefix match. Otherwise a project rooted at the workspace
+			// root (path ".", e.g. "shared") prefixes every dir and would always
+			// win, masking the real project dir lives in.
+			var bestName string
+			var bestProjPath string
+			bestLen := -1
 			for _, p := range ws.Projects {
 				absProjPath := p.Path
 				if !filepath.IsAbs(absProjPath) {
 					absProjPath = filepath.Join(ws.LoadedFrom, p.Path)
 				}
+				absProjPath = filepath.Clean(absProjPath)
 
 				rel, err := filepath.Rel(absProjPath, dir)
-				if err == nil && !strings.HasPrefix(rel, "..") {
-					ActiveConfig.ActiveProject = p.Name
-					// If we haven't loaded a config yet, use this project as root
-					if configPath == "" {
-						ActiveConfig.loadedFromDir = absProjPath
+				if err == nil && (rel == "." || !strings.HasPrefix(rel, "..")) {
+					if len(absProjPath) > bestLen {
+						bestName = p.Name
+						bestProjPath = absProjPath
+						bestLen = len(absProjPath)
 					}
-					break
+				}
+			}
+			if bestName != "" {
+				ActiveConfig.ActiveProject = bestName
+				// If we haven't loaded a config yet, use this project as root
+				if configPath == "" {
+					ActiveConfig.loadedFromDir = bestProjPath
 				}
 			}
 		}

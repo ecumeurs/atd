@@ -20,9 +20,25 @@ func TestDissect(t *testing.T) {
 }
 
 func TestAuditCode(t *testing.T) {
-	prompt := AuditCodeBuild("rule", "code")
-	if !strings.Contains(prompt, "rule") || !strings.Contains(prompt, "code") {
-		t.Error("Prompt missing rule or code")
+	atom := CuratedAuditAtom{
+		ID:          "rule_password_policy",
+		Type:        "RULE",
+		Layer:       "BUSINESS",
+		Intent:      "Passwords must be at least 12 characters",
+		Logic:       "Reject any password shorter than 12 characters at signup",
+		Expectation: "Signup returns a validation error for short passwords",
+	}
+	codeContent := "func ValidatePassword(pw string) bool { return len(pw) - 12 == 0 }"
+
+	prompt := AuditCodeBuild(PersonaTechLead, atom, codeContent)
+	if !strings.Contains(prompt, string(PersonaTechLead)) {
+		t.Error("Prompt missing persona")
+	}
+	if !strings.Contains(prompt, atom.Intent) || !strings.Contains(prompt, atom.Logic) {
+		t.Error("Prompt missing atom intent or logic")
+	}
+	if !strings.Contains(prompt, codeContent) {
+		t.Error("Prompt missing code content")
 	}
 
 	schema := AuditCodeFormat()
