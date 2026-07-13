@@ -91,4 +91,53 @@ func TestResolver(t *testing.T) {
 			t.Errorf("Expected [[projB:atom2]], got %s", canonical)
 		}
 	})
+
+	t.Run("StripKnownPrefixRetry", func(t *testing.T) {
+		r := NewResolver(ws, idx, "projA")
+		// "atom1" exists in projA; a bogus "requirement_atom1" reference should
+		// resolve by stripping the known "requirement" type/layer prefix.
+		parsed, err := r.Resolve("[[requirement_atom1]]")
+		if err != nil {
+			t.Fatalf("Expected strip-and-retry to resolve requirement_atom1, got %v", err)
+		}
+		if parsed.AtomID != "atom1" {
+			t.Errorf("Expected canonical AtomID atom1, got %s", parsed.AtomID)
+		}
+		if parsed.Type != ReferenceLocal {
+			t.Errorf("Expected ReferenceLocal, got %v", parsed.Type)
+		}
+	})
+
+	t.Run("StripKnownPrefixRetryCrossProject", func(t *testing.T) {
+		r := NewResolver(ws, idx, "projA")
+		// "atom2" lives in projB; "api_atom2" should strip "api" and resolve cross-project.
+		parsed, err := r.Resolve("[[api_atom2]]")
+		if err != nil {
+			t.Fatalf("Expected strip-and-retry to resolve api_atom2, got %v", err)
+		}
+		if parsed.AtomID != "atom2" {
+			t.Errorf("Expected canonical AtomID atom2, got %s", parsed.AtomID)
+		}
+		if parsed.Project != "projB" {
+			t.Errorf("Expected project projB, got %s", parsed.Project)
+		}
+	})
+
+	t.Run("UnknownPrefixStaysUnresolved", func(t *testing.T) {
+		r := NewResolver(ws, idx, "projA")
+		// "bogus" is not a known type/layer token, so no retry should happen
+		// and resolution should fail loudly.
+		_, err := r.Resolve("[[bogus_atom1]]")
+		if err != ErrAtomNotFound {
+			t.Errorf("Expected ErrAtomNotFound for unknown-prefix id, got %v", err)
+		}
+	})
+
+	t.Run("NoMatchEvenAfterStrip", func(t *testing.T) {
+		r := NewResolver(ws, idx, "projA")
+		_, err := r.Resolve("[[requirement_does_not_exist]]")
+		if err != ErrAtomNotFound {
+			t.Errorf("Expected ErrAtomNotFound when stripped id still doesn't exist, got %v", err)
+		}
+	})
 }

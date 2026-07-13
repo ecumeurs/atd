@@ -3,7 +3,6 @@ package webui
 import (
 	"encoding/json"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -277,7 +276,7 @@ func (s *Server) handleSearch(c *gin.Context) {
 	opts := exploration.SearchOptions{
 		Query:     query,
 		Grep:      grep,
-		DBPath:    filepath.Join(config.DocsDir(), ".atd_index.db"),
+		DBPath:    config.IndexDBPath(config.DocsDir()),
 		Limit:     10,
 		Scope:     "all",
 		Root:      config.ProjectRoot(),
@@ -483,7 +482,7 @@ func (s *Server) handleSearchDocumentContext(c *gin.Context) {
 
 	opts := exploration.SearchOptions{
 		Query:  req.Query,
-		DBPath: filepath.Join(config.DocsDir(), ".atd_index.db"),
+		DBPath: config.IndexDBPath(config.DocsDir()),
 		Limit:  5,
 		Scope:  "docs",
 	}

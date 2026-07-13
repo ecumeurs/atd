@@ -351,7 +351,7 @@ This tool takes no parameters — it indexes the entire project using the .atd c
 			"properties": map[string]any{},
 		},
 	}, func(args map[string]any) (string, error) {
-		db := config.DocsDir() + "/.atd_index.db"
+		db := config.IndexDBPath(config.DocsDir())
 		return captureStdout(func() error {
 			return runIndex(".", db, "all")
 		})
@@ -384,7 +384,7 @@ Use during PLAN stage to find related code or atoms by meaning, or to locate imp
 		if f, ok := limitRaw.(float64); ok {
 			limit = int(f)
 		}
-		db := config.DocsDir() + "/.atd_index.db"
+		db := config.IndexDBPath(config.DocsDir())
 		if grep != "" {
 			return captureStdout(func() error {
 				return runGrepSearch(grep, pathsOnly)

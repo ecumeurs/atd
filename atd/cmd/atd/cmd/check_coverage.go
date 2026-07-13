@@ -67,13 +67,22 @@ func runCoverageCheck(mode, atomID, filePath, docsDir string, full, semantic boo
 
 	case atomID != "":
 		mode = "atom"
-		atomIDs = []string{atomID}
+		canonicalID, resolveErr := explorer.CanonicalAtomID(atomID)
+		if resolveErr != nil {
+			if suggestion := explorer.SuggestAtomID(atomID); suggestion != "" {
+				return "", fmt.Errorf("atom '%s' not found in workspace (did you mean '%s'?)", atomID, suggestion)
+			}
+			return "", fmt.Errorf("atom '%s' not found in workspace", atomID)
+		}
+		atomIDs = []string{canonicalID}
 
 	case filePath != "":
 		mode = "file"
+		seen := make(map[string]bool)
 		for _, sl := range explorer.SpecLinks {
-			if sl.FilePath == filePath {
+			if sl.FilePath == filePath && !seen[sl.AtomID] {
 				atomIDs = append(atomIDs, sl.AtomID)
+				seen[sl.AtomID] = true
 			}
 		}
 

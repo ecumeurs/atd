@@ -2,6 +2,8 @@ upsilonbattle
 upsilon-hub
 .env
 *.db
+.atd_index.db
+**/.atd_index.db
 upsilon
 atd_management_skill/.agent/skills/atd/tools
 atd/bin/*

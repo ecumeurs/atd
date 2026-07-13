@@ -34,7 +34,7 @@ Files unchanged since last indexing are automatically skipped.`,
 			targetDir = "."
 		}
 		if dbPath == "" {
-			dbPath = filepath.Join(config.DocsDir(), ".atd_index.db")
+			dbPath = config.IndexDBPath(config.DocsDir())
 		}
 		return runIndex(targetDir, dbPath, mode)
 	},

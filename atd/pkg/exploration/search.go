@@ -3,6 +3,7 @@ package exploration
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,6 +15,17 @@ import (
 	"atd-tools/pkg/ollama"
 	_ "github.com/mattn/go-sqlite3"
 )
+
+// ErrIndexMissing indicates the semantic index for a project has not been
+// built (db file absent), is missing its schema (no atom_index table), or
+// is present but empty (0 rows). Callers must surface this loudly instead
+// of silently falling back to a grep search, since a missing index is a
+// setup problem the user can fix by running 'atd index'.
+var ErrIndexMissing = errors.New("no semantic index found for this project — run 'atd index' first")
+
+func isNoSuchTableErr(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "no such table")
+}
 
 type SearchResult struct {
 	FilePath   string  `json:"file_path"`
@@ -45,7 +57,16 @@ func Search(opts SearchOptions) ([]SearchResult, error) {
 	if opts.Query != "" {
 		results, err := SemanticSearch(opts.Query, opts.DBPath, opts.Limit, opts.Scope, "")
 		if err != nil {
-			// Fallback to grep search if semantic search fails (e.g. LLM provider offline)
+			if errors.Is(err, ErrIndexMissing) {
+				// Don't silently grep: a missing index is a setup problem,
+				// not a transient failure — surface it so the caller knows
+				// to run 'atd index'.
+				return nil, err
+			}
+			// Provider/embedding failure (e.g. Ollama offline): it's fine to
+			// fall back to a literal grep, but say so instead of returning
+			// a quiet, misleading result.
+			fmt.Printf("Notice: semantic search unavailable (%v) — falling back to keyword search\n\n", err)
 			return GrepSearch(opts.Query, opts.Root, "")
 		}
 		return results, nil
@@ -88,12 +109,16 @@ func WorkspaceSearch(opts SearchOptions) ([]SearchResult, error) {
 			projDocsPath = filepath.Join(absProjPath, projDocsPath)
 		}
 
-		projDBPath := filepath.Join(projDocsPath, ".atd_index.db")
+		projDBPath := config.IndexDBPath(projDocsPath)
 
 		// Search in this project
 		results, err := SemanticSearch(opts.Query, projDBPath, opts.Limit, opts.Scope, project.Name)
 		if err != nil {
-			// Fallback to grep if index missing
+			// A workspace search spans many projects; not every project is
+			// guaranteed to have a semantic index built, so we degrade to
+			// grep per-project rather than aborting the whole search — but
+			// we still say so instead of silently returning nothing.
+			fmt.Printf("Notice: semantic search unavailable for project %q (%v) — falling back to keyword search\n\n", project.Name, err)
 			results, _ = GrepSearch(opts.Query, projDocsPath, project.Name)
 		}
 		allResults = append(allResults, results...)
@@ -141,6 +166,18 @@ func GrepSearch(keyword, root, projectName string) ([]SearchResult, error) {
 }
 
 func SemanticSearch(query, dbPath string, limit int, scope, projectName string) ([]SearchResult, error) {
+	// Check the index exists BEFORE opening it — sql.Open+Query against a
+	// missing path silently creates a 0-byte SQLite file as a side effect,
+	// and doing so inside the project's working tree is exactly the
+	// artifact-leak this function must avoid. This also lets us short-circuit
+	// with a clear "run atd index" message without spending an embedding call.
+	if _, err := os.Stat(dbPath); err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrIndexMissing
+		}
+		return nil, fmt.Errorf("failed to access index db %s: %v", dbPath, err)
+	}
+
 	queryEmb, err := ollama.QueryEmbed(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to embed query: %v", err)
@@ -154,12 +191,17 @@ func SemanticSearch(query, dbPath string, limit int, scope, projectName string) 
 
 	rows, err := db.Query(`SELECT file_path, chunk_text, embedding FROM atom_index`)
 	if err != nil {
+		if isNoSuchTableErr(err) {
+			return nil, ErrIndexMissing
+		}
 		return nil, fmt.Errorf("failed to query DB: %v (Did you run 'atd index'?)", err)
 	}
 	defer rows.Close()
 
+	var totalRows int
 	var results []SearchResult
 	for rows.Next() {
+		totalRows++
 		var filePath, chunkText string
 		var embJSON []byte
 		if err := rows.Scan(&filePath, &chunkText, &embJSON); err != nil {
@@ -179,6 +221,13 @@ func SemanticSearch(query, dbPath string, limit int, scope, projectName string) 
 
 		sim := cosine.Similarity(queryEmb, chunkEmb)
 		results = append(results, SearchResult{filePath, chunkText, sim, projectName})
+	}
+
+	if totalRows == 0 {
+		// The table exists but nothing was ever indexed (or everything was
+		// purged) — treat this the same as a missing index rather than
+		// returning a quiet empty result.
+		return nil, ErrIndexMissing
 	}
 
 	sort.Slice(results, func(i, j int) bool {

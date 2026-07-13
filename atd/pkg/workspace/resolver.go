@@ -18,6 +18,46 @@ const (
 var ErrAtomNotFound = errors.New("atom not found")
 var ErrUnknownProject = errors.New("unknown project qualifier")
 
+// knownIDPrefixes lists leading underscore-delimited tokens that are ATD
+// type/layer words rather than part of an atom's actual id. When a bare id
+// fails to resolve, Resolve retries once with such a leading token stripped
+// (e.g. "requirement_req_ui_session_timeout" -> "req_ui_session_timeout").
+var knownIDPrefixes = map[string]bool{
+	"requirement": true,
+	"rule":        true,
+	"api":         true,
+	"mech":        true,
+	"mechanic":    true,
+	"ui":          true,
+	"entity":      true,
+	"module":      true,
+	"domain":      true,
+	"us":          true,
+	"usecase":     true,
+	"user_story":  true,
+	"vision":      true,
+	"contract":    true,
+	"workflow":    true,
+}
+
+// stripKnownPrefix removes a leading known type/layer token (e.g. "requirement_")
+// from a bare atom id, returning the stripped id and true if a prefix was found.
+func stripKnownPrefix(atomID string) (string, bool) {
+	idx := strings.Index(atomID, "_")
+	if idx <= 0 {
+		return atomID, false
+	}
+	token := atomID[:idx]
+	if !knownIDPrefixes[token] {
+		return atomID, false
+	}
+	rest := atomID[idx+1:]
+	if rest == "" {
+		return atomID, false
+	}
+	return rest, true
+}
+
 // ParsedReference represents a parsed [[atom_id]] or [[project:atom_id]].
 type ParsedReference struct {
 	Original string
@@ -110,33 +150,51 @@ func (r *Resolver) Resolve(ref string) (*ParsedReference, error) {
 		return parsed, ErrAtomNotFound
 	}
 
-	// Local reference - check current project first
-	if r.currentProject != "" {
-		if loc := r.index.FindAtomInProject(r.currentProject, parsed.AtomID); loc != nil {
+	// Local reference - check current project, shared root, then the rest of the workspace
+	if loc, project, refType, ok := r.resolveBareID(parsed.AtomID); ok {
+		parsed.Location = loc
+		parsed.Type = refType
+		parsed.Project = project
+		return parsed, nil
+	}
+
+	// Retry once with a leading known type/layer token stripped, e.g.
+	// "requirement_req_ui_session_timeout" -> "req_ui_session_timeout".
+	if stripped, hasPrefix := stripKnownPrefix(parsed.AtomID); hasPrefix {
+		if loc, project, refType, ok := r.resolveBareID(stripped); ok {
+			parsed.AtomID = stripped
 			parsed.Location = loc
-			parsed.Type = ReferenceLocal
+			parsed.Type = refType
+			parsed.Project = project
 			return parsed, nil
 		}
 	}
 
-	// Check shared/workspace root
-	if loc := r.index.FindAtomInWorkspaceRoot(parsed.AtomID); loc != nil {
-		parsed.Project = "shared"
-		parsed.Type = ReferenceCrossProject
-		parsed.Location = loc
-		return parsed, nil
-	}
-
-	// Search other projects in workspace
-	if loc := r.index.FindAtom(parsed.AtomID); loc != nil {
-		parsed.Project = loc.Project
-		parsed.Type = ReferenceCrossProject
-		parsed.Location = loc
-		return parsed, nil
-	}
-
 	parsed.Type = ReferenceUnresolved
 	return parsed, ErrAtomNotFound
+}
+
+// resolveBareID looks up a bare atom id across the current project, the
+// workspace root (shared docs), and then every other project in the
+// workspace. It returns the matched location, the project it classifies
+// under ("" for local, "shared" or a project name for cross-project), the
+// resulting reference type, and whether a match was found.
+func (r *Resolver) resolveBareID(atomID string) (*AtomLocation, string, ReferenceType, bool) {
+	if r.currentProject != "" {
+		if loc := r.index.FindAtomInProject(r.currentProject, atomID); loc != nil {
+			return loc, "", ReferenceLocal, true
+		}
+	}
+
+	if loc := r.index.FindAtomInWorkspaceRoot(atomID); loc != nil {
+		return loc, "shared", ReferenceCrossProject, true
+	}
+
+	if loc := r.index.FindAtom(atomID); loc != nil {
+		return loc, loc.Project, ReferenceCrossProject, true
+	}
+
+	return nil, "", ReferenceUnresolved, false
 }
 
 // CanonicalForm returns the canonical [[project:atom_id]] format if it's cross-project.

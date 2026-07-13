@@ -165,7 +165,7 @@ func runMapDiscover(filePath, fileContent, docsDir string) (string, error) {
 
 	if codeIntent != "IDE_FALLBACK_PENDING" {
 		fmt.Println("Embedding code intent for semantic search...")
-		dbPath := filepath.Join(docsDir, ".atd_index.db")
+		dbPath := config.IndexDBPath(docsDir)
 		results, err := exploration.Search(exploration.SearchOptions{
 			Query:     codeIntent,
 			DBPath:    dbPath,

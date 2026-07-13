@@ -411,8 +411,21 @@ func (e *Explorer) GetTestLinks() []TestLink {
 }
 
 func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
-	target, exists := e.Graph.Atoms[targetID]
-	if !exists {
+	// Resolve the requested id (bare, prefixed, or type/layer-prefixed) to its
+	// canonical form workspace-wide before lookup, so bare ids from other
+	// projects don't silently miss. On failure, fail loudly with a
+	// "did you mean" hint instead of returning an empty snapshot.
+	canonicalID, err := e.CanonicalAtomID(targetID)
+	if err != nil {
+		if suggestion := e.SuggestAtomID(targetID); suggestion != "" {
+			return nil, fmt.Errorf("atom '%s' not found (did you mean '%s'?)", targetID, suggestion)
+		}
+		return nil, fmt.Errorf("atom '%s' not found", targetID)
+	}
+	targetID = canonicalID
+
+	target, err := e.ResolveAtom(targetID)
+	if err != nil {
 		return nil, fmt.Errorf("atom not found: %s", targetID)
 	}
 
@@ -681,6 +694,66 @@ func (e *Explorer) Query(field, search string) []*atom.AtomData {
 		}
 	}
 	return matches
+}
+
+// CanonicalAtomID resolves a bare or already-prefixed atom id to the canonical
+// form used as the key for SpecLinks/TestLinks and DependencyGraph.Atoms
+// (e.g. "project:atom_id" for cross-project atoms, or the bare id for atoms
+// local to the current project). Unlike ResolveAtom, it does not require the
+// atom to already be loaded into the graph and never silently returns an
+// empty/zero result on failure.
+func (e *Explorer) CanonicalAtomID(refID string) (string, error) {
+	if e.Resolver != nil {
+		parsed, err := e.Resolver.Resolve(refID)
+		if err != nil {
+			return "", err
+		}
+		if parsed.Location != nil {
+			if parsed.Type == workspace.ReferenceCrossProject {
+				return fmt.Sprintf("%s:%s", parsed.Project, parsed.AtomID), nil
+			}
+			return parsed.AtomID, nil
+		}
+		return "", fmt.Errorf("atom '%s' not found", refID)
+	}
+
+	// No workspace/resolver available - fall back to direct graph membership.
+	if _, ok := e.Graph.Atoms[refID]; ok {
+		return refID, nil
+	}
+
+	return "", fmt.Errorf("atom '%s' not found", refID)
+}
+
+// SuggestAtomID looks for an atom elsewhere in the workspace whose bare id
+// matches the given id, for use in "did you mean" hints when CanonicalAtomID
+// fails to resolve a reference (e.g. a mistyped or missing project prefix).
+// Returns "" if no candidate is found.
+func (e *Explorer) SuggestAtomID(bareID string) string {
+	// Strip any project prefix the caller may have supplied, so we search by
+	// the bare atom id regardless of how it was originally qualified.
+	if idx := strings.LastIndex(bareID, ":"); idx >= 0 {
+		bareID = bareID[idx+1:]
+	}
+
+	if e.Index != nil {
+		if loc := e.Index.FindAtom(bareID); loc != nil {
+			if loc.Project != "" {
+				return fmt.Sprintf("%s:%s", loc.Project, bareID)
+			}
+			return bareID
+		}
+	}
+
+	// Fallback: scan whatever atoms are already loaded in the graph for a
+	// prefixed id whose suffix matches.
+	for id := range e.Graph.Atoms {
+		if idx := strings.LastIndex(id, ":"); idx >= 0 && id[idx+1:] == bareID {
+			return id
+		}
+	}
+
+	return ""
 }
 
 // ResolveAtom finds an atom by ID, supporting [[project:id]] syntax and workspace-wide search.

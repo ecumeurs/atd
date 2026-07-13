@@ -49,7 +49,7 @@ Grep mode performs a direct search on the filesystem.`,
 		}
 
 		if dbPath == "" {
-			dbPath = filepath.Join(config.DocsDir(), ".atd_index.db")
+			dbPath = config.IndexDBPath(config.DocsDir())
 		}
 
 		return runSemanticSearch(query, dbPath, limit, scope, pathsOnly)
@@ -84,6 +84,10 @@ func runSemanticSearch(query, dbPath string, limit int, scope string, pathsOnly 
 	}
 
 	fmt.Printf("--- Top %d Semantic Matches ---\n\n", limit)
+	if len(results) == 0 {
+		fmt.Println("(0 results)")
+		return nil
+	}
 	for i, res := range results {
 		fmt.Printf("[Match %d] File: %s (Similarity: %.4f)\n%s\n\n", i+1, res.FilePath, res.Similarity, res.ChunkText)
 	}

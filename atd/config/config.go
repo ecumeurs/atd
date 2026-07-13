@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -452,6 +454,32 @@ func GetVerifyDefaults(ext string) (string, string) {
 
 func ProjectRoot() string {
 	return ActiveConfig.loadedFromDir
+}
+
+// IndexDBPath returns the on-disk location of the semantic search index
+// database for the given docs directory. The index is stored under the
+// user's cache directory (XDG_CACHE_HOME, or ~/.cache as a fallback) rather
+// than inside the project's docs/ folder, so building or querying the index
+// never drops an artifact into the git working tree. The path is keyed by
+// the absolute docs directory so distinct projects (including per-project
+// docs dirs in a workspace) get distinct, stable index files.
+func IndexDBPath(docsDir string) string {
+	key := docsDir
+	if abs, err := filepath.Abs(docsDir); err == nil {
+		key = abs
+	}
+	sum := sha256.Sum256([]byte(key))
+	hash := hex.EncodeToString(sum[:])[:16]
+
+	cacheRoot := os.Getenv("XDG_CACHE_HOME")
+	if cacheRoot == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			home = "."
+		}
+		cacheRoot = filepath.Join(home, ".cache")
+	}
+	return filepath.Join(cacheRoot, "atd", hash, "index.db")
 }
 
 func DocsDirLegacy() string {
