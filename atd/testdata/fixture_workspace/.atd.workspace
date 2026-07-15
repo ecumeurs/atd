@@ -1,0 +1,7 @@
+{
+  "workspace_name": "zzfix_workspace",
+  "projects": [
+    { "name": "zzfix_a", "path": "./zzfix_a" },
+    { "name": "zzfix_b", "path": "./zzfix_b" }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "total_atoms": 9,
+  "by_type": {
+    "API": 1,
+    "CONTRACT": 1,
+    "MECHANIC": 2,
+    "REQUIREMENT": 3,
+    "RULE": 1,
+    "VISION": 1
+  },
+  "by_status": {
+    "DRAFT": 2,
+    "STABLE": 7
+  },
+  "by_layer": {
+    "ARCHITECTURE": 2,
+    "BUSINESS": 5,
+    "IMPLEMENTATION": 2
+  },
+  "coverage_ratio": 0.42857142857142855,
+  "candidate_coverage_ratio": 0.42857142857142855,
+  "orphan_count": 1,
+  "implemented_stable_count": 3,
+  "implemented_total_count": 3
+}
