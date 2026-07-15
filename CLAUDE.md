@@ -546,6 +546,27 @@ mcp__atd__atd_test_links(atom="implemented_feature")
 
 ---
 
+## Verifying Changes to the ATD Toolkit Itself (`atd/`)
+
+The ATD toolkit's Go code lives in **two separate Go modules**: `atd/` (module
+`atd-tools`) and the nested `atd/cmd/atd/` (module `atd`, its own `go.mod`).
+`go build ./...` / `go test ./...` run from `atd/` **only cover the first
+module** — the nested CLI module is invisible to them, `go.work` or not. This
+already shipped a five-error compile break in `cmd/atd` behind a "verified
+green" build.
+
+> [!IMPORTANT]
+> **"Green" means `make -C atd verify`, nothing less.** That target builds,
+> vets, and tests **both modules**, then asserts the working tree is
+> unchanged (the W-1 tripwire — a test run must never leave stray diffs, see
+> incident I-1). Partial verification — `go build ./...` from `atd/` alone,
+> or testing only one module — is **forbidden** as a basis for calling
+> anything green, for humans and agents alike. Use `make -C atd verify-race`
+> for the race-enabled variant. Never report work as verified without having
+> run this target.
+
+---
+
 ## Success Metrics
 
 ### What "Good ATD Usage" Looks Like
