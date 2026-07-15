@@ -9,7 +9,7 @@ tags: [atd, usecase, auditing, health]
 parents:
   - [[domain_atd_usage_protocol]]
 dependents: []
-layer: CUSTOMER
+layer: IMPLEMENTATION
 ---
 
 # Use Case: Full System Auditing

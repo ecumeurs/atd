@@ -9,7 +9,7 @@ tags: [atd, types, architecture]
 parents:
   - [[domain_atd_structure]]
 dependents: []
-layer: CUSTOMER
+layer: BUSINESS
 ---
 
 # Architectural Atoms: MODULE, SERVICE, ENTITY

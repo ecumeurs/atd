@@ -9,7 +9,7 @@ tags: [atd, cli, test, traceability, test-link]
 parents:
   - [[module_atd_cli]]
 dependents: []
-layer: CUSTOMER
+layer: ARCHITECTURE
 ---
 
 # ATD Test Links

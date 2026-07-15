@@ -2,7 +2,7 @@
 id: requirement_webui_platform
 status: DRAFT
 human_name: "Web UI and Spec Builder Platform"
-layer: CUSTOMER
+layer: BUSINESS
 version: 1.0
 priority: 5
 tags: [webui, spec-builder, platform, vision]

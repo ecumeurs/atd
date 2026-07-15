@@ -6,7 +6,7 @@ dependents:
   - [[api_webui_atd_router]]
   - [[rule_atd_atom_overrides]]
 human_name: WebUI Documentation Management
-layer: CUSTOMER
+layer: BUSINESS
 priority: 5
 version: 1.0
 parents: []

@@ -6,7 +6,7 @@ dependents:
   - [[mechanic_webui_document_generation]]
 human_name: Document Generation UI
 type: UI
-layer: CUSTOMER
+layer: ARCHITECTURE
 parents:
   - [[module_webui]]
 tags: [webui, modal, ui, documentation]

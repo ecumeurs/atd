@@ -3,7 +3,7 @@ id: requirement_webui_conversational_control
 status: DRAFT
 human_name: Conversational History Control
 type: REQUIREMENT
-layer: CUSTOMER
+layer: BUSINESS
 priority: 3
 parents:
   - [[requirement_webui_platform]]

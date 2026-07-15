@@ -9,7 +9,7 @@ tags: [atd, types, operations, requirements]
 parents:
   - [[domain_atd_structure]]
 dependents: []
-layer: CUSTOMER
+layer: BUSINESS
 ---
 
 # Operations and Requirement Atoms

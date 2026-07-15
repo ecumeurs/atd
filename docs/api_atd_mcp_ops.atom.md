@@ -13,7 +13,7 @@ dependents:
   - [[api_atd_serve_assemble]]
   - [[api_atd_serve_audit]]
   - [[api_atd_serve_crawl]]
-  - [[api_atd_serve_discover]]
+  - [[api_atd_serve_map]]
   - [[api_atd_serve_dissect]]
   - [[api_atd_serve_index]]
   - [[api_atd_serve_lint]]
@@ -25,7 +25,7 @@ dependents:
   - [[api_atd_serve_test_links]]
   - [[api_atd_serve_trace]]
   - [[api_atd_serve_update]]
-  - [[api_atd_serve_verify]]
+  - [[api_atd_serve_check]]
   - [[api_atd_serve_weave]]
   - [[service_atd_trace]]
 ---

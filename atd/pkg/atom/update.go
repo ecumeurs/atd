@@ -23,6 +23,10 @@ type UpdateOptions struct {
 	Expectation    string
 	SpecLinkID     string
 	SpecLinkFile   string
+	// Force bypasses the STABLE+BUSINESS governance guard (see ATD.md:329).
+	// Required to modify an existing atom whose current on-disk status is
+	// STABLE and whose layer is BUSINESS.
+	Force bool
 }
 
 // Update performs the update on an atom file.
@@ -46,15 +50,18 @@ func Update(opts UpdateOptions) (string, error) {
 	expectationText := resolveArg(opts.Expectation)
 
 	// Read original file
+	fileExists := true
 	content, err := os.ReadFile(opts.FilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
+			fileExists = false
 			content = []byte("---\nid: temp\nstatus: DRAFT\n---\n\n# New Atom\n\n## INTENT\n\n## THE RULE / LOGIC\n\n## TECHNICAL INTERFACE\n\n## EXPECTATION\n")
 		} else {
 			return "", fmt.Errorf("error reading file: %v", err)
 		}
 	}
 	if len(content) == 0 {
+		fileExists = false
 		content = []byte("---\nid: temp\nstatus: DRAFT\n---\n\n# New Atom\n\n## INTENT\n\n## THE RULE / LOGIC\n\n## TECHNICAL INTERFACE\n\n## EXPECTATION\n")
 	}
 
@@ -82,6 +89,22 @@ func Update(opts UpdateOptions) (string, error) {
 
 	if frontmatterEnd == -1 {
 		return "", fmt.Errorf("could not find valid YAML frontmatter in %s", opts.FilePath)
+	}
+
+	// Governance guard: STABLE BUSINESS atoms require heavy human sign-off to
+	// modify (ATD.md:329). Only applies to existing atoms whose CURRENT
+	// on-disk state is already STABLE+BUSINESS; new-file creation and
+	// DRAFT/REVIEW or non-BUSINESS atoms are unaffected.
+	if fileExists && !opts.Force {
+		currentStatus := frontmatterValue(frontmatterLines, "status")
+		currentLayer := frontmatterValue(frontmatterLines, "layer")
+		if strings.EqualFold(currentStatus, "STABLE") && strings.EqualFold(currentLayer, "BUSINESS") {
+			currentID := frontmatterValue(frontmatterLines, "id")
+			if currentID == "" {
+				currentID = strings.TrimSuffix(filepath.Base(opts.FilePath), ".atom.md")
+			}
+			return "", fmt.Errorf("refusing to modify STABLE BUSINESS atom '%s' without confirmation: this atom requires human sign-off (ATD.md governance). Re-run with --force (CLI) or force:true (MCP) to override.", currentID)
+		}
 	}
 
 	// Update frontmatter keys
@@ -318,6 +341,19 @@ func ApplySpecLink(id, file string) error {
 		return fmt.Errorf("failed to write %s: %v", file, err)
 	}
 	return nil
+}
+
+// frontmatterValue returns the trimmed value for a given top-level frontmatter
+// key (e.g. "status", "layer", "id") as found in the raw frontmatter lines,
+// or "" if the key is not present.
+func frontmatterValue(frontmatterLines []string, key string) string {
+	prefix := key + ":"
+	for _, line := range frontmatterLines {
+		if strings.HasPrefix(line, prefix) {
+			return strings.TrimSpace(strings.TrimPrefix(line, prefix))
+		}
+	}
+	return ""
 }
 
 func resolveArg(arg string) string {

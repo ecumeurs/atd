@@ -9,7 +9,7 @@ tags: [atd, usecase, coldstart, legacy]
 parents:
   - [[domain_atd_usage_protocol]]
 dependents: []
-layer: CUSTOMER
+layer: IMPLEMENTATION
 ---
 
 # Use Case: Cold Start with ATD

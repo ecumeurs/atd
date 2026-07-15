@@ -9,7 +9,7 @@ parents:
 dependents:
   - [[service_vscode_atd_ui]]
   - [[service_vscode_linker_features]]
-layer: CUSTOMER
+layer: ARCHITECTURE
 ---
 
 # VS Code ATD Linker

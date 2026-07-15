@@ -210,7 +210,11 @@ func Parse(path string) (AtomData, error) {
 				mode = "expectation"
 				continue
 			}
-			if strings.HasPrefix(line, "##") {
+			// Only an H2 ("## ") starts a new section. H3+ subheadings ("### Description",
+			// "### Input Schema", …) are content WITHIN the current section — matching them
+			// here would silently drop everything after the first subheading, which is why
+			// atoms using ### subsections previously parsed with empty INTERFACE/EXPECTATION.
+			if strings.HasPrefix(line, "## ") {
 				mode = "sections" // some other section
 				continue
 			}

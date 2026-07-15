@@ -9,7 +9,7 @@ tags: [atd, types, logic, rules]
 parents:
   - [[domain_atd_structure]]
 dependents: []
-layer: CUSTOMER
+layer: BUSINESS
 ---
 
 # Logic Atoms: RULE, MECHANIC, DOMAIN

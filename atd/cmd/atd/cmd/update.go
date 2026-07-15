@@ -27,6 +27,7 @@ and prepending @spec-link tags to source files.`,
 		expectationArg, _ := cmd.Flags().GetString("expectation")
 		setArgs, _ := cmd.Flags().GetStringSlice("set")
 		specLinkArgs, _ := cmd.Flags().GetStringSlice("spec-link")
+		force, _ := cmd.Flags().GetBool("force")
 
 		var specLinkID, specLinkFile string
 		if len(specLinkArgs) == 2 {
@@ -40,7 +41,7 @@ and prepending @spec-link tags to source files.`,
 			if filePath != "" {
 				return fmt.Errorf("cannot use both --file and --filter")
 			}
-			text, err := runBatchUpdate(filterArg, setArgs, intentArg, logicArg, interfaceArg, expectationArg, specLinkID, specLinkFile)
+			text, err := runBatchUpdate(filterArg, setArgs, intentArg, logicArg, interfaceArg, expectationArg, specLinkID, specLinkFile, force)
 			if err != nil {
 				return err
 			}
@@ -48,7 +49,7 @@ and prepending @spec-link tags to source files.`,
 			return nil
 		}
 
-		text, err := runUpdate(filePath, setArgs, intentArg, logicArg, interfaceArg, expectationArg, specLinkID, specLinkFile)
+		text, err := runUpdate(filePath, setArgs, intentArg, logicArg, interfaceArg, expectationArg, specLinkID, specLinkFile, force)
 		if err != nil {
 			return err
 		}
@@ -57,7 +58,9 @@ and prepending @spec-link tags to source files.`,
 	},
 }
 
-func runBatchUpdate(filter string, setArgs []string, intentArg, logicArg, interfaceArg, expectationArg, specLinkID, specLinkFile string) (string, error) {
+// force is variadic so existing callers that don't yet pass an explicit
+// confirmation flag keep compiling and default to no-force (guard enforced).
+func runBatchUpdate(filter string, setArgs []string, intentArg, logicArg, interfaceArg, expectationArg, specLinkID, specLinkFile string, force ...bool) (string, error) {
 	filters := make(map[string]string)
 	for _, part := range strings.Split(filter, ",") {
 		kv := strings.SplitN(part, "=", 2)
@@ -118,7 +121,7 @@ func runBatchUpdate(filter string, setArgs []string, intentArg, logicArg, interf
 	errorCount := 0
 
 	for _, file := range targetFiles {
-		res, err := runUpdate(file, setArgs, intentArg, logicArg, interfaceArg, expectationArg, specLinkID, specLinkFile)
+		res, err := runUpdate(file, setArgs, intentArg, logicArg, interfaceArg, expectationArg, specLinkID, specLinkFile, force...)
 		if err != nil {
 			results = append(results, fmt.Sprintf("Error updating %s: %v", file, err))
 			errorCount++
@@ -132,7 +135,13 @@ func runBatchUpdate(filter string, setArgs []string, intentArg, logicArg, interf
 	return strings.Join(results, "\n") + summary, nil
 }
 
-func runUpdate(filePath string, setArgs []string, intentArg, logicArg, interfaceArg, expectationArg, specLinkID, specLinkFile string) (string, error) {
+// force is variadic so existing callers that don't yet pass an explicit
+// confirmation flag keep compiling and default to no-force (guard enforced).
+func runUpdate(filePath string, setArgs []string, intentArg, logicArg, interfaceArg, expectationArg, specLinkID, specLinkFile string, force ...bool) (string, error) {
+	forceFlag := false
+	if len(force) > 0 {
+		forceFlag = force[0]
+	}
 	opts := atom.UpdateOptions{
 		FilePath:       filePath,
 		SetArgs:        setArgs,
@@ -142,6 +151,7 @@ func runUpdate(filePath string, setArgs []string, intentArg, logicArg, interface
 		Expectation:    expectationArg,
 		SpecLinkID:     specLinkID,
 		SpecLinkFile:   specLinkFile,
+		Force:          forceFlag,
 	}
 	return atom.Update(opts)
 }
@@ -156,4 +166,5 @@ func init() {
 	updateCmd.Flags().String("expectation", "", "New content for ## EXPECTATION section (use '-' for stdin)")
 	updateCmd.Flags().StringSlice("set", []string{}, "Set frontmatter key=value (can be used multiple times)")
 	updateCmd.Flags().StringSlice("spec-link", []string{}, "Inbound ID and source file to tag: --spec-link <id> <file>")
+	updateCmd.Flags().Bool("force", false, "Override the STABLE+BUSINESS governance guard and confirm the modification")
 }

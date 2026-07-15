@@ -9,7 +9,7 @@ tags: [atd, usecase, sync, linkage]
 parents:
   - [[domain_atd_usage_protocol]]
 dependents: []
-layer: CUSTOMER
+layer: IMPLEMENTATION
 ---
 
 # Use Case: Syncing Code and Documentation

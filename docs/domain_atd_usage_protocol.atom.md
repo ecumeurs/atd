@@ -14,7 +14,7 @@ dependents:
   - [[usage_atd_use_case_code_sync]]
   - [[usage_atd_use_case_cold_start]]
   - [[usage_atd_use_case_impact_analysis]]
-layer: CUSTOMER
+layer: BUSINESS
 ---
 
 # ATD Usage Protocol

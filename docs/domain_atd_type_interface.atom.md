@@ -9,7 +9,7 @@ tags: [atd, types, api, ui]
 parents:
   - [[domain_atd_structure]]
 dependents: []
-layer: CUSTOMER
+layer: BUSINESS
 ---
 
 # Interface Atoms: API, UI

@@ -13,6 +13,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// canonicalAtomTypes is the union of every atom type ATD.md sanctions: the 11
+// consolidated types from §1.3 (plus the USER_STORY synonyms USECASE/WORKFLOW)
+// and the additional "typical types" named in the §1.5 layer sections
+// (SERVICE/DATA/BUILD/USAGE/SPECIFICATION). Kept deliberately permissive so lint
+// flags only genuine typos/garbage, not the SERVICE/USAGE-vs-§1.3 tension, which
+// is a spec-reconciliation decision rather than a per-atom defect.
+var canonicalAtomTypes = map[string]bool{
+	"CONTRACT": true, "VISION": true, "REQUIREMENT": true, "USER_STORY": true,
+	"USECASE": true, "WORKFLOW": true, "RULE": true, "DOMAIN": true,
+	"MECHANIC": true, "MODULE": true, "ENTITY": true, "API": true, "UI": true,
+	"SERVICE": true, "DATA": true, "BUILD": true, "USAGE": true, "SPECIFICATION": true,
+}
+
 // @spec-link [[mechanic_atd_lint]]
 var lintCmd = &cobra.Command{
 	Use:   "lint [dir]",
@@ -58,7 +71,9 @@ func runLint(dir string) (string, error) {
 
 	var errors []string
 	explorer := exploration.NewExplorer(config.ProjectRoot(), config.DocsDir())
-	_ = explorer.Load(false)
+	if err := explorer.Load(false); err != nil {
+		return "", fmt.Errorf("failed to load explorer: %w", err)
+	}
 
 	for _, a := range atoms {
 		var atomErrors []string
@@ -72,6 +87,8 @@ func runLint(dir string) (string, error) {
 		}
 		if a.Type == "" {
 			atomErrors = append(atomErrors, "Missing mandatory field: type")
+		} else if !canonicalAtomTypes[strings.ToUpper(strings.TrimSpace(a.Type))] {
+			atomErrors = append(atomErrors, fmt.Sprintf("Non-canonical type: %s (see ATD.md §1.3/§1.5)", a.Type))
 		}
 		if a.Layer == "" {
 			atomErrors = append(atomErrors, "Missing mandatory field: layer")
@@ -160,6 +177,45 @@ func runLint(dir string) (string, error) {
 			for _, errStr := range atomErrors {
 				errors = append(errors, "  - "+errStr)
 			}
+		}
+	}
+
+	// Project governance (§1.4): a project must have exactly ONE CONTRACT and one
+	// VISION atom. Uniqueness (>1) is always a violation. Presence is required
+	// only once the corpus contains at least one BUSINESS-layer atom, since
+	// CONTRACT/VISION exist to gate BUSINESS-layer evolution — an architecture- or
+	// implementation-only fixture is legitimately exempt.
+	var contractCount, visionCount, businessCount int
+	for _, a := range atoms {
+		switch strings.ToUpper(strings.TrimSpace(a.Type)) {
+		case "CONTRACT":
+			contractCount++
+		case "VISION":
+			visionCount++
+		}
+		if strings.ToUpper(strings.TrimSpace(a.Layer)) == "BUSINESS" {
+			businessCount++
+		}
+	}
+	var govErrors []string
+	if contractCount > 1 {
+		govErrors = append(govErrors, fmt.Sprintf("Multiple CONTRACT atoms (%d); exactly one required (ATD.md §1.4)", contractCount))
+	}
+	if visionCount > 1 {
+		govErrors = append(govErrors, fmt.Sprintf("Multiple VISION atoms (%d); exactly one required (ATD.md §1.4)", visionCount))
+	}
+	if businessCount > 0 {
+		if contractCount == 0 {
+			govErrors = append(govErrors, "Missing CONTRACT atom (ATD.md §1.4: exactly one required per project with BUSINESS atoms)")
+		}
+		if visionCount == 0 {
+			govErrors = append(govErrors, "Missing VISION atom (ATD.md §1.4: exactly one required per project with BUSINESS atoms)")
+		}
+	}
+	if len(govErrors) > 0 {
+		errors = append(errors, "[PROJECT GOVERNANCE]")
+		for _, e := range govErrors {
+			errors = append(errors, "  - "+e)
 		}
 	}
 

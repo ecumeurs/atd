@@ -12,7 +12,7 @@ dependents:
   - [[domain_atd_usage_protocol]]
   - [[module_atd_cli]]
   - [[requirement_webui_platform]]
-layer: CUSTOMER
+layer: BUSINESS
 ---
 
 # ATD Philosophy

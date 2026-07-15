@@ -1,7 +1,7 @@
 ---
 id: requirement_webui_force_weave
 status: DRAFT
-layer: CUSTOMER
+layer: BUSINESS
 version: 1.0
 human_name: Force Weave via WebUI
 type: REQUIREMENT

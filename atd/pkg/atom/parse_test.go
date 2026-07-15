@@ -3,6 +3,7 @@ package atom
 import (
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -70,6 +71,65 @@ With a rule.
 	}
 	if data.Interface != "- Interface 1" {
 		t.Errorf("Interface mismatch. Got: %s", data.Interface)
+	}
+}
+
+// TestParseSectionWithSubheadings guards against the H3-swallow bug: an atom whose
+// ## sections contain ### subheadings (### Description, ### Input Schema, …) must
+// retain the full section content. Previously the generic "##"-prefix boundary check
+// treated ### lines as section terminators, dropping INTERFACE/EXPECTATION content.
+func TestParseSectionWithSubheadings(t *testing.T) {
+	content := `---
+id: sub_atom
+human_name: Sub Atom
+type: API
+layer: ARCHITECTURE
+version: 1.0
+status: STABLE
+priority: 5
+---
+
+# Sub Atom
+
+## INTENT
+The intent.
+
+## TECHNICAL INTERFACE (The Bridge)
+### Description
+Does a thing.
+
+### Input Schema
+field: string
+
+## EXPECTATION (For Testing)
+### Given
+a request
+
+### Then
+a response
+`
+	tmpfile, err := os.CreateTemp("", "test_sub*.atom.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+	if _, err := tmpfile.Write([]byte(content)); err != nil {
+		t.Fatal(err)
+	}
+	tmpfile.Close()
+
+	data, err := Parse(tmpfile.Name())
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	if data.Interface == "" {
+		t.Error("Interface section dropped — H3 subheading swallowed the section content")
+	}
+	if !strings.Contains(data.Interface, "Does a thing.") || !strings.Contains(data.Interface, "### Input Schema") {
+		t.Errorf("Interface missing subheading content. Got: %q", data.Interface)
+	}
+	if data.Expectation == "" || !strings.Contains(data.Expectation, "a response") {
+		t.Errorf("Expectation section dropped or truncated. Got: %q", data.Expectation)
 	}
 }
 

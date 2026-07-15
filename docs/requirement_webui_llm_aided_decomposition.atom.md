@@ -2,7 +2,7 @@
 id: requirement_webui_llm_aided_decomposition
 status: DRAFT
 human_name: LLM Aided Decomposition
-layer: CUSTOMER
+layer: BUSINESS
 version: 1.0
 priority: 3
 parents:

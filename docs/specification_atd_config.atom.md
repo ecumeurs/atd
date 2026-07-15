@@ -11,7 +11,7 @@ parents:
 dependents:
   - [[service_atd_serve_config]]
   - [[service_atd_tiered_provider]]
-layer: CUSTOMER
+layer: ARCHITECTURE
 ---
 
 # ATD Configuration Schema

@@ -16,7 +16,7 @@ dependents:
   - [[domain_atd_usage_protocol]]
   - [[rule_atd_naming_convention]]
   - [[rule_webui_health_classification]]
-layer: CUSTOMER
+layer: BUSINESS
 ---
 
 # ATD File Structure

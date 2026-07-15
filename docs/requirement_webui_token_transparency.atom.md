@@ -8,7 +8,7 @@ priority: 3
 version: 1.0
 dependents: []
 type: REQUIREMENT
-layer: CUSTOMER
+layer: BUSINESS
 ---
 
 # New Atom

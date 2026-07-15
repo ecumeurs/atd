@@ -2,7 +2,7 @@
 id: requirement_webui_completion_audit
 status: DRAFT
 human_name: WebUI Completion Audit
-layer: CUSTOMER
+layer: BUSINESS
 version: 1.0
 priority: 3
 parents:
