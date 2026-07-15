@@ -16,8 +16,9 @@ SHELL := /bin/bash
 ROOT       := $(CURDIR)
 CMD_MODULE := $(CURDIR)/cmd/atd
 MODULES    := $(ROOT) $(CMD_MODULE)
+REPO_ROOT  := $(abspath $(ROOT)/..)
 
-.PHONY: verify verify-race tripwire
+.PHONY: verify verify-race tripwire dogfood dogfood-quick dogfood-update-baseline
 
 verify:
 	@set -e; \
@@ -42,3 +43,41 @@ verify-race:
 # incident I-1, §2.1).
 tripwire:
 	@test -z "$$(git status --porcelain)" || (echo "!! tripwire: working tree changed during verify !!"; git diff; git status --porcelain; exit 1)
+
+# WP-3 dogfood gate (test_atd_07_26.md §3.4, §6): ATD's own docs/ corpus is
+# the best integration test the toolkit will ever have, and it should be
+# wired in, not eyeballed. This target builds the real binary, smoke-tests
+# `atd check --full` against the repo's docs/ (must not crash/error -- see
+# E3/E5), and runs the two `dogfood`-tagged Go tests that ratchet `atd lint`
+# and the S6 corpus-parse-audit (E4, the H3-swallow bug) against the
+# checked-in baseline (testdata/dogfood_baseline.txt): pre-existing authoring
+# debt does not fail the gate, any NEW finding does.
+dogfood:
+	@set -e; \
+	echo "==> [dogfood] building atd binary"; \
+	mkdir -p $(ROOT)/bin; \
+	(cd $(CMD_MODULE) && go build -o $(ROOT)/bin/atd .); \
+	echo "==> [dogfood] atd check --full smoke test against $(REPO_ROOT)/docs"; \
+	(cd $(REPO_ROOT) && $(ROOT)/bin/atd check --full >/dev/null); \
+	echo "==> [dogfood] lint ratchet (TestDogfoodLintRatchet)"; \
+	(cd $(CMD_MODULE) && go test -tags dogfood ./cmd/... -run TestDogfoodLintRatchet -v); \
+	echo "==> [dogfood] S6 corpus parse audit (TestDogfoodCorpusParseAudit)"; \
+	(cd $(ROOT) && go test -tags dogfood ./pkg/atom/... -run TestDogfoodCorpusParseAudit -v)
+
+# Fast subset for the pre-commit hook: the lint ratchet only -- pure file
+# parsing plus link resolution against the already-loaded config, no binary
+# build, no whole-project `check --full` walk. Keep this fast; it runs on
+# every commit that stages an atom file.
+dogfood-quick:
+	@cd $(CMD_MODULE) && go test -tags dogfood ./cmd/... -run TestDogfoodLintRatchet
+
+# Conscious ratchet-down (or, when reviewed, ratchet-tighten): regenerates
+# testdata/dogfood_baseline.txt to mirror current reality for both
+# categories. Never runs implicitly -- run `make dogfood` first, read what's
+# new or fixed, and only then run this to accept it into the baseline.
+dogfood-update-baseline:
+	@set -e; \
+	echo "==> [dogfood] regenerating baseline (lint)"; \
+	(cd $(CMD_MODULE) && ATD_DOGFOOD_UPDATE=1 go test -tags dogfood ./cmd/... -run TestDogfoodLintRatchet -v); \
+	echo "==> [dogfood] regenerating baseline (S6 corpus)"; \
+	(cd $(ROOT) && ATD_DOGFOOD_UPDATE=1 go test -tags dogfood ./pkg/atom/... -run TestDogfoodCorpusParseAudit -v)

@@ -52,6 +52,25 @@ if [ "$FAIL" -eq 1 ]; then
   exit 1
 fi
 
+# Dogfood gate (test_atd_07_26.md §3.4, WP-3): if this checkout carries the
+# ATD toolkit's own Makefile with a dogfood-quick target, run the fast
+# lint-ratchet subset whenever an atom is staged. This is a no-op (skipped
+# silently) in any downstream project that only installed this hook via
+# 'atd init'/'atd init --upgrade' and doesn't have atd/Makefile at all -- the
+# hook stays generic; only ATD's own repo dogfoods itself here. Kept fast on
+# purpose: it is pure file parsing plus link resolution against the already
+# staged docs corpus, no binary build and no full 'check --full' walk (that
+# full gate is 'make -C atd dogfood', a manual/CI step).
+if [ -f "atd/Makefile" ] && grep -q '^dogfood-quick:' atd/Makefile; then
+  echo "🔍 Running ATD dogfood gate (quick)..."
+  if ! make -C atd dogfood-quick; then
+    echo "🛑 Dogfood gate failed (new lint finding vs. atd/testdata/dogfood_baseline.txt)."
+    echo "   Run 'make -C atd dogfood' for the full report, fix the atom, or if it is"
+    echo "   genuinely pre-existing/accepted debt: 'make -C atd dogfood-update-baseline'."
+    exit 1
+  fi
+fi
+
 echo "✅ ATD Check Passed."
 exit 0
 `
