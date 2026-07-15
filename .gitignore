@@ -18,3 +18,5 @@ webui/webui_bin
 # cwd-anchored config leak once let `atd map --new` write here during
 # `go test`, and the result got committed to main. Never allow it back.
 atd/cmd/atd/cmd/pipeline_output/
+# Agent worktree infrastructure
+.claude/
