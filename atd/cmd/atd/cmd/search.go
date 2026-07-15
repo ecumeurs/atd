@@ -4,12 +4,12 @@ package cmd
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"atd-tools/config"
 	"atd-tools/pkg/exploration"
 	"atd-tools/pkg/ollama"
 	"github.com/spf13/cobra"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 var searchCmd = &cobra.Command{
@@ -45,18 +45,29 @@ Grep mode performs a direct search on the filesystem.`,
 		}
 
 		if keyword != "" {
-			return runGrepSearch(keyword, pathsOnly)
+			out, err := runGrepSearch(keyword, pathsOnly)
+			if err != nil {
+				return err
+			}
+			fmt.Println(out)
+			return nil
 		}
 
 		if dbPath == "" {
 			dbPath = config.IndexDBPath(config.DocsDir())
 		}
 
-		return runSemanticSearch(query, dbPath, limit, scope, pathsOnly)
+		out, err := runSemanticSearch(query, dbPath, limit, scope, pathsOnly)
+		if err != nil {
+			return err
+		}
+		fmt.Println(out)
+		return nil
 	},
 }
 
-func runSemanticSearch(query, dbPath string, limit int, scope string, pathsOnly bool) error {
+func runSemanticSearch(query, dbPath string, limit int, scope string, pathsOnly bool) (string, error) {
+	var output strings.Builder
 	opts := exploration.SearchOptions{
 		Query:  query,
 		DBPath: dbPath,
@@ -65,7 +76,7 @@ func runSemanticSearch(query, dbPath string, limit int, scope string, pathsOnly 
 	}
 	results, err := exploration.Search(opts)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if pathsOnly {
@@ -78,30 +89,32 @@ func runSemanticSearch(query, dbPath string, limit int, scope string, pathsOnly 
 			uniquePaths[abs] = true
 		}
 		for path := range uniquePaths {
-			fmt.Println(path)
+			output.WriteString(path)
+			output.WriteString("\n")
 		}
-		return nil
+		return output.String(), nil
 	}
 
-	fmt.Printf("--- Top %d Semantic Matches ---\n\n", limit)
+	output.WriteString(fmt.Sprintf("--- Top %d Semantic Matches ---\n\n", limit))
 	if len(results) == 0 {
-		fmt.Println("(0 results)")
-		return nil
+		output.WriteString("(0 results)\n")
+		return output.String(), nil
 	}
 	for i, res := range results {
-		fmt.Printf("[Match %d] File: %s (Similarity: %.4f)\n%s\n\n", i+1, res.FilePath, res.Similarity, res.ChunkText)
+		output.WriteString(fmt.Sprintf("[Match %d] File: %s (Similarity: %.4f)\n%s\n\n", i+1, res.FilePath, res.Similarity, res.ChunkText))
 	}
-	return nil
+	return output.String(), nil
 }
 
-func runGrepSearch(keyword string, pathsOnly bool) error {
+func runGrepSearch(keyword string, pathsOnly bool) (string, error) {
+	var output strings.Builder
 	opts := exploration.SearchOptions{
 		Grep: keyword,
 		Root: config.ProjectRoot(),
 	}
 	results, err := exploration.Search(opts)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if pathsOnly {
@@ -114,16 +127,17 @@ func runGrepSearch(keyword string, pathsOnly bool) error {
 			uniquePaths[abs] = true
 		}
 		for path := range uniquePaths {
-			fmt.Println(path)
+			output.WriteString(path)
+			output.WriteString("\n")
 		}
-		return nil
+		return output.String(), nil
 	}
 
 	for _, res := range results {
-		fmt.Printf("Grep: Found match in %s\n", res.FilePath)
+		output.WriteString(fmt.Sprintf("Grep: Found match in %s\n", res.FilePath))
 	}
-	fmt.Printf("Sweeping complete. Found %d matches for '%s'.\n", len(results), keyword)
-	return nil
+	output.WriteString(fmt.Sprintf("Sweeping complete. Found %d matches for '%s'.\n", len(results), keyword))
+	return output.String(), nil
 }
 
 func init() {

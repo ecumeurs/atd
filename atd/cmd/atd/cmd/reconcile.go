@@ -1,11 +1,12 @@
 package cmd
-// @spec-link [[mechanic_atd_reconcile]]
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
+	"atd-tools/pkg/llmservice"
 	"atd-tools/pkg/ollama"
 	"atd-tools/pkg/pipeline"
 	"atd-tools/pkg/prompt"
@@ -38,29 +39,31 @@ Returns a JSON mapping of proposed IDs to their relationship with existing atoms
 		requestPrompt := prompt.ReconcileBuild(string(storeContent), string(inboundContent))
 
 		resp, err := ollama.Query("code_analysis", requestPrompt, prompt.ReconcileFormat())
-		if err == ollama.ErrIDEFallback {
-			taskList, _ := pipeline.WriteTaskList("reconcile --new "+newPath, []pipeline.PendingTask{
-				{
-					PromptFile:   "reconcile.prompt",
-					ResultFile:   "reconcile.result",
-					Instruction:  "reconcile inbound edits with existing store",
-					OutputSchema: `[{"proposed_id": string, "relationship": "UPDATE|CONFLICT|NEW", "change_context": string}]`,
-				},
-			})
-			pipeline.WritePromptFile("reconcile.prompt", requestPrompt)
-			fmt.Printf("Task delegated to IDE Agent: %s\n", taskList)
-			return nil
-		}
 		if err != nil {
+			if errors.Is(err, ollama.ErrIDEFallback) {
+				pipeline.WritePromptFile("reconcile.prompt", requestPrompt)
+				tasks := []pipeline.PendingTask{
+					{
+						PromptFile:   "reconcile.prompt",
+						ResultFile:   "reconcile.result",
+						Instruction:  "reconcile inbound edits with existing store",
+						OutputSchema: `[{"proposed_id": string, "relationship": "UPDATE|CONFLICT|NEW", "change_context": string}]`,
+					},
+				}
+				msg, delegateErr := llmservice.HandleIDEFallback(err, "reconcile --new "+newPath, tasks, "")
+				if delegateErr != nil {
+					return delegateErr
+				}
+				fmt.Println(msg)
+				return nil
+			}
 			return fmt.Errorf("ollama query failed: %v", err)
 		}
 
-		// Validate JSON output
 		var result struct {
 			Diffs []interface{} `json:"diffs"`
 		}
 		if err := json.Unmarshal([]byte(resp.Response), &result); err != nil {
-			// If not strictly matching the expected object, try raw slice as fallback
 			var rawSlice []interface{}
 			if errS := json.Unmarshal([]byte(resp.Response), &rawSlice); errS == nil {
 				beauty, _ := json.MarshalIndent(rawSlice, "", "  ")

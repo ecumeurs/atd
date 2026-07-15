@@ -38,7 +38,7 @@ type EmbeddingRequest struct {
 
 // EmbeddingResponse is the Ollama /api/embeddings response.
 type EmbeddingResponse struct {
-	Embedding []float64 `json:"embedding"`
+	Embedding []float32 `json:"embedding"`
 }
 
 // TagsResponse is the Ollama /api/tags response.
@@ -86,7 +86,7 @@ func Generate(baseURL, model, prompt string, format interface{}, opts *Options) 
 }
 
 // Embed sends an embedding request to an Ollama endpoint.
-func Embed(baseURL, model, text string) ([]float64, error) {
+func Embed(baseURL, model, text string) ([]float32, error) {
 	req := EmbeddingRequest{
 		Model:  model,
 		Prompt: text,

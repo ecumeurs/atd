@@ -1,13 +1,13 @@
 package cmd
 
-// @spec-link [[service_atd_trace]]
-
 import (
 	"atd-tools/pkg/exploration"
+	"atd-tools/pkg/llmservice"
 	"atd-tools/pkg/ollama"
 	"atd-tools/pkg/pipeline"
 	"atd-tools/pkg/prompt"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -94,21 +94,26 @@ func runTrace(targetID, docsDir, srcPath string, summary bool) (string, error) {
 		}
 
 		tracePrompt := prompt.TraceSummaryBuild(ctx)
-		
+
 		resp, queryErr := ollama.Query("trace_summary", tracePrompt, prompt.TraceSummaryFormat())
-		if queryErr == ollama.ErrIDEFallback {
-			promptFile := "trace_summary_" + targetID
-			pipeline.WritePromptFile(promptFile, tracePrompt)
-			pipeline.WriteTaskList("trace --summary "+targetID, []pipeline.PendingTask{
-				{
-					PromptFile:   promptFile + ".prompt",
-					ResultFile:   promptFile + ".result",
-					Instruction:  "Generate a narrative trace summary",
-					OutputSchema: `{"summary": "string"}`,
-				},
-			})
-			return fmt.Sprintf("LLM provider unavailable. Prompt generated: %s.prompt\nRun with result file to complete.", promptFile), nil
-		} else if queryErr != nil {
+		if queryErr != nil {
+			if errors.Is(queryErr, ollama.ErrIDEFallback) {
+				promptFile := "trace_summary_" + targetID
+				pipeline.WritePromptFile(promptFile, tracePrompt)
+				tasks := []pipeline.PendingTask{
+					{
+						PromptFile:   promptFile + ".prompt",
+						ResultFile:   promptFile + ".result",
+						Instruction:  "Generate a narrative trace summary",
+						OutputSchema: `{"summary": "string"}`,
+					},
+				}
+				msg, delegateErr := llmservice.HandleIDEFallback(queryErr, "trace --summary "+targetID, tasks, "")
+				if delegateErr != nil {
+					return "", delegateErr
+				}
+				return msg, nil
+			}
 			return "", queryErr
 		}
 

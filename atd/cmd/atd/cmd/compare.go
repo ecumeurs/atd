@@ -1,15 +1,15 @@
 package cmd
-// @spec-link [[mechanic_atd_compare]]
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"atd-tools/pkg/atom"
+	"atd-tools/pkg/llmservice"
 	"atd-tools/pkg/ollama"
-	"atd-tools/pkg/pipeline"
 	"atd-tools/pkg/prompt"
 	"github.com/spf13/cobra"
 )
@@ -86,12 +86,16 @@ func runCompare(aPath, bPath, outPath string) error {
 
 	var resolution string
 	resp, err := ollama.Query("text_generation", requestPrompt, prompt.CompareFormat())
-	if err == ollama.ErrIDEFallback {
-		promptName := fmt.Sprintf("compare_%s_%s", atomA.ID, atomB.ID)
-		pipeline.WritePromptFile(promptName, requestPrompt)
-		resolution = "_(Resolution pending in task_list — IDE Fallback)_"
-	} else if err != nil {
-		resolution = fmt.Sprintf("_(LLM error: %v)_", err)
+	if err != nil {
+		if errors.Is(err, ollama.ErrIDEFallback) {
+			msg, delegateErr := llmservice.HandleSimpleIDEFallback(err, fmt.Sprintf("compare --a %s --b %s", atomA.ID, atomB.ID), requestPrompt, "markdown resolution explanation")
+			if delegateErr != nil {
+				return delegateErr
+			}
+			resolution = msg
+		} else {
+			resolution = fmt.Sprintf("_(LLM error: %v)_", err)
+		}
 	} else {
 		resolution = resp.Response
 	}

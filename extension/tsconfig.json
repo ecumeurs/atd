@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es6",
+    "outDir": "out",
+    "lib": ["es6"],
+    "sourceMap": true,
+    "rootDir": ".",
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node", "vscode"],
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": ["extension.js"],
+  "exclude": ["node_modules"]
+}

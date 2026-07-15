@@ -89,7 +89,7 @@ func TestUpdateLinks(t *testing.T) {
 	
 	// Create a file that references another
 	refPath := filepath.Join(tmpDir, "ref.atom.md")
-	refContent := "---\nid: ref_atom\nparents: \n  - [[old_id]]\n---\nSee [[old_id]] for details."
+	refContent := "---\nid: ref_atom\nparents: \n  - [[module_my_new_module]]\n---\nSee [[module_my_new_module]] for details."
 	os.WriteFile(refPath, []byte(refContent), 0644)
 
 	// Create the atom to be renamed
@@ -106,7 +106,7 @@ func TestUpdateLinks(t *testing.T) {
 	if !strings.Contains(string(updatedRef), "[[new_id]]") {
 		t.Errorf("Link not updated in ref file:\n%s", string(updatedRef))
 	}
-	if strings.Contains(string(updatedRef), "[[old_id]]") {
+	if strings.Contains(string(updatedRef), "[[module_my_new_module]]") {
 		t.Error("Old link still present in ref file")
 	}
 }

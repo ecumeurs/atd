@@ -1,14 +1,15 @@
 package cmd
-// @spec-link [[mechanic_atd_dissect]]
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"atd-tools/config"
+	"atd-tools/pkg/llmservice"
 	"atd-tools/pkg/ollama"
 	"atd-tools/pkg/pipeline"
 	"atd-tools/pkg/prompt"
@@ -42,37 +43,34 @@ func runDissect(target string, useLLM bool) (string, error) {
 		return p, nil
 	}
 
-	// --llm: route through tiered provider
 	resp, err := ollama.Query("code_analysis", p, prompt.DissectFormat())
-	if err == ollama.ErrIDEFallback {
-		basename := strings.TrimSuffix(filepath.Base(target), filepath.Ext(target))
-		promptName := "dissect_" + basename
-		resultFile := promptName + ".result"
-
-		promptPath, writeErr := pipeline.WritePromptFile(promptName, p)
-		if writeErr != nil {
-			return "", fmt.Errorf("failed to write prompt file: %v", writeErr)
-		}
-
-		tasks := []pipeline.PendingTask{
-			{
-				PromptFile:   promptPath,
-				ResultFile:   resultFile,
-				Instruction:  "analyze the document, output JSON atom boundaries",
-				OutputSchema: `{"atoms": [{"id": "string", "responsibility": "string", "line_range": [int, int]}]}`,
-			},
-		}
-
-		taskListPath, writeErr := pipeline.WriteTaskList("atd dissect", tasks)
-		if writeErr != nil {
-			return "", fmt.Errorf("failed to write task list: %v", writeErr)
-		}
-
-		msg := fmt.Sprintf("Task delegated to IDE Agent.\nSee: %s", taskListPath)
-		config.Log("atd-dissect", fmt.Sprintf("Delegated dissect of %s to IDE Agent", filepath.Base(target)))
-		return msg, nil
-	}
 	if err != nil {
+		if errors.Is(err, ollama.ErrIDEFallback) {
+			basename := strings.TrimSuffix(filepath.Base(target), filepath.Ext(target))
+			promptName := "dissect_" + basename
+			resultFile := promptName + ".result"
+
+			promptPath, writeErr := pipeline.WritePromptFile(promptName, p)
+			if writeErr != nil {
+				return "", fmt.Errorf("failed to write prompt file: %v", writeErr)
+			}
+
+			tasks := []pipeline.PendingTask{
+				{
+					PromptFile:   promptPath,
+					ResultFile:   resultFile,
+					Instruction:  "analyze the document, output JSON atom boundaries",
+					OutputSchema: `{"atoms": [{"id": "string", "responsibility": "string", "line_range": [int, int]}]}`,
+				},
+			}
+
+			msg, delegateErr := llmservice.HandleIDEFallback(err, "atd dissect", tasks, "")
+			if delegateErr != nil {
+				return "", delegateErr
+			}
+			config.Log("atd-dissect", fmt.Sprintf("Delegated dissect of %s to IDE Agent", filepath.Base(target)))
+			return msg, nil
+		}
 		return "", fmt.Errorf("LLM query failed: %v", err)
 	}
 

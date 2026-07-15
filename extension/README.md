@@ -21,8 +21,8 @@ Current: **1.0.2** - Adds Rename Atom feature
 Since this is a development extension, you can install it manually by creating a symlink in your extensions directory:
 
 ```bash
-mkdir -p ~/.antigravity/extensions/
-ln -s "$PWD/extension" "$HOME/.antigravity/extensions/local-dev.atd-linker"
+mkdir -p ~/.vscode/extensions/
+ln -s "$PWD/extension" "$HOME/.vscode/extensions/local-dev.atd-linker"
 ```
 
 ## Devcontainer Integration
@@ -35,7 +35,7 @@ To use this extension within a Devcontainer, add the following to your `.devcont
         "local-dev.atd-linker"
     ],
     "mounts": [
-        "source=${localEnv:HOME}/.antigravity/extensions,target=/home/vscode/.vscode-server/extensions,type=bind,consistency=cached"
+        "source=${localEnv:HOME}/.vscode/extensions,target=/home/vscode/.vscode-server/extensions,type=bind,consistency=cached"
     ]
 }
 ```

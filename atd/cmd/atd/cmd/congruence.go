@@ -1,7 +1,7 @@
 package cmd
-// @spec-link [[mechanic_atd_congruence]]
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"atd-tools/config"
+	"atd-tools/pkg/llmservice"
 	"atd-tools/pkg/ollama"
 	"atd-tools/pkg/pipeline"
 	"atd-tools/pkg/prompt"
@@ -123,20 +124,24 @@ Checks parents, dependents, and tag-siblings for contradictions in their INTENT 
 
 		// 4. Resolve and Query
 		resp, err := ollama.Query("code_analysis", requestPrompt, prompt.CongruenceFormat())
-		if err == ollama.ErrIDEFallback {
-			taskList, _ := pipeline.WriteTaskList("congruence --target "+targetAtom, []pipeline.PendingTask{
-				{
-					PromptFile:   "congruence_" + targetAtom + ".prompt",
-					ResultFile:   "congruence_" + targetAtom + ".result",
-					Instruction:  "audit logical consistency between atoms",
-					OutputSchema: "markdown table",
-				},
-			})
-			pipeline.WritePromptFile("congruence_"+targetAtom+".prompt", requestPrompt)
-			fmt.Printf("Task delegated to IDE Agent: %s\n", taskList)
-			return nil
-		}
 		if err != nil {
+			if errors.Is(err, ollama.ErrIDEFallback) {
+				pipeline.WritePromptFile("congruence_"+targetAtom+".prompt", requestPrompt)
+				tasks := []pipeline.PendingTask{
+					{
+						PromptFile:   "congruence_" + targetAtom + ".prompt",
+						ResultFile:   "congruence_" + targetAtom + ".result",
+						Instruction:  "audit logical consistency between atoms",
+						OutputSchema: "markdown table",
+					},
+				}
+				msg, delegateErr := llmservice.HandleIDEFallback(err, "congruence --target "+targetAtom, tasks, "")
+				if delegateErr != nil {
+					return delegateErr
+				}
+				fmt.Println(msg)
+				return nil
+			}
 			return fmt.Errorf("ollama query failed: %v", err)
 		}
 

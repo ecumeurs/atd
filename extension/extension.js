@@ -17,6 +17,18 @@ function activate(context) {
     context.subscriptions.push(outputChannel);
     outputChannel.appendLine("[ATD Linker] Extension activation started.");
 
+    async function runAtd(args) {
+        const { stdout, stderr } = await cp.spawn('atd', args, {
+            cwd: workspaceRoot
+        });
+        const output = await new Promise((resolve) => {
+            stdout.on('data', (data) => resolve(data.toString()));
+            stderr.on('data', () => resolve(''));
+        });
+        if (stderr) outputChannel.appendLine(`stderr: ${stderr}`);
+        return JSON.parse(output);
+    }
+
     let docsPath = '';
     let workspaceConfig = null;
     let activeProject = null;
@@ -187,8 +199,7 @@ function activate(context) {
 
             const atomId = idMatch[1];
             try {
-                const { stdout } = await execAsync(`atd trace ${atomId}`, { cwd: workspaceRoot });
-                const traceData = JSON.parse(stdout);
+                const traceData = await runAtd(['trace', atomId]);
 
                 const implPercent = Math.round(traceData.health_summary.implementation_rate * 100);
                 const testPercent = Math.round(traceData.health_summary.test_coverage_rate * 100);
@@ -253,7 +264,9 @@ function activate(context) {
         outputChannel.appendLine(`[ATD Rename] Renaming ${currentID} to ${trimmedID}`);
 
         try {
-            await execAsync(`atd update --file "${activeEditor.document.fileName}" --set id=${trimmedID}`, { cwd: workspaceRoot });
+            await cp.spawn('atd', ['update', '--file', activeEditor.document.fileName, '--set', `id=${trimmedID}`], {
+                cwd: workspaceRoot
+            });
             outputChannel.appendLine(`[ATD Rename] Success: atom file updated`);
 
             // Trigger weave to update parent/dependent relationships
@@ -310,8 +323,7 @@ function activate(context) {
 
             let traceData = null;
             try {
-                const { stdout } = await execAsync(`atd trace ${atomId}`, { cwd: workspaceRoot });
-                traceData = JSON.parse(stdout);
+                traceData = await runAtd(['trace', atomId]);
             } catch (e) { }
 
             const md = new vscode.MarkdownString();
@@ -385,8 +397,7 @@ function activate(context) {
                 item.description = childMeta ? childMeta.layer : 'Unknown';
 
                 try {
-                    const { stdout } = await execAsync(`atd trace ${id}`, { cwd: workspaceRoot });
-                    const trace = JSON.parse(stdout);
+                    const trace = await runAtd(['trace', id]);
                     if (trace.health_summary.implementation_rate === 1 && trace.health_summary.test_coverage_rate === 1) {
                         item.iconPath = new vscode.ThemeIcon('pass');
                     } else {
@@ -409,16 +420,8 @@ function activate(context) {
     }
 
     const atdGraphProvider = new ATDGraphProvider();
-    vscode.window.registerTreeDataProvider('atdGraphExplorer', atdGraphProvider);
+    const treeDisposable = vscode.window.registerTreeDataProvider('atdGraphExplorer', atdGraphProvider);
 
-    // Update Sidebar when active editor changes
-    vscode.window.onDidChangeActiveTextEditor(editor => {
-        if (editor && editor.document.fileName.endsWith('.atom.md')) {
-            const fileName = path.basename(editor.document.fileName);
-            const atomId = fileName.replace('.atom.md', '');
-            atdGraphProvider.refresh(atomId);
-        }
-    });
     // @spec-link [[mechanic_vscode_webview_graph]]
     // 6. ATOM NEIGHBORHOOD GRAPH (WEBVIEW)
     let graphPanel = undefined; // Track the open panel
@@ -439,7 +442,8 @@ function activate(context) {
                 vscode.ViewColumn.Beside, // Open beside the current editor
                 {
                     enableScripts: true,
-                    retainContextWhenHidden: true // Keeps the graph loaded when switching tabs
+                    retainContextWhenHidden: true, // Keeps the graph loaded when switching tabs
+                    localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'node_modules', 'vis-network', 'standalone', 'umd')]
                 }
             );
 
@@ -458,14 +462,18 @@ function activate(context) {
 
         try {
             // Fetch new trace data for the newly opened file
-            const { stdout } = await execAsync(`atd trace ${atomId}`, { cwd: workspaceRoot });
+            const traceData = await runAtd(['trace', atomId]);
 
             // Re-inject the HTML with the new data
+            const visNetworkUri = graphPanel.webview.asWebviewUri(
+                vscode.Uri.joinPath(context.extensionUri, 'node_modules', 'vis-network', 'standalone', 'umd', 'vis-network.min.js')
+            );
+
             graphPanel.webview.html = `
                 <!DOCTYPE html>
                 <html lang="en">
                 <head>
-                    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+                    <script type="text/javascript" src="${visNetworkUri}"></script>
                     <style type="text/css">
                         body { margin: 0; padding: 0; background: var(--vscode-editor-background); color: var(--vscode-editor-foreground); font-family: sans-serif; }
                         #mynetwork { width: 100vw; height: 100vh; }
@@ -479,7 +487,7 @@ function activate(context) {
                     </div>
                     <div id="mynetwork"></div>
                     <script type="text/javascript">
-                        const traceData = ${stdout};
+                        const traceData = ${JSON.stringify(traceData)};
                         
                         const nodes = new vis.DataSet();
                         const edges = new vis.DataSet();
@@ -537,7 +545,7 @@ function activate(context) {
                 </html>
             `;
         } catch (e) {
-            graphPanel.webview.html = `<div style="padding: 20px;"><h1>Error generating graph</h1><p>${e.message}</p></div>`;
+            graphPanel.webview.html = `<div style="padding: 20px;"><h1>Error generating graph</h1><p>${e.message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p></div>`;
         }
     };
 
@@ -548,7 +556,7 @@ function activate(context) {
 
     // 7. UNIFIED EDITOR CHANGE LISTENER
     // This watches for tab changes and updates both the Sidebar and the Webview!
-    vscode.window.onDidChangeActiveTextEditor(editor => {
+    const editorListenerDisposable = vscode.window.onDidChangeActiveTextEditor(editor => {
         if (editor && editor.document.fileName.endsWith('.atom.md')) {
             const atomId = path.basename(editor.document.fileName, '.atom.md');
 
@@ -567,7 +575,7 @@ function activate(context) {
 
 
     context.subscriptions.push(
-        watcher, wsWatcher, codeLensProvider, hoverProvider, linkProvider, definitionProvider,
+        treeDisposable, editorListenerDisposable, watcher, wsWatcher, codeLensProvider, hoverProvider, linkProvider, definitionProvider,
         showDetailsCommand, renameAtomCommand, switchProjectCommand, showGraphCommand
     );
 }

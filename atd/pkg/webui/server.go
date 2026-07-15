@@ -23,6 +23,15 @@ type Server struct {
 
 // NewServer creates a new WebUI server.
 func NewServer(devMode bool, staticPath string) *Server {
+	return NewServerWithConfig(devMode, staticPath, &config.ActiveConfig)
+}
+
+// NewServerWithConfig creates a new WebUI server with the provided config.
+func NewServerWithConfig(devMode bool, staticPath string, cfg *config.Config) *Server {
+	if cfg == nil {
+		cfg = &config.ActiveConfig
+	}
+	
 	// Load .env if it exists (for GEMINI_API_KEY)
 	if err := godotenv.Load(); err != nil {
 		log.Printf("Warning: .env file not found, relying on environment variables")
@@ -33,7 +42,7 @@ func NewServer(devMode bool, staticPath string) *Server {
 		Engine:     r,
 		DevMode:    devMode,
 		StaticPath: staticPath,
-		explorer:   exploration.NewExplorer("", ""),
+		explorer:   exploration.NewExplorerWithConfig("", "", cfg),
 	}
 
 	s.setupRoutes()
@@ -65,8 +74,9 @@ func (s *Server) setupRoutes() {
 }
 
 func (s *Server) Start() error {
-	host := config.ActiveConfig.WebUI.Host
-	port := config.ActiveConfig.WebUI.Port
+	cfg := config.ActiveConfig
+	host := cfg.WebUI.Host
+	port := cfg.WebUI.Port
 	if port == 0 {
 		port = 8080
 	}

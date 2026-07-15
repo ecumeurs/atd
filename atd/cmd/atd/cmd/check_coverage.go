@@ -3,349 +3,11 @@ package cmd
 // @spec-link [[service_atd_check_coverage]]
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
-
-	"atd-tools/config"
-	"atd-tools/pkg/exploration"
-	"atd-tools/pkg/ollama"
-	"atd-tools/pkg/pipeline"
-	"atd-tools/pkg/prompt"
+	"atd-tools/pkg/coverage"
 	"github.com/spf13/cobra"
 )
-
-// CheckAtomRow is one row in the per-atom coverage report.
-type CheckAtomRow struct {
-	AtomID    string `json:"atom_id"`
-	ImplLinks int    `json:"impl_links"`
-	TestLinks int    `json:"test_links"`
-	Semantic  string `json:"semantic"` // "PASS" | "FAIL" | "PENDING" | "-"
-	Resolution string `json:"resolution,omitempty"`
-	Status    string `json:"status"` // "OK" | "NO_IMPL" | "NO_TESTS" | "SEMANTIC_FAIL"
-}
-
-// CheckSummary aggregates coverage counts.
-type CheckSummary struct {
-	Total        int `json:"total"`
-	WithImpl     int `json:"with_impl"`
-	WithTests    int `json:"with_tests"`
-	SemanticPass int `json:"semantic_pass"`
-	SemanticFail int `json:"semantic_fail"`
-}
-
-// CheckReport is the full output of atd check.
-type CheckReport struct {
-	Mode    string         `json:"mode"`
-	Rows    []CheckAtomRow `json:"rows"`
-	Summary CheckSummary   `json:"summary"`
-}
-
-// runCoverageCheck is the entry point for atd check.
-func runCoverageCheck(mode, atomID, filePath, docsDir string, full, semantic bool, gitArgs []string) (string, error) {
-	if docsDir == "" {
-		docsDir = config.DocsDir()
-	}
-
-	explorer := exploration.NewExplorer(config.ProjectRoot(), docsDir)
-	if err := explorer.Load(false); err != nil {
-		return "", fmt.Errorf("failed to load ATD graph: %v", err)
-	}
-
-	var atomIDs []string
-
-	switch {
-	case full:
-		mode = "full"
-		for id := range explorer.Graph.Atoms {
-			atomIDs = append(atomIDs, id)
-		}
-
-	case atomID != "":
-		mode = "atom"
-		canonicalID, resolveErr := explorer.CanonicalAtomID(atomID)
-		if resolveErr != nil {
-			if suggestion := explorer.SuggestAtomID(atomID); suggestion != "" {
-				return "", fmt.Errorf("atom '%s' not found in workspace (did you mean '%s'?)", atomID, suggestion)
-			}
-			return "", fmt.Errorf("atom '%s' not found in workspace", atomID)
-		}
-		atomIDs = []string{canonicalID}
-
-	case filePath != "":
-		mode = "file"
-		seen := make(map[string]bool)
-		for _, sl := range explorer.SpecLinks {
-			if sl.FilePath == filePath && !seen[sl.AtomID] {
-				atomIDs = append(atomIDs, sl.AtomID)
-				seen[sl.AtomID] = true
-			}
-		}
-
-	default:
-		mode = "diff"
-		codeFiles, atomFiles, err := diffChangedFiles(gitArgs)
-		if err != nil {
-			return "", err
-		}
-		seen := make(map[string]bool)
-
-		codeSet := make(map[string]bool)
-		for _, f := range codeFiles {
-			codeSet[f] = true
-		}
-		for _, sl := range explorer.SpecLinks {
-			if codeSet[sl.FilePath] && !seen[sl.AtomID] {
-				atomIDs = append(atomIDs, sl.AtomID)
-				seen[sl.AtomID] = true
-			}
-		}
-
-		// Atom files changed: also include their IDs for forward coverage check
-		for _, af := range atomFiles {
-			id := strings.TrimSuffix(filepath.Base(af), ".atom.md")
-			if !seen[id] {
-				atomIDs = append(atomIDs, id)
-				seen[id] = true
-			}
-		}
-	}
-
-	if len(atomIDs) == 0 {
-		return "No atoms found for the specified scope.", nil
-	}
-
-	report, err := buildCoverageReport(mode, atomIDs, explorer, semantic)
-	if err != nil {
-		return "", err
-	}
-
-	return formatCheckReport(report), nil
-}
-
-// buildCoverageReport computes impl/test/semantic coverage for the given atom IDs.
-func buildCoverageReport(mode string, atomIDs []string, explorer *exploration.Explorer, semantic bool) (*CheckReport, error) {
-	report := &CheckReport{Mode: mode}
-
-	implByAtom := make(map[string][]exploration.SpecLink)
-	for _, sl := range explorer.SpecLinks {
-		implByAtom[sl.AtomID] = append(implByAtom[sl.AtomID], sl)
-	}
-	testByAtom := make(map[string][]exploration.TestLink)
-	for _, tl := range explorer.TestLinks {
-		testByAtom[tl.AtomID] = append(testByAtom[tl.AtomID], tl)
-	}
-
-	for _, id := range atomIDs {
-		implLinks := implByAtom[id]
-		testLinks := testByAtom[id]
-
-		row := CheckAtomRow{
-			AtomID:    id,
-			ImplLinks: len(implLinks),
-			TestLinks: len(testLinks),
-			Semantic:  "-",
-		}
-
-		switch {
-		case row.ImplLinks == 0:
-			row.Status = "NO_IMPL"
-		case row.TestLinks == 0:
-			row.Status = "NO_TESTS"
-		default:
-			row.Status = "OK"
-		}
-
-		if semantic && len(implLinks) > 0 {
-			atomData, err := explorer.ResolveAtom(id)
-			if err == nil {
-				// Determine Persona
-				persona := prompt.PersonaTechLead
-				if atomData.Layer == "BUSINESS" {
-					persona = prompt.PersonaPM
-				}
-
-				// Curate context
-				curated := prompt.CuratedAuditAtom{
-					ID:          atomData.ID,
-					Type:        atomData.Type,
-					Layer:       atomData.Layer,
-					Intent:      atomData.Intent,
-					Logic:       atomData.Logic,
-					Expectation: atomData.Expectation,
-				}
-
-				sl := implLinks[0]
-				snippet, _ := getSnippet(sl.FilePath, sl.Line, 30)
-				auditPrompt := prompt.AuditCodeBuild(persona, curated, snippet)
-				resp, queryErr := ollama.Query("code_analysis", auditPrompt, prompt.AuditCodeFormat())
-
-				if queryErr == nil && resp != nil {
-					fmt.Fprintf(os.Stderr, "[DEBUG] LLM Response: %s\n", resp.Response)
-				}
-
-				if queryErr == ollama.ErrIDEFallback {
-					row.Semantic = "PENDING"
-					pipeline.WritePromptFile("check_semantic_"+id, auditPrompt)
-					pipeline.WriteTaskList("check --semantic --atom "+id, []pipeline.PendingTask{
-						{
-							PromptFile:   "check_semantic_" + id + ".prompt",
-							ResultFile:   "check_semantic_" + id + ".result",
-							Instruction:  "validate if code implements atom",
-							OutputSchema: `{"passed": bool, "resolutionMessage": "string"}`,
-						},
-					})
-				} else if queryErr == nil {
-					var rawResult map[string]interface{}
-					if json.Unmarshal([]byte(resp.Response), &rawResult) == nil {
-						if msg, ok := rawResult["resolutionMessage"].(string); ok {
-							row.Resolution = msg
-						} else if msg, ok := rawResult["resolution_message"].(string); ok {
-							row.Resolution = msg
-						} else if msg, ok := rawResult["message"].(string); ok {
-							row.Resolution = msg
-						}
-
-						passed := false
-						if p, ok := rawResult["passed"].(bool); ok {
-							passed = p
-						}
-
-						if passed {
-							row.Semantic = "PASS"
-						} else {
-							row.Semantic = "FAIL"
-							row.Status = "SEMANTIC_FAIL"
-						}
-					}
-				}
-			}
-		}
-
-		report.Rows = append(report.Rows, row)
-		report.Summary.Total++
-		if row.ImplLinks > 0 {
-			report.Summary.WithImpl++
-		}
-		if row.TestLinks > 0 {
-			report.Summary.WithTests++
-		}
-		if row.Semantic == "PASS" {
-			report.Summary.SemanticPass++
-		}
-		if row.Semantic == "FAIL" {
-			report.Summary.SemanticFail++
-		}
-	}
-
-	return report, nil
-}
-
-// diffChangedFiles runs git diff and splits results into code files and atom files.
-//
-// Both git and the `--name-only` output must be anchored at the project that
-// owns the code (config.ProjectRoot()), not at the process cwd: under the MCP
-// server, cwd is often the umbrella workspace root while ProjectRoot is a git
-// submodule, and running plain `git diff` there either sees the wrong repo or
-// returns paths relative to the wrong base. SpecLink.FilePath (see
-// exploration.go) is always stored relative to ProjectRoot, so the paths
-// returned here are rebased onto that same root before being handed back.
-func diffChangedFiles(gitArgs []string) (codeFiles, atomFiles []string, err error) {
-	root := config.ProjectRoot()
-
-	args := append([]string{"-C", root, "diff", "--name-only"}, gitArgs...)
-
-	cmd := exec.Command("git", args...)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	if runErr := cmd.Run(); runErr != nil {
-		return nil, nil, fmt.Errorf("git diff failed: %v", runErr)
-	}
-
-	// git -C <root> resolves paths relative to the toplevel of the repo that
-	// contains <root>, which may not be <root> itself (e.g. root is a
-	// submodule of an umbrella repo). Rebase onto root when they differ.
-	toplevel, tlErr := gitToplevel(root)
-
-	for _, line := range strings.Split(strings.TrimSpace(out.String()), "\n") {
-		if line == "" {
-			continue
-		}
-
-		relLine := line
-		if tlErr == nil && toplevel != "" && toplevel != root {
-			abs := filepath.Join(toplevel, line)
-			rel, relErr := filepath.Rel(root, abs)
-			if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-				// Outside ProjectRoot (e.g. a change in a sibling submodule) — skip.
-				continue
-			}
-			relLine = rel
-		}
-
-		if strings.HasSuffix(relLine, ".atom.md") {
-			atomFiles = append(atomFiles, relLine)
-		} else {
-			codeFiles = append(codeFiles, relLine)
-		}
-	}
-	return codeFiles, atomFiles, nil
-}
-
-// gitToplevel returns the toplevel directory of the git repository that
-// contains root, i.e. the base that `git -C root diff --name-only` paths are
-// relative to.
-func gitToplevel(root string) (string, error) {
-	cmd := exec.Command("git", "-C", root, "rev-parse", "--show-toplevel")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("git rev-parse --show-toplevel failed: %v", err)
-	}
-	return strings.TrimSpace(out.String()), nil
-}
-
-// formatCheckReport renders a CheckReport as a text table.
-func formatCheckReport(r *CheckReport) string {
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("# ATD Coverage Report (mode: %s)\n\n", r.Mode))
-
-	sb.WriteString(fmt.Sprintf("%-50s %6s %6s %9s %14s\n", "Atom ID", "Impl", "Tests", "Semantic", "Status"))
-	sep := strings.Repeat("-", 90) + "\n"
-	sb.WriteString(sep)
-
-	for _, row := range r.Rows {
-		sb.WriteString(fmt.Sprintf("%-50s %6d %6d %9s %14s\n",
-			row.AtomID, row.ImplLinks, row.TestLinks, row.Semantic, row.Status))
-	}
-
-	sb.WriteString(sep)
-	sb.WriteString(fmt.Sprintf("\nSummary: %d atoms | %d with impl | %d with tests",
-		r.Summary.Total, r.Summary.WithImpl, r.Summary.WithTests))
-	if r.Summary.SemanticPass+r.Summary.SemanticFail > 0 {
-		sb.WriteString(fmt.Sprintf(" | semantic: %d pass / %d fail",
-			r.Summary.SemanticPass, r.Summary.SemanticFail))
-	}
-	sb.WriteString("\n")
-
-	// Print details for semantic failures
-	hasFailures := false
-	for _, row := range r.Rows {
-		if row.Semantic == "FAIL" && row.Resolution != "" {
-			if !hasFailures {
-				sb.WriteString("\n--- Semantic Failure Details ---\n")
-				hasFailures = true
-			}
-			sb.WriteString(fmt.Sprintf("[%s]: %s\n", row.AtomID, row.Resolution))
-		}
-	}
-
-	return sb.String()
-}
 
 var coverageCheckCmd = &cobra.Command{
 	Use:   "check",
@@ -370,21 +32,31 @@ Pass --semantic to also run LLM compliance checks per @spec-link (slow).`,
 
 		mode := "diff"
 
-		text, err := runCoverageCheck(mode, atomID, filePath, docsDir, full, semantic, args)
+		report, err := coverage.GenerateReport(mode, atomID, filePath, docsDir, full, semantic, args)
 		if err != nil {
 			return err
 		}
 
 		if outPath != "" {
-			if err := os.WriteFile(outPath, []byte(text), 0644); err != nil {
+			if err := os.WriteFile(outPath, []byte(report.Text), 0644); err != nil {
 				return fmt.Errorf("failed to write report to %s: %v", outPath, err)
 			}
 			fmt.Printf("Coverage report written to %s\n", outPath)
 		} else {
-			fmt.Print(text)
+			fmt.Print(report.Text)
 		}
 		return nil
 	},
+}
+
+// runCoverageCheck is the shared entry point for the MCP handlers (atd_check,
+// atd_test_links); it returns the same report text the CLI prints.
+func runCoverageCheck(mode, atomID, filePath, docsDir string, full, semantic bool, gitArgs []string) (string, error) {
+	report, err := coverage.GenerateReport(mode, atomID, filePath, docsDir, full, semantic, gitArgs)
+	if err != nil {
+		return "", err
+	}
+	return report.Text, nil
 }
 
 func init() {

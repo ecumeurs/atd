@@ -31,12 +31,16 @@ var (
 
 // ResolveProvider determines which provider and model to use for a given task type.
 func ResolveProvider(taskType string) (Resolution, error) {
-	return ResolveProviderEx(taskType, false)
+	return ResolveProviderWithConfig(taskType, &config.ActiveConfig, false)
 }
 
-// ResolveProviderEx is like ResolveProvider but allows forcing a refresh of the cache.
-func ResolveProviderEx(taskType string, force bool) (Resolution, error) {
-	cfg := config.ActiveConfig.LLM
+// ResolveProviderWithConfig is like ResolveProvider but accepts a config parameter.
+func ResolveProviderWithConfig(taskType string, cfg *config.Config, force bool) (Resolution, error) {
+	if cfg == nil {
+		cfg = &config.ActiveConfig
+	}
+	
+	llmConfig := cfg.LLM
 	candidateModels := config.ModelForTask(taskType)
 
 	type providerModels struct {
@@ -47,7 +51,7 @@ func ResolveProviderEx(taskType string, force bool) (Resolution, error) {
 	var providersToTry []providerModels
 
 	// 1. Gather all providers and their available models (with caching)
-	for _, provider := range cfg.Providers {
+	for _, provider := range llmConfig.Providers {
 		if provider.Type == "passthrough" {
 			continue
 		}
@@ -60,8 +64,8 @@ func ResolveProviderEx(taskType string, force bool) (Resolution, error) {
 		var offline bool
 		var err error
 
-		healthTTL := time.Duration(cfg.HealthTTLs) * time.Millisecond
-		modelTTL := time.Duration(cfg.ModelTTLs) * time.Millisecond
+		healthTTL := time.Duration(llmConfig.HealthTTLs) * time.Millisecond
+		modelTTL := time.Duration(llmConfig.ModelTTLs) * time.Millisecond
 
 		useCache := found && !force
 		if useCache {
@@ -126,8 +130,8 @@ func ResolveProviderEx(taskType string, force bool) (Resolution, error) {
 	}
 
 	// 3. Try fallback
-	if cfg.FallbackModel != "" {
-		fallbackHasTag := strings.Contains(cfg.FallbackModel, ":")
+	if llmConfig.FallbackModel != "" {
+		fallbackHasTag := strings.Contains(llmConfig.FallbackModel, ":")
 		for _, pt := range providersToTry {
 			if pt.offline || pt.models == nil {
 				continue
@@ -136,9 +140,9 @@ func ResolveProviderEx(taskType string, force bool) (Resolution, error) {
 			for _, m := range pt.models {
 				matched := false
 				if fallbackHasTag {
-					matched = (m == cfg.FallbackModel)
+					matched = (m == llmConfig.FallbackModel)
 				} else {
-					matched = (m == cfg.FallbackModel || strings.HasPrefix(m, cfg.FallbackModel+":"))
+					matched = (m == llmConfig.FallbackModel || strings.HasPrefix(m, llmConfig.FallbackModel+":"))
 				}
 
 				if matched {
@@ -155,7 +159,7 @@ func ResolveProviderEx(taskType string, force bool) (Resolution, error) {
 	}
 
 	// 4. Last resort: IDE passthrough
-	for _, provider := range cfg.Providers {
+	for _, provider := range llmConfig.Providers {
 		if provider.Type == "passthrough" {
 			res := Resolution{IsIDE: true, Provider: provider.Name}
 			fmt.Fprintf(os.Stderr, "[LLM] Task=%s Model=N/A Provider=%s (IDE Fallback)\n", taskType, res.Provider)
@@ -183,7 +187,7 @@ func Query(taskType, prompt string, format interface{}) (*GenerateResponse, erro
 
 // QueryEmbed resolves a provider for "embed" task, then calls Embed.
 // Embedding has NO IDE fallback — returns error if unavailable.
-func QueryEmbed(text string) ([]float64, error) {
+func QueryEmbed(text string) ([]float32, error) {
 	res, err := ResolveProvider("embed")
 	if err != nil {
 		return nil, err

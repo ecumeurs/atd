@@ -1,8 +1,8 @@
 {
     "name": "atd-linker",
     "displayName": "ATD Linker",
-    "version": "1.0.2",
-    "publisher": "local-dev",
+    "version": "1.0.0",
+    "description": "ATD documentation management for VS Code",
     "engines": {
         "vscode": "^1.60.0"
     },
@@ -58,5 +58,26 @@
                 }
             }
         }
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "@types/vscode": "^1.80.0",
+        "@types/mocha": "^10.0.0",
+        "@typescript-eslint/eslint-plugin": "^6.0.0",
+        "@typescript-eslint/parser": "^6.0.0",
+        "eslint": "^8.50.0",
+        "mocha": "^10.2.0",
+        "typescript": "^5.2.0",
+        "esbuild": "^0.19.0"
+    },
+    "dependencies": {
+        "vis-network": "^9.1.0"
+    },
+    "scripts": {
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "lint": "eslint extension.js --ext .js",
+        "test": "mocha",
+        "package": "vsce package"
     }
 }

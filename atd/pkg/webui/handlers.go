@@ -58,17 +58,18 @@ func (s *Server) handleInfo(c *gin.Context) {
 		count = len(s.explorer.Graph.Atoms)
 	}
 
+	cfg := s.explorer.Config
 	resp := gin.H{
 		"project_path": config.ProjectRoot(),
 		"docs_path":    config.DocsDir(),
 		"atd_count":    count,
 	}
 
-	if config.ActiveConfig.Workspace != nil {
+	if cfg.Workspace != nil {
 		resp["workspace"] = gin.H{
 			"in_workspace":   true,
-			"workspace_name": config.ActiveConfig.Workspace.WorkspaceName,
-			"active_project": config.ActiveConfig.ActiveProject,
+			"workspace_name": cfg.Workspace.WorkspaceName,
+			"active_project": cfg.ActiveProject,
 		}
 	}
 
@@ -79,18 +80,19 @@ func (s *Server) handleWorkspaceInfo(c *gin.Context) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	if config.ActiveConfig.Workspace == nil {
+	cfg := s.explorer.Config
+	if cfg.Workspace == nil {
 		c.JSON(http.StatusOK, gin.H{"in_workspace": false})
 		return
 	}
 
-	ws := config.ActiveConfig.Workspace
+	ws := cfg.Workspace
 	projects := []gin.H{}
 	for _, p := range ws.Projects {
 		projects = append(projects, gin.H{
 			"name":      p.Name,
 			"path":      p.Path,
-			"is_active": p.Name == config.ActiveConfig.ActiveProject,
+			"is_active": p.Name == cfg.ActiveProject,
 		})
 	}
 
@@ -98,7 +100,7 @@ func (s *Server) handleWorkspaceInfo(c *gin.Context) {
 		"in_workspace":   true,
 		"workspace_name": ws.WorkspaceName,
 		"workspace_root": ws.WorkspaceRoot,
-		"active_project": config.ActiveConfig.ActiveProject,
+		"active_project": cfg.ActiveProject,
 		"projects":       projects,
 	})
 }
@@ -392,10 +394,10 @@ func (s *Server) handleHealth(c *gin.Context) {
 		"tasks":     map[string]string{},
 	}
 
-	cfg := config.ActiveConfig.LLM
+	cfg := s.explorer.Config
 
 	// Check each provider
-	for _, provider := range cfg.Providers {
+	for _, provider := range cfg.LLM.Providers {
 		if provider.Type == "passthrough" {
 			health["providers"] = append(health["providers"].([]gin.H), gin.H{
 				"name":   provider.Name,

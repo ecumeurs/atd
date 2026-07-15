@@ -1,10 +1,9 @@
 package cmd
-// @spec-link [[mechanic_atd_fix]]
 
 import (
 	"bufio"
-	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,11 +11,12 @@ import (
 
 	"atd-tools/config"
 	"atd-tools/pkg/atom"
+	"atd-tools/pkg/llmservice"
 	"atd-tools/pkg/ollama"
+	atdstore "atd-tools/pkg/store"
 	"atd-tools/pkg/pipeline"
 	"atd-tools/pkg/prompt"
 	"github.com/spf13/cobra"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 var fixCmd = &cobra.Command{
@@ -90,10 +90,11 @@ func runFix(auditPath, docsDir string, dryRun bool) error {
 	fmt.Printf("Found %d bloated atoms to fix.\n\n", len(bloated))
 
 	dbPath := filepath.Join(docsDir, ".atd_audit.db")
-	db, _ := sql.Open("sqlite3", dbPath)
-	if db != nil {
-		defer db.Close()
+	store, err := atdstore.NewStore(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open store: %w", err)
 	}
+	defer store.Close()
 
 	for _, filename := range bloated {
 		path := filepath.Join(docsDir, filename)
@@ -109,14 +110,26 @@ func runFix(auditPath, docsDir string, dryRun bool) error {
 		requestPrompt := prompt.FixSplitBuild(string(content))
 
 		resp, err := ollama.Query("text_generation", requestPrompt, prompt.FixSplitFormat())
-		if err == ollama.ErrIDEFallback {
-			basename := strings.TrimSuffix(filename, filepath.Ext(filename))
-			promptName := "fix_split_" + basename
-			pipeline.WritePromptFile(promptName, requestPrompt)
-			fmt.Printf("  → Task delegated to IDE Agent (IDE Fallback)\n")
-			continue
-		}
 		if err != nil {
+			if errors.Is(err, ollama.ErrIDEFallback) {
+				basename := strings.TrimSuffix(filename, filepath.Ext(filename))
+				promptName := "fix_split_" + basename
+				pipeline.WritePromptFile(promptName, requestPrompt)
+				tasks := []pipeline.PendingTask{
+					{
+						PromptFile:   promptName + ".prompt",
+						ResultFile:   promptName + ".result",
+						Instruction:  "split bloated atom into focused child atoms",
+						OutputSchema: `{"parent_logic": "string", "splits": [{"id_suffix": "string", "human_name": "string", "intent": "string", "logic": "string"}]}`,
+					},
+				}
+				msg, delegateErr := llmservice.HandleIDEFallback(err, "fix "+filename, tasks, "")
+				if delegateErr != nil {
+					return delegateErr
+				}
+				fmt.Printf("  → %s\n", msg)
+				continue
+			}
 			fmt.Printf("  [ERROR] LLM failed: %v\n", err)
 			continue
 		}
@@ -150,7 +163,9 @@ func runFix(auditPath, docsDir string, dryRun bool) error {
 					Logic:     s.Logic,
 				}
 				content := atom.BuildContent(childData)
-				os.WriteFile(filepath.Join(docsDir, newFilename), []byte(content), 0644)
+				if err := os.WriteFile(filepath.Join(docsDir, newFilename), []byte(content), 0644); err != nil {
+					return fmt.Errorf("failed to write child atom %s: %w", newFilename, err)
+				}
 			}
 		}
 
@@ -158,13 +173,13 @@ func runFix(auditPath, docsDir string, dryRun bool) error {
 		if !dryRun {
 			parentIntent := fmt.Sprintf("To aggregate the constituent rules of %s.", data.HumanName)
 			content := atom.BuildParentContent(data.ID, data.HumanName, parentIntent, sr.ParentLogic)
-			os.WriteFile(path, []byte(content), 0644)
+			if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+				return fmt.Errorf("failed to write parent atom %s: %w", filename, err)
+			}
 			fmt.Printf("  ✓ Rewrote %s as MODULE parent\n", filename)
 
-			if db != nil {
-				db.Exec("DELETE FROM audit_cache WHERE id = ?", filename)
-				db.Exec("DELETE FROM collision_cache WHERE file_a = ? OR file_b = ?", filename, filename)
-			}
+			store.DeleteAuditCache(filename)
+			store.DeleteCollisionCache(filename)
 		} else {
 			fmt.Printf("  [DRY-RUN] Would rewrite %s as MODULE parent\n", filename)
 		}

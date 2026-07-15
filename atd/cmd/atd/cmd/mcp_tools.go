@@ -1,48 +1,13 @@
 package cmd
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
 
 	"atd-tools/config"
 	"atd-tools/pkg/exploration"
 	"atd-tools/pkg/mcp"
 )
-
-// captureStdout runs fn() while redirecting os.Stdout to a buffer.
-// Returns the captured output as a string.
-// This is necessary because several run* functions print progress directly
-// to os.Stdout. In MCP stdio mode, os.Stdout is the JSON-RPC channel and
-// must not receive unstructured output.
-func captureStdout(fn func() error) (string, error) {
-	orig := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		return "", err
-	}
-	os.Stdout = w
-
-	copyDone := make(chan string, 1)
-	go func() {
-		var buf bytes.Buffer
-		io.Copy(&buf, r)
-		copyDone <- buf.String()
-	}()
-
-	runErr := fn()
-	w.Close()
-	os.Stdout = orig
-	captured := <-copyDone
-	r.Close()
-
-	if runErr != nil {
-		return captured, runErr
-	}
-	return captured, nil
-}
 
 func argString(args map[string]any, key, fallback string) string {
 	if v, ok := args[key]; ok {
@@ -60,6 +25,22 @@ func argBool(args map[string]any, key string) bool {
 		}
 	}
 	return false
+}
+
+func argInt(args map[string]any, key string, defaultVal int) int {
+	if v, ok := args[key]; ok {
+		switch val := v.(type) {
+		case int:
+			return val
+		case float64:
+			return int(val)
+		case int32:
+			return int(val)
+		case int64:
+			return int(val)
+		}
+	}
+	return defaultVal
 }
 
 // RegisterMCPTools registers all ATD subcommands as MCP tools.
@@ -121,7 +102,7 @@ This is mandatory after any atom creation to keep the dependency graph consisten
 			"properties": map[string]any{},
 		},
 	}, func(args map[string]any) (string, error) {
-		explorer := exploration.NewExplorer("", config.DocsDir())
+		explorer := exploration.NewExplorerWithConfig("", config.DocsDir(), &config.ActiveConfig)
 		return explorer.Weave()
 	})
 
@@ -216,7 +197,7 @@ Use during VERIFY stage to assess overall documentation quality, or in CI to gen
 		return runStats(".", config.DocsDir(), workspace)
 	})
 
-	// @spec-link [[api_atd_serve_verify]]
+	// @spec-link [[api_atd_serve_check]]
 	r.Register(mcp.Tool{
 		Name: "atd_check",
 		Description: `Unified coverage report: lists impl links (@spec-link) and test links (@test-link) for every atom touched by the current diff or the full project.
@@ -352,9 +333,7 @@ This tool takes no parameters — it indexes the entire project using the .atd c
 		},
 	}, func(args map[string]any) (string, error) {
 		db := config.IndexDBPath(config.DocsDir())
-		return captureStdout(func() error {
-			return runIndex(".", db, "all")
-		})
+		return runIndex(".", db, "all")
 	})
 
 	// @spec-link [[api_atd_serve_search]]
@@ -379,20 +358,12 @@ Use during PLAN stage to find related code or atoms by meaning, or to locate imp
 		grep := argString(args, "grep", "")
 		scope := argString(args, "scope", "all")
 		pathsOnly := argBool(args, "paths_only")
-		limitRaw, _ := args["limit"]
-		limit := 5
-		if f, ok := limitRaw.(float64); ok {
-			limit = int(f)
-		}
+		limit := argInt(args, "limit", 5)
 		db := config.IndexDBPath(config.DocsDir())
 		if grep != "" {
-			return captureStdout(func() error {
-				return runGrepSearch(grep, pathsOnly)
-			})
+			return runGrepSearch(grep, pathsOnly)
 		}
-		return captureStdout(func() error {
-			return runSemanticSearch(query, db, limit, scope, pathsOnly)
-		})
+		return runSemanticSearch(query, db, limit, scope, pathsOnly)
 	})
 
 	// @spec-link [[api_atd_serve_audit]]
@@ -411,9 +382,7 @@ Use during PLAN stage after creating new atoms to check for overlap.`,
 		if threshold <= 0 {
 			threshold = 0.85
 		}
-		return captureStdout(func() error {
-			return runFullAudit(docs, threshold, false)
-		})
+		return runFullAudit(docs, threshold, false)
 	})
 
 	// @spec-link [[api_atd_serve_recon]]
@@ -435,7 +404,7 @@ Use during cold-start to verify discovered file-atom links before applying @spec
 		return runMap(candidate, atom, config.DocsDir(), false)
 	})
 
-	// @spec-link [[api_atd_serve_discover]]
+	// @spec-link [[api_atd_serve_map]]
 	r.Register(mcp.Tool{
 		Name: "atd_map",
 		Description: `Three-mode tool for linking source code to ATD atoms.

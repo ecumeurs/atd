@@ -1,8 +1,6 @@
 package exploration
 
 import (
-	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -13,7 +11,7 @@ import (
 	"atd-tools/config"
 	"atd-tools/pkg/cosine"
 	"atd-tools/pkg/ollama"
-	_ "github.com/mattn/go-sqlite3"
+	"atd-tools/pkg/store"
 )
 
 // ErrIndexMissing indicates the semantic index for a project has not been
@@ -46,9 +44,13 @@ type SearchOptions struct {
 }
 
 func Search(opts SearchOptions) ([]SearchResult, error) {
+	return SearchWithConfig(opts, &config.ActiveConfig)
+}
+
+func SearchWithConfig(opts SearchOptions, cfg *config.Config) ([]SearchResult, error) {
 	// If workspace mode is enabled and we're in a workspace
-	if opts.Workspace && config.ActiveConfig.Workspace != nil {
-		return WorkspaceSearch(opts)
+	if opts.Workspace && cfg.Workspace != nil {
+		return WorkspaceSearchWithConfig(opts, cfg)
 	}
 
 	if opts.Grep != "" {
@@ -67,7 +69,7 @@ func Search(opts SearchOptions) ([]SearchResult, error) {
 			// fall back to a literal grep, but say so instead of returning
 			// a quiet, misleading result.
 			fmt.Printf("Notice: semantic search unavailable (%v) — falling back to keyword search\n\n", err)
-			return GrepSearch(opts.Query, opts.Root, "")
+			return GrepSearchWithConfig(opts.Query, opts.Root, "", cfg)
 		}
 		return results, nil
 	}
@@ -75,8 +77,12 @@ func Search(opts SearchOptions) ([]SearchResult, error) {
 }
 
 func WorkspaceSearch(opts SearchOptions) ([]SearchResult, error) {
+	return WorkspaceSearchWithConfig(opts, &config.ActiveConfig)
+}
+
+func WorkspaceSearchWithConfig(opts SearchOptions, cfg *config.Config) ([]SearchResult, error) {
 	var allResults []SearchResult
-	workspace := config.ActiveConfig.Workspace
+	workspace := cfg.Workspace
 
 	// Determine which projects to search
 	var projectsToSearch []config.ProjectConfig
@@ -119,7 +125,7 @@ func WorkspaceSearch(opts SearchOptions) ([]SearchResult, error) {
 			// grep per-project rather than aborting the whole search — but
 			// we still say so instead of silently returning nothing.
 			fmt.Printf("Notice: semantic search unavailable for project %q (%v) — falling back to keyword search\n\n", project.Name, err)
-			results, _ = GrepSearch(opts.Query, projDocsPath, project.Name)
+			results, _ = GrepSearchWithConfig(opts.Query, projDocsPath, project.Name, cfg)
 		}
 		allResults = append(allResults, results...)
 	}
@@ -137,6 +143,10 @@ func WorkspaceSearch(opts SearchOptions) ([]SearchResult, error) {
 }
 
 func GrepSearch(keyword, root, projectName string) ([]SearchResult, error) {
+	return GrepSearchWithConfig(keyword, root, projectName, &config.ActiveConfig)
+}
+
+func GrepSearchWithConfig(keyword, root, projectName string, cfg *config.Config) ([]SearchResult, error) {
 	var results []SearchResult
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil { return nil }
@@ -145,7 +155,7 @@ func GrepSearch(keyword, root, projectName string) ([]SearchResult, error) {
 		}
 
 		ext := filepath.Ext(path)
-		if !config.ActiveConfig.SupportedExtensions[ext] && !strings.HasSuffix(path, ".atom.md") {
+		if !cfg.SupportedExtensions[ext] && !strings.HasSuffix(path, ".atom.md") {
 			return nil
 		}
 
@@ -166,11 +176,6 @@ func GrepSearch(keyword, root, projectName string) ([]SearchResult, error) {
 }
 
 func SemanticSearch(query, dbPath string, limit int, scope, projectName string) ([]SearchResult, error) {
-	// Check the index exists BEFORE opening it — sql.Open+Query against a
-	// missing path silently creates a 0-byte SQLite file as a side effect,
-	// and doing so inside the project's working tree is exactly the
-	// artifact-leak this function must avoid. This also lets us short-circuit
-	// with a clear "run atd index" message without spending an embedding call.
 	if _, err := os.Stat(dbPath); err != nil {
 		if os.IsNotExist(err) {
 			return nil, ErrIndexMissing
@@ -183,51 +188,40 @@ func SemanticSearch(query, dbPath string, limit int, scope, projectName string) 
 		return nil, fmt.Errorf("failed to embed query: %v", err)
 	}
 
-	db, err := sql.Open("sqlite3", dbPath)
+	str, err := store.NewStore(dbPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open db: %v", err)
+		return nil, fmt.Errorf("failed to open store: %v", err)
 	}
-	defer db.Close()
+	defer str.Close()
 
-	rows, err := db.Query(`SELECT file_path, chunk_text, embedding FROM atom_index`)
+	entries, err := str.ListAll()
 	if err != nil {
 		if isNoSuchTableErr(err) {
 			return nil, ErrIndexMissing
 		}
 		return nil, fmt.Errorf("failed to query DB: %v (Did you run 'atd index'?)", err)
 	}
-	defer rows.Close()
 
-	var totalRows int
-	var results []SearchResult
-	for rows.Next() {
-		totalRows++
-		var filePath, chunkText string
-		var embJSON []byte
-		if err := rows.Scan(&filePath, &chunkText, &embJSON); err != nil {
-			continue
-		}
-
-		isAtom := strings.HasSuffix(filePath, ".atom.md")
-		switch scope {
-		case "code": if isAtom { continue }
-		case "docs": if !isAtom { continue }
-		}
-
-		var chunkEmb []float64
-		if err := json.Unmarshal(embJSON, &chunkEmb); err != nil {
-			continue
-		}
-
-		sim := cosine.Similarity(queryEmb, chunkEmb)
-		results = append(results, SearchResult{filePath, chunkText, sim, projectName})
+	if len(entries) == 0 {
+		return nil, ErrIndexMissing
 	}
 
-	if totalRows == 0 {
-		// The table exists but nothing was ever indexed (or everything was
-		// purged) — treat this the same as a missing index rather than
-		// returning a quiet empty result.
-		return nil, ErrIndexMissing
+	var results []SearchResult
+	for _, entry := range entries {
+		isAtom := strings.HasSuffix(entry.AtomPath, ".atom.md")
+		switch scope {
+		case "code":
+			if isAtom {
+				continue
+			}
+		case "docs":
+			if !isAtom {
+				continue
+			}
+		}
+
+		sim := cosine.Similarity(queryEmb, entry.Embedding)
+		results = append(results, SearchResult{entry.AtomPath, entry.Content, sim, projectName})
 	}
 
 	sort.Slice(results, func(i, j int) bool {

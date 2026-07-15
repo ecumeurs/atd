@@ -189,8 +189,8 @@ func runCheck(force bool) (string, error) {
 			Candidates: config.ModelForTask(t),
 		}
 
-		// Use the actual ResolveProviderEx logic to ensure consistency and cache usage
-		resolvedRes, _ := ollama.ResolveProviderEx(t, force)
+		// Use the actual resolver logic to ensure consistency and cache usage
+		resolvedRes, _ := ollama.ResolveProviderWithConfig(t, nil, force)
 
 		if resolvedRes.Provider != "" {
 			res.Resolved = resolvedRes.Model

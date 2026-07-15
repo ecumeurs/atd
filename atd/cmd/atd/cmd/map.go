@@ -1,21 +1,20 @@
 package cmd
 
-// @spec-link [[service_atd_map]]
-
 import (
 	"atd-tools/config"
 	"atd-tools/pkg/exploration"
+	"atd-tools/pkg/llmservice"
 	"atd-tools/pkg/ollama"
 	"atd-tools/pkg/pipeline"
 	"atd-tools/pkg/prompt"
 	"atd-tools/pkg/workspace"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 )
 
@@ -103,19 +102,23 @@ func runMapConfirm(filePath, fileContent, atomID string) (string, error) {
 	requestPrompt := prompt.ReconBuild(string(atomContent), fileContent)
 
 	resp, err := ollama.Query("code_analysis", requestPrompt, prompt.ReconFormat())
-	if err == ollama.ErrIDEFallback {
-		pipeline.WritePromptFile("map_confirm", requestPrompt)
-		taskList, _ := pipeline.WriteTaskList("map --file "+filePath+" --atom "+atomID, []pipeline.PendingTask{
-			{
-				PromptFile:   "map_confirm.prompt",
-				ResultFile:   "map_confirm.result",
-				Instruction:  "validate if code implements the atom",
-				OutputSchema: `{"Confidence": int, "Mismatches": [{"aspect": string, "expected": string, "found": string}]}`,
-			},
-		})
-		return fmt.Sprintf("Task delegated to IDE Agent: %s", taskList), nil
-	}
 	if err != nil {
+		if errors.Is(err, ollama.ErrIDEFallback) {
+			pipeline.WritePromptFile("map_confirm", requestPrompt)
+			tasks := []pipeline.PendingTask{
+				{
+					PromptFile:   "map_confirm.prompt",
+					ResultFile:   "map_confirm.result",
+					Instruction:  "validate if code implements the atom",
+					OutputSchema: `{"Confidence": int, "Mismatches": [{"aspect": string, "expected": string, "found": string}]}`,
+				},
+			}
+			msg, delegateErr := llmservice.HandleIDEFallback(err, "map --file "+filePath+" --atom "+atomID, tasks, "")
+			if delegateErr != nil {
+				return "", delegateErr
+			}
+			return msg, nil
+		}
 		return "", fmt.Errorf("ollama query failed: %v", err)
 	}
 
@@ -143,19 +146,23 @@ func runMapPropose(filePath, fileContent string) (string, error) {
 	intentPrompt := prompt.IntentExtractBuild(fileContent)
 
 	resp, err := ollama.Query("text_analysis", intentPrompt, prompt.IntentExtractFormat())
-	if err == ollama.ErrIDEFallback {
-		pipeline.WritePromptFile("map_propose_intent", intentPrompt)
-		taskList, _ := pipeline.WriteTaskList("map --file "+filePath+" --new", []pipeline.PendingTask{
-			{
-				PromptFile:   "map_propose_intent.prompt",
-				ResultFile:   "map_propose_intent.result",
-				Instruction:  "extract architectural intent from code to propose a new atom",
-				OutputSchema: `{"intent": "string"}`,
-			},
-		})
-		return fmt.Sprintf("Task delegated to IDE Agent: %s", taskList), nil
-	}
 	if err != nil {
+		if errors.Is(err, ollama.ErrIDEFallback) {
+			pipeline.WritePromptFile("map_propose_intent", intentPrompt)
+			tasks := []pipeline.PendingTask{
+				{
+					PromptFile:   "map_propose_intent.prompt",
+					ResultFile:   "map_propose_intent.result",
+					Instruction:  "extract architectural intent from code to propose a new atom",
+					OutputSchema: `{"intent": "string"}`,
+				},
+			}
+			msg, delegateErr := llmservice.HandleIDEFallback(err, "map --file "+filePath+" --new", tasks, "")
+			if delegateErr != nil {
+				return "", delegateErr
+			}
+			return msg, nil
+		}
 		return "", fmt.Errorf("intent extraction failed: %v", err)
 	}
 
@@ -239,7 +246,7 @@ func runMapDiscover(filePath, fileContent, docsDir string) (string, error) {
 	if codeIntent == "IDE_FALLBACK_PENDING" {
 		pipeline.WritePromptFile("map_discover_intent", intentPrompt)
 		pipeline.WritePromptFile("map_discover_recommend", requestPrompt)
-		taskList, _ := pipeline.WriteTaskList("map --file "+filePath, []pipeline.PendingTask{
+		tasks := []pipeline.PendingTask{
 			{
 				PromptFile:   "map_discover_intent.prompt",
 				ResultFile:   "map_discover_intent.result",
@@ -252,25 +259,33 @@ func runMapDiscover(filePath, fileContent, docsDir string) (string, error) {
 				Instruction:  "recommend atom links once intent is known",
 				OutputSchema: `{"recommendations": ["atom_id"], "rationale": "string"}`,
 			},
-		})
-		return fmt.Sprintf("Task delegated to IDE Agent (Multi-step): %s", taskList), nil
+		}
+		msg, delegateErr := llmservice.HandleIDEFallback(ollama.ErrIDEFallback, "map --file "+filePath, tasks, "")
+		if delegateErr != nil {
+			return "", delegateErr
+		}
+		return msg, nil
 	}
 
 	fmt.Println("Prompting LLM for final recommendation...")
 	respRec, err := ollama.Query("text_analysis", requestPrompt, prompt.DiscoverLinksFormat())
-	if err == ollama.ErrIDEFallback {
-		pipeline.WritePromptFile("map_discover_recommend", requestPrompt)
-		taskList, _ := pipeline.WriteTaskList("map --file "+filePath, []pipeline.PendingTask{
-			{
-				PromptFile:   "map_discover_recommend.prompt",
-				ResultFile:   "map_discover_recommend.result",
-				Instruction:  "recommend atom links based on semantic matches",
-				OutputSchema: `{"recommendations": ["atom_id"], "rationale": "string"}`,
-			},
-		})
-		return fmt.Sprintf("Recommendation task delegated to IDE Agent: %s", taskList), nil
-	}
 	if err != nil {
+		if errors.Is(err, ollama.ErrIDEFallback) {
+			pipeline.WritePromptFile("map_discover_recommend", requestPrompt)
+			tasks := []pipeline.PendingTask{
+				{
+					PromptFile:   "map_discover_recommend.prompt",
+					ResultFile:   "map_discover_recommend.result",
+					Instruction:  "recommend atom links based on semantic matches",
+					OutputSchema: `{"recommendations": ["atom_id"], "rationale": "string"}`,
+				},
+			}
+			msg, delegateErr := llmservice.HandleIDEFallback(err, "map --file "+filePath, tasks, "")
+			if delegateErr != nil {
+				return "", delegateErr
+			}
+			return msg, nil
+		}
 		return "", fmt.Errorf("recommendation query failed: %v", err)
 	}
 
