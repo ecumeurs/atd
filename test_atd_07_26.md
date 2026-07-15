@@ -9,13 +9,15 @@
 
 ## 0. TL;DR
 
+> ⚠️ **Warning — the current suite is not sandboxed and has already damaged the repo.** A full `go test ./...` run in `cmd/atd` can **rewrite its own test source files** (reproduced; root cause in §2.1: leaked global config + cwd fallback + `UpdateLinks`' repo-walk), and one such self-mutation was committed to `main` unnoticed. Until the sandbox contract (§3.6) lands, treat any unexplained working-tree diff after a test run as suite-inflicted, and run tests before staging, never between `git add` and `git commit`.
+
 1. **The suite is green but shallow.** ~2 450 test LOC against ~13 000 production LOC, and the tests that exist are mostly flag-existence checks, string-classification micro-tests, and happy-path parses. Packages at the heart of ATD's value proposition are the least tested: `pkg/exploration` (the graph engine) sits at **10.7 %** coverage, `pkg/coverage` (the `check` engine) at **23 %**, and `pkg/audit`, `pkg/indexer`, `pkg/llmservice`, `pkg/mcp`, `pkg/chat` have **zero** test files.
 2. **The bug classes that actually hurt were all integration-level** — bare-id silent zeros, `trace`/`check` disagreement, the phantom-tool drift, the H3 parser swallow, the MCP handlers referencing deleted functions. Not one of them was catchable by the current unit tests, and not one *would be* caught by adding more of the same kind of unit test. The missing layer is **scenario tests against a fixture corpus** and **contract tests on the MCP surface**.
 3. **The two-module layout is a standing trap.** `go build ./...` at `atd/` does **not** compile `cmd/atd/` (separate `go.mod`). This session, HEAD was "verified green" while the nested module had five compile errors. Every verification step — local, hook, future CI — must run **both** modules, always.
 4. **ATD's own docs corpus is the best integration test it will ever have, and it is not wired in.** Running `atd lint` / `atd check --full` against `docs/` as a regression gate ("dogfood gate") would have caught the phantom atoms, the layer drift, and the parser bug years before a human did.
 5. **The LLM boundary is already mockable — the codebase just doesn't use the seam.** `ollama.ListModels` is a swappable package var and `chat.Provider` is an interface; a deterministic fake provider unlocks testing of `audit`, `dissect`, `search`, `map`, `recon` logic without a model. Live-model tests should exist but be opt-in (env-gated), never in the default path.
 
-**Recommended order:** fixture corpus + CLI scenario harness → MCP contract tests → dogfood gate in the pre-commit hook/CI → fake LLM provider → targeted unit back-fill on `exploration`/`coverage`. Details in §6.
+**Recommended order:** sandbox the suite (WP-0 — non-negotiable first step) → two-module `verify` gate → fixture corpus + CLI scenario harness → MCP contract tests + dogfood gate in the pre-commit hook/CI → fake LLM provider → targeted unit back-fill on `exploration`/`coverage`. Orchestration-ready work packages with acceptance criteria in §6.
 
 ---
 
@@ -64,9 +66,22 @@ Each of these is a real, dated incident. They define the requirements for §3.
 | E3 | **Phantom tools** (`atd_discover` in rules/atoms, STABLE atoms with wrong schemas, stale `@spec-link` tags) | Nothing compares the registered tool set against the docs corpus | Dogfood gate (§3.4) + MCP registry contract test (§3.3) |
 | E4 | **`atom.Parse` H3-swallow** (`###` subheadings silently dropped section content, starving `check --semantic`, `trace --summary`, `assemble`) | Parse tests used only minimal synthetic atoms; no test parsed a *real* atom from `docs/` | Corpus round-trip test: parse every atom in `docs/`, assert non-empty sections where the raw file has content (§4, S6) |
 | E5 | **Nested module compile break** (refactor left `mcp_tools.go` calling `runCoverageCheck`/`runIndex`/`runFullAudit` after they were deleted; `ResolveProviderEx` renamed under `config.go`) | "Verified: `go build ./...` passes" was run at `atd/` only — the nested `cmd/atd` module is invisible from there | Two-module build matrix as a hard rule in every gate (§5.1) |
-| E6 | **Test-fixture churn under concurrent editing** (`TestUpdateLinks` broken three times in one day by uncoordinated find-replace edits across sessions) | Fixture literals (`old_id`, `module_my_new_module`) collide with strings other tools rewrite | Quarantine fixture strings (unique prefixes like `zz_fixture_*`), or move fixtures to `testdata/` files that rename-propagation ignores (§5.4) |
+| E6 | **The suite rewrites its own source code** (`TestUpdateLinks` broken repeatedly, one broken fixture even committed to `main`) — full incident below | Tests run against **live global config** with a cwd fallback; no sandbox | The sandbox contract (§3.6) — the single most important item in this report |
 
 The pattern: **every escape happened between components or between doc and code** — exactly the seams ATD exists to govern. The test strategy must mirror the product's own philosophy: the corpus and the code are one system; test them as one system.
+
+### 2.1 ⚠️ Incident I-1 — the self-rewriting test suite (root-caused 2026-07-26)
+
+For a day, `atd/cmd/atd/cmd/update_test.go` appeared to be edited by a "ghost": its fixture strings changed three times across sessions (`[[old_id]]` → `[[module_my_new_module]]` → `[[new_id]]`), each time leaving the test incoherent and failing, with no IDE or human touching the file. One mutated version was even **committed to `main`** unnoticed (in `45abc0f`). The ghost is the test suite itself. Reproduced deterministically; the chain has four links, each a lesson:
+
+1. **A test leaks global config.** `trace_test.go:15` calls `config.LoadFromDir(t.TempDir())` and never restores `config.ActiveConfig` (several `map_test.go` paths leak too — probe-bisected: `TestMap` and `TestTrace` both arm the bug; `TestLint` does not).
+2. **The config loader falls back to cwd.** The temp dir contains no `.atd`, so `LoadFromDirLegacy` climbs to `/`, finds nothing, and silently sets `loadedFromDir = os.Getwd()` (`config/config.go:286-289`). For a `go test` binary, **cwd is the package source directory** — `atd/cmd/atd/cmd/`.
+3. **A product feature trusts that global.** `atom.UpdateLinks` (`pkg/atom/update.go:395-408`) performs its second walk — spec-link rename propagation across *source files* — over `config.ProjectRoot()`, i.e. over the test suite's own source directory. When `TestUpdateNamingConvention`/`TestUpdateLinks` later trigger renames, the walk rewrites every bracketed `[[old-id]]` literal inside `update_test.go` itself. (Only `[[…]]`-wrapped occurrences are rewritten — which is exactly why the *call arguments* survived while the *fixture strings* churned, producing incoherent tests.)
+4. **The failure is displaced in time.** The already-compiled test binary is unaffected, so the mutating run is often green; the **next** compilation picks up the rewritten fixture and fails. Cause and symptom land in different sessions — which is why it read as a phantom concurrent editor.
+
+Same disease, second symptom: `TestMapNewFlagProducesSkeleton` writes `pipeline_output/task_list.md` into the package source dir via the same cwd-anchored config, and a stale run's artifact is **committed** at `atd/cmd/atd/cmd/pipeline_output/` (dated April, `/tmp/Test…` paths inside).
+
+**Why this matters beyond one flaky test:** a test suite that can silently modify — and has already silently committed modifications to — the repository it lives in has *negative* trust value: a red test no longer means the product is broken, and a green run no longer means nothing was damaged. Every recommendation in §3 assumes tests are deterministic functions of the checked-out tree; that assumption is currently false. **The sandbox contract (§3.6) is therefore not hygiene — it is the precondition for the rest of this report**, and the product-side scope guard (§3.6, P-1) also closes a real end-user hazard: any `atd update` rename executed with a mis-anchored cwd-fallback config will rewrite `[[refs]]` across whatever directory it happens to be anchored to.
 
 ---
 
@@ -106,10 +121,25 @@ testdata/fixture_project/
 
 Design rules for the fixture:
 
-- **Every id carries the `zzfix` marker** so repo-wide rename/propagation tooling never collides with it (lesson E6).
+- **Every id carries the `zzfix` marker** so repo-wide rename/propagation tooling never collides with it (lesson E6/I-1).
 - It deliberately contains **one instance of every state the tools must classify**: covered atom, impl-without-test, orphan, cross-layer chain, an atom using `###` subheadings, a `[[project:atom]]` cross-ref (add a second mini-project for workspace tests).
 - A scenario harness (`cmd/atd/cmd/scenario_test.go` or a separate `atd/e2e/` package) copies the fixture to `t.TempDir()`, then drives the **CLI entry points** (the `run*`/pkg functions the commands delegate to — same functions the MCP handlers call, so one harness covers both surfaces) and asserts on structured output.
 - **Golden files** for report-shaped output (`check --full`, `lint`, `stats`): store expected output in `testdata/golden/`, compare normalized (strip timestamps/paths), regenerate with an `-update` flag. This makes output regressions visible in diffs instead of invisible.
+
+Harness API sketch (lives in a new `atd-tools/pkg/testutil`, importable from both modules):
+
+```go
+// Sandbox copies the named fixture into t.TempDir(), loads config from the
+// copy, and registers cleanups that (a) restore the prior config.ActiveConfig
+// and (b) run the tripwire (§3.6). Everything a test touches lives under Root.
+func Sandbox(t *testing.T, fixture string) *SB   // SB{Root, DocsDir, ProjectDir string}
+
+func (s *SB) Run(fn func() (string, error)) Result      // capture output+err of a run* entry point
+func (s *SB) Golden(t *testing.T, name, got string)      // normalized golden-file compare, -update aware
+func (s *SB) Git(t *testing.T)                           // git-init the sandbox for diff-mode scenarios
+```
+
+Scenario tests then read as: `s := testutil.Sandbox(t, "fixture_project")` → call the entry point → assert. No test constructs atoms inline unless the atom's *content* is the thing under test; everything else comes from the fixture, so realism accrues in one place.
 
 This layer directly buys: E1 (bare id vs prefixed id both resolve to the same answer), E2 (see S3 below), E4 (real-shaped atoms), and a regression bed for every future field-report defect.
 
@@ -139,6 +169,31 @@ The rule: **no test in the default path may require a model, network, or GPU.** 
 2. **`ollama.ListModels` var seam** (already used by `provider_test.go`): keep for resolution-order tests.
 3. **Opt-in live suite:** `//go:build live` or `if os.Getenv("ATD_LIVE_LLM") == ""` { t.Skip } — a handful of smoke tests (index 3 files, semantic-search them, one `map` confirm) for humans with a running provider. Never in CI's default lane.
 4. **Prompt snapshot tests:** golden-file the assembled prompts per task type (`pkg/prompt` + `llmservice/prompts.go`). Prompt drift silently changes product behavior; a diff in a golden file makes it a reviewed decision.
+
+### 3.6 The sandbox contract (prerequisite — see incident §2.1)
+
+Incident I-1 proved the suite can rewrite its own source. The fix has a test-side contract, a product-side guard, and a tripwire that keeps both honest.
+
+**T-1 — Config isolation (test side).** `config.ActiveConfig` is a mutable global; every test that loads or mutates it MUST snapshot and restore it. Concretely:
+
+- Add `config.Snapshot() Config` / `config.Restore(Config)` (or just document the `saved := config.ActiveConfig; defer func(){ config.ActiveConfig = saved }()` idiom `map_test.go:85` already uses) and apply it to **every** offender. Known offenders today: `trace_test.go:15` (naked `LoadFromDir`, no restore) and at least one `map_test.go` path (probe-bisected). Audit all `*_test.go` for `LoadFromDir|config.Load|ActiveConfig =` and fix each.
+- `testutil.Sandbox` (§3.2) does this automatically via `t.Cleanup`, so the rule for new tests is simply: **touch atoms or config → use Sandbox.**
+
+**T-2 — No cwd-anchored writes (test side).** Tests must never let product code resolve paths against the process cwd. The `Sandbox` helper always produces a sandbox root that *contains* a `.atd`, so the cwd fallback can never fire inside a sandboxed test. Delete the committed test debris at `atd/cmd/atd/cmd/pipeline_output/` and add it to `.gitignore` as a tombstone.
+
+**P-1 — Scope guard in `UpdateLinks` (product side).** The second walk in `atom.UpdateLinks` (`update.go:395`) must not trust `ProjectRoot()` blindly:
+
+- If `docsPath` is **not inside** `ProjectRoot()`, skip the source-file walk (a rename in project X must never rewrite files outside X). This alone makes the incident impossible regardless of test hygiene, because the tests pass temp-dir docs paths.
+- Additionally, `LoadFromDirLegacy`'s cwd fallback should mark the config as fallback-anchored (e.g. `loadedFromFallback bool`), and destructive repo-wide operations (rename propagation, `fix`, future bulk edits) should refuse or warn when anchored by fallback rather than a real `.atd`. A loud refusal here is the same "resolve or shout" principle the investigation report demands for reads — applied to writes, where it matters more.
+
+**P-2 — Skip test sources in the propagation walk (product side, cheap belt-and-braces).** The source-file walk should skip `_test.go` files and `testdata/` directories: fixture literals are not spec-links, and no legitimate `@spec-link` propagation target lives in a test fixture string.
+
+**W-1 — The tripwire (keeps everyone honest).** After every test run in the gate (`make verify`, CI): `git status --porcelain` must be empty. Implement twice:
+
+- In `testutil.Sandbox`'s cleanup for the local loop (cheap best-effort: fail the test if files under the *package source dir* changed mtime during the test), and
+- As a hard CI step after the test job: `test -z "$(git status --porcelain)" || (git diff; exit 1)`. This converts any future I-1-class bug from "ghost editor haunting sessions for a day" into a red build with the diff printed.
+
+Ordering: **W-1 and P-1 first** (they make the failure loud and impossible respectively), then T-1/T-2 cleanup, then P-2. All four are small; together they are WP-0 in §6.
 
 ---
 
@@ -192,7 +247,7 @@ Single GitHub-Actions-style workflow, three jobs: `verify` (both modules, `-race
 
 No blanket threshold (it breeds flag-tests). Instead, per-package floors on the engines only — `exploration` ≥ 60 %, `coverage` ≥ 60 %, `atom` ≥ 70 % — enforced in CI once the §3.1 back-fill lands, ratcheted upward, never downward.
 
-### 5.4 Fixture hygiene (lesson E6)
+### 5.4 Fixture hygiene (lesson E6 / incident I-1)
 
 - All fixture atom ids/strings carry a `zzfix` (or similar) marker no real tooling will ever rename.
 - Prefer `testdata/` files over string literals inside `_test.go` for anything an ATD tool might rewrite — rename-propagation and find-replace passes skip `testdata/` by convention (and add that convention to the agent rules).
@@ -206,23 +261,65 @@ No blanket threshold (it breeds flag-tests). Instead, per-package floors on the 
 
 ---
 
-## 6. Prioritized Rollout
+## 6. Rollout — Orchestration-Ready Work Packages
 
-| # | Work item | Effort | Buys |
-|---|---|---|---|
-| 1 | `make verify` two-module gate + agent-rules note (+ optional `go.work`) | ~1 h | Kills E5 permanently; prerequisite for everything else |
-| 2 | Fixture project (`testdata/fixture_project/`) + scenario harness with S1–S5, S7, S8 | 1–2 days | The integration layer; regression bed for all field-report classes |
-| 3 | S6 corpus parse audit + dogfood ratchet in pre-commit / CI | ~½ day | ATD tests itself on every commit; catches doc-code drift at the source |
-| 4 | MCP contract tests (S11: wiring sweep, schema honesty, tool-set↔docs) | ~1 day | Pins the MCP surface; makes the D1 atom back-fill verifiable and permanent |
-| 5 | CI workflow wiring (§5.2) | ~½ day | Makes 1–4 unskippable |
-| 6 | Fake `chat.Provider` + S12 parser robustness + prompt goldens | 1–2 days | First-ever tests on the LLM half; de-risks the least reliable code |
-| 7 | Unit back-fill: `exploration` → `coverage` → `atom` round-trip (§3.1) + coverage floors | ongoing | Depth under the engines |
-| 8 | Fuzz targets for `Parse`/`extractLinks`; opt-in live-LLM smoke suite | opportunistic | Long-tail robustness |
+Written to be executed by a coordinating agent delegating to subagents. Each WP lists scope, deliverables, acceptance criteria (AC), and dependencies. WPs marked ∥ can run in parallel once their dependencies are met. **Every WP finishes with `make verify` (WP-1) green and `git status --porcelain` empty** — no exceptions, that's the tripwire working.
 
-Items 1–3 are the "stop the bleeding" set and are independent of any pending product work. Item 4 pairs naturally with authoring the 8 missing `api_atd_serve_*` atoms (investigation follow-up D1) — write the atoms and the test that locks them in the same change.
+### WP-0 — Sandbox the suite (FIRST; blocks everything) — §2.1, §3.6
+**Scope:** `pkg/atom/update.go`, `config/config.go`, `cmd/atd/cmd/{trace,map}_test.go` (+ audit all `*_test.go`), new `pkg/testutil`, delete `cmd/atd/cmd/pipeline_output/`.
+**Deliverables:** P-1 scope guard (`docsPath` outside `ProjectRoot` → skip source walk) + `loadedFromFallback` refusal for destructive ops; P-2 skip `_test.go`/`testdata/` in the propagation walk; T-1 config snapshot/restore in every offending test; T-2 debris deletion + `.gitignore`; W-1 tripwire (in `testutil` cleanup and as a `verify` step).
+**AC:** (1) `go test -count=5 ./...` in `cmd/atd` leaves the tree byte-identical — run it in a loop, diff each time; (2) a deliberately re-introduced naked `LoadFromDir(t.TempDir())` no longer causes any repo write (proves P-1 alone suffices); (3) new regression test pins the scope guard.
+**Size:** small (≤ ½ day). **Not parallelizable internally** — one agent, sequential.
+
+### WP-1 — The `verify` gate — §5.1
+**Scope:** `atd/Makefile` (or `verify.sh`), optional `go.work`, a note in `CLAUDE.md`/`.agent/rules`.
+**Deliverables:** `make verify` = build+vet+test **both modules**; `make verify-race`; tripwire step from WP-0.
+**AC:** running `make verify` from a tree with a compile error in *either* module fails; docs updated so "green" is defined as this target.
+**Depends:** nothing (can land with WP-0). **Size:** ~1 h. ∥
+
+### WP-2 — Fixture project + scenario harness — §3.2
+**Scope:** `atd/testdata/fixture_project/` (+ a sibling mini-project for workspace scenarios), `pkg/testutil` (Sandbox/Run/Golden/Git), scenario tests S1–S5, S7, S8, S13.
+**Deliverables:** the fixture corpus (every classifiable state, all ids `zzfix_`-marked), the harness API from §3.2, golden files under `testdata/golden/` with `-update` flag.
+**AC:** each scenario S1–S5, S7, S8, S13 is one named test citing its scenario id; S1 asserts identical output across all four id forms *per tool*; S3 loops the whole fixture corpus; goldens regenerate deterministically (two consecutive `-update` runs produce no diff).
+**Depends:** WP-0 (Sandbox), WP-1. **Size:** the big one, 1–2 days. Internally parallelizable: fixture+harness first, then scenarios can be split across agents by scenario id.
+
+### WP-3 — Dogfood gate — §3.4, S6
+**Scope:** pre-commit hook extension, S6 corpus parse audit as a Go test (build-tagged `dogfood` so it reads the real `docs/`), lint-error baseline ratchet file.
+**Deliverables:** `make dogfood` = `atd lint` + `check --full` + S6 against the real corpus, failing on regressions vs the checked-in baseline; hook calls it on atom-touching commits.
+**AC:** introducing a fresh lint error (e.g. a non-canonical type in a scratch atom) fails the gate; the ~90 pre-existing authoring debts do not.
+**Depends:** WP-1. ∥ with WP-2. **Size:** ~½ day.
+
+### WP-4 — MCP contract tests — §3.3, S11
+**Scope:** new `cmd/atd/cmd/mcp_contract_test.go`.
+**Deliverables:** wiring sweep (every registered tool callable against the fixture), schema-honesty test (start with `atd_check.line`), tool-set ↔ `api_atd_serve_*` atom equality, error-shape test (S11 + the loud-error checks from S1's (d) case).
+**AC:** removing any tool registration, adding an undocumented schema param, or deleting a tool atom each turn the suite red. Known current gap: the 8 missing tool atoms — either author them in this WP (pairs with investigation follow-up D1) or start the equality test with an explicit, shrinking allowlist.
+**Depends:** WP-0, WP-2 (fixture). ∥ with WP-3, WP-5. **Size:** ~1 day.
+
+### WP-5 — CI — §5.2
+**Scope:** one workflow file; jobs `verify` (-race), `dogfood`, `fixture-e2e`; manual `live` lane stub.
+**AC:** all three jobs green on main; W-1 tripwire step present in each job; no job requires network/LLM.
+**Depends:** WP-1, WP-3 (and picks up WP-2/WP-4 suites as they land). **Size:** ~½ day. ∥
+
+### WP-6 — Fake LLM provider + parser robustness — §3.5, S12
+**Scope:** `pkg/testutil/fakeprovider` implementing `chat.Provider` (+ fake embedder), tests for `audit`/`dissect`/`map`/`recon` response parsing, prompt goldens for `pkg/prompt` + `llmservice/prompts.go`.
+**Deliverables:** canned-response fake with per-prompt-type fixtures including malformed variants (fenced JSON, trailing prose, wrong types, the real `{"Confidence": 0, "Mismatches": "Yes…"}` case); S12 tests; prompt snapshot goldens.
+**AC:** all LLM-path logic tests run with no network (verify by running with `http_proxy=127.0.0.1:1` set); each malformed-input case yields a structured error or salvage, never a zero-value success.
+**Depends:** WP-0, WP-2 (testutil). ∥ with WP-4. **Size:** 1–2 days.
+
+### WP-7 — Unit back-fill + coverage floors — §3.1
+**Scope:** `pkg/exploration` (extractLinks, ResolveAtom, crawl, orphans, trace), `pkg/coverage` (per-mode reports, dedup, canonicalization), `pkg/atom` (BuildContent⇄Parse round-trip, malformed frontmatter, force guard); then CI floors (exploration ≥ 60 %, coverage ≥ 60 %, atom ≥ 70 %).
+**AC:** floors met and enforced in CI; round-trip property test present.
+**Depends:** WP-0 (idioms), WP-5 (floor enforcement). Fully parallelizable by package. **Size:** ongoing; first pass ~1–2 days.
+
+### WP-8 — Long tail (opportunistic)
+Fuzz targets for `atom.Parse`/`extractLinks`; opt-in live-LLM smoke suite (`ATD_LIVE_LLM=1`); `staticcheck` adoption. **Depends:** WP-2. No AC beyond "exists and is documented".
+
+**Critical path:** WP-0 → WP-2 → {WP-4, WP-6} with {WP-1, WP-3, WP-5} slotting in alongside. WP-0 is deliberately not parallel and not delegated lightly: it changes product behavior (`UpdateLinks`) and must be reviewed against S7's rename-propagation expectations so the guard doesn't break the legitimate feature.
 
 ---
 
 ## 7. Conclusion
 
 ATD's failure history is unusually legible: every serious defect lived **on a seam** — between two tools' answers, between the declared schema and the handler, between the docs corpus and the registered reality, between two Go modules. The current suite tests *inside* components, so it was green through all of it. The fix is not "more coverage" in the abstract; it is a fixture corpus that exercises the CLI/MCP surface the way agents actually hit it, contract tests that make schema-vs-handler and docs-vs-registry drift build-breaking, and a dogfood gate that makes ATD's own corpus the permanent integration test. That last piece is also the point: a governance tool whose CI proves it governs itself is its own best demo.
+
+And incident I-1 sets the order of operations beyond argument: before the suite can be *extended*, it must be *contained*. A test run that can rewrite its own fixtures — and once committed the damage to `main` — fails the most basic requirement of a test system: that observing the code does not change it. WP-0 is a half-day of work; nothing else in this report is trustworthy until it lands.
