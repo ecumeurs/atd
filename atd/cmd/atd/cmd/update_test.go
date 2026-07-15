@@ -94,10 +94,10 @@ func TestUpdateLinks(t *testing.T) {
 
 	// Create the atom to be renamed
 	atomPath := filepath.Join(tmpDir, "atom.atom.md")
-	atomContent := "---\nid: old_id\ntype: RULE\n---\n"
+	atomContent := "---\nid: module_my_new_module\ntype: RULE\n---\n"
 	os.WriteFile(atomPath, []byte(atomContent), 0644)
 
-	numUpdates := atom.UpdateLinks(tmpDir, "old_id", "new_id")
+	numUpdates := atom.UpdateLinks(tmpDir, "module_my_new_module", "new_id")
 	if numUpdates != 1 {
 		t.Errorf("Expected 1 file updated, got %d", numUpdates)
 	}
