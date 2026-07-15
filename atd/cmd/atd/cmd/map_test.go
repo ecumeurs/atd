@@ -50,8 +50,23 @@ func TestMapBadAtomID(t *testing.T) {
 }
 
 func TestMapNewFlagProducesSkeleton(t *testing.T) {
-	// Create a temp .md file
+	// This path (propose/--new) delegates to the pipeline package, which
+	// writes pipeline_output/task_list.md under config.ProjectRoot(). Anchor
+	// config to this test's own tmp dir (rather than relying on whatever
+	// ActiveConfig happens to be ambient) so that write — like every write a
+	// test triggers — lands under t.TempDir(), never under the package
+	// source dir. This is the map_test.go path referenced in
+	// test_atd_07_26.md §2.1 (incident I-1) as arming the self-rewrite bug.
+	savedConfig := config.Snapshot()
+	defer config.Restore(savedConfig)
 	tmp := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tmp, ".atd"), []byte("{}"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.LoadFromDir(tmp); err != nil {
+		t.Fatalf("config.LoadFromDir failed: %v", err)
+	}
+
 	f := filepath.Join(tmp, "design.md")
 	os.WriteFile(f, []byte("# Feature Design\n\nThis feature handles user login."), 0644)
 
@@ -82,10 +97,10 @@ func TestMapResolvesRelativePathAgainstProjectRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	savedConfig := config.ActiveConfig
+	savedConfig := config.Snapshot()
 	savedWD, _ := os.Getwd()
 	defer func() {
-		config.ActiveConfig = savedConfig
+		config.Restore(savedConfig)
 		os.Chdir(savedWD)
 	}()
 

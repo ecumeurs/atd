@@ -45,6 +45,14 @@ type Config struct {
 
 	// Internal tracking
 	loadedFromDir string
+	// loadedFromFallback is true when no real .atd was found anywhere from
+	// the search start dir up to root, and LoadFromDirLegacy fell back to
+	// anchoring the config at the process cwd. Destructive, repo-wide
+	// operations (rename propagation, fix, future bulk edits) must refuse
+	// or loudly warn when the active config is anchored this way, since
+	// "cwd" for a `go test` binary is the package source directory — see
+	// test_atd_07_26.md §2.1 (incident I-1) and §3.6 (P-1).
+	loadedFromFallback bool
 	DocsDirOverride string
 	Workspace     *WorkspaceConfig `json:"-"`
 	ActiveProject string           `json:"-"`
@@ -281,11 +289,16 @@ func LoadFromDirLegacy(dir string) error {
 			json.Unmarshal(data, &ActiveConfig)
 			abs, _ := filepath.Abs(filepath.Dir(configPath))
 			ActiveConfig.loadedFromDir = abs
+			ActiveConfig.loadedFromFallback = false
 		}
 	} else {
-		// No config found, default to CWD
+		// No real .atd found anywhere above dir. Fall back to CWD, but mark
+		// the config as fallback-anchored so destructive repo-wide
+		// operations know not to trust ProjectRoot() as a genuine project
+		// boundary (see loadedFromFallback doc comment above).
 		cwd, _ := os.Getwd()
 		ActiveConfig.loadedFromDir = cwd
+		ActiveConfig.loadedFromFallback = true
 	}
 
 	// Always check for workspace context
@@ -468,6 +481,34 @@ func GetVerifyDefaults(ext string) (string, string) {
 
 func ProjectRoot() string {
 	return ActiveConfig.loadedFromDir
+}
+
+// LoadedFromFallback reports whether the active config was anchored by the
+// cwd fallback (no real .atd found) rather than a genuine project .atd file.
+// Callers performing destructive, repo-wide operations (rename propagation,
+// fix, bulk edits) should refuse or loudly warn when this is true — see
+// test_atd_07_26.md §3.6 (P-1).
+func LoadedFromFallback() bool {
+	return ActiveConfig.loadedFromFallback
+}
+
+// Snapshot returns a copy of the current ActiveConfig for later restoration
+// via Restore. Every test that loads (Load/LoadFromDir/LoadFromDirLegacy) or
+// otherwise mutates config.ActiveConfig MUST snapshot it beforehand and
+// restore it afterwards (ideally via t.Cleanup), or global config state
+// leaks into whichever test runs next in the same binary — this is exactly
+// how incident I-1 (test_atd_07_26.md §2.1) caused the suite to rewrite its
+// own source. The canonical idiom:
+//
+//	saved := config.Snapshot()
+//	t.Cleanup(func() { config.Restore(saved) })
+func Snapshot() Config {
+	return ActiveConfig
+}
+
+// Restore sets ActiveConfig back to a value previously captured by Snapshot.
+func Restore(snap Config) {
+	ActiveConfig = snap
 }
 
 // IndexDBPath returns the on-disk location of the semantic search index

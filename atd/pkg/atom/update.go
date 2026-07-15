@@ -392,26 +392,70 @@ func UpdateLinks(docsPath, oldID, newID string) int {
 		return nil
 	})
 
+	// P-1 scope guard (test_atd_07_26.md §2.1/§3.6): the second walk below
+	// propagates a rename across *source files*, trusting config.ProjectRoot()
+	// blindly used to let a rename in project X rewrite files anywhere the
+	// process cwd happened to resolve to (incident I-1: a leaked, cwd-fallback
+	// config caused UpdateLinks to rewrite the test suite's own source). Two
+	// independent checks must both pass before the source walk runs:
+	//
+	//  1. The active config must not be fallback-anchored (no real .atd found;
+	//     ProjectRoot() is just the process cwd, which for a `go test` binary
+	//     is the package source directory).
+	//  2. docsPath (the scope this rename was actually asked to operate on)
+	//     must resolve inside ProjectRoot() — a rename in project X must never
+	//     rewrite files outside X.
 	projectRoot := config.ProjectRoot()
 	if projectRoot != "" {
-		filepath.Walk(projectRoot, func(path string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() { return nil }
-			if strings.HasSuffix(path, ".atom.md") { return nil }
-			relPath, _ := filepath.Rel(projectRoot, path)
-			if strings.HasPrefix(relPath, ".git") || strings.HasPrefix(relPath, ".atd") {
-				if info.IsDir() { return filepath.SkipDir }
+		if config.LoadedFromFallback() {
+			fmt.Fprintf(os.Stderr, "atd: refusing source-file rename propagation for [[%s]] -> [[%s]]: active config is cwd-fallback-anchored (no .atd found), not a genuine project root; skipping to avoid rewriting unrelated files\n", oldID, newID)
+		} else if !pathInside(docsPath, projectRoot) {
+			fmt.Fprintf(os.Stderr, "atd: skipping source-file rename propagation for [[%s]] -> [[%s]]: docs path %q is outside project root %q\n", oldID, newID, docsPath, projectRoot)
+		} else {
+			filepath.Walk(projectRoot, func(path string, info os.FileInfo, err error) error {
+				if err != nil { return nil }
+				relPath, _ := filepath.Rel(projectRoot, path)
+				if strings.HasPrefix(relPath, ".git") || strings.HasPrefix(relPath, ".atd") {
+					if info.IsDir() { return filepath.SkipDir }
+					return nil
+				}
+				// P-2: fixture literals in tests and testdata are not real
+				// spec-links; never propagate renames into them.
+				if info.IsDir() {
+					if info.Name() == "testdata" { return filepath.SkipDir }
+					return nil
+				}
+				if strings.HasSuffix(path, "_test.go") { return nil }
+				if strings.HasSuffix(path, ".atom.md") { return nil }
+				ext := filepath.Ext(path)
+				switch ext {
+				case ".go", ".py", ".js", ".ts", ".tsx", ".jsx", ".rs", ".rb", ".java",
+					".c", ".cpp", ".h", ".hpp", ".cs", ".sh", ".yaml", ".yml", ".toml", ".md":
+					replaceInFile(path)
+				}
 				return nil
-			}
-			ext := filepath.Ext(path)
-			switch ext {
-			case ".go", ".py", ".js", ".ts", ".tsx", ".jsx", ".rs", ".rb", ".java",
-				".c", ".cpp", ".h", ".hpp", ".cs", ".sh", ".yaml", ".yml", ".toml", ".md":
-				replaceInFile(path)
-			}
-			return nil
-		})
+			})
+		}
 	}
 	return updatedCount
+}
+
+// pathInside reports whether target resolves to projectRoot itself or to a
+// path nested inside it, using absolute, cleaned paths for the comparison.
+func pathInside(target, projectRoot string) bool {
+	absTarget, errT := filepath.Abs(target)
+	absRoot, errR := filepath.Abs(projectRoot)
+	if errT != nil || errR != nil {
+		return false
+	}
+	rel, err := filepath.Rel(absRoot, absTarget)
+	if err != nil {
+		return false
+	}
+	if rel == "." {
+		return true
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // FormatYAMLList formats a YAML list for frontmatter.

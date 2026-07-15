@@ -10,6 +10,9 @@ import (
 )
 
 func TestWorkspaceSearchAndAssemble(t *testing.T) {
+	saved := config.Snapshot()
+	defer config.Restore(saved)
+
 	tmpDir, err := os.MkdirTemp("", "atd-search-test")
 	if err != nil {
 		t.Fatal(err)

@@ -9,6 +9,9 @@ import (
 )
 
 func TestResolveAtom(t *testing.T) {
+	saved := config.Snapshot()
+	defer config.Restore(saved)
+
 	tmpDir, err := os.MkdirTemp("", "atd-workspace-test")
 	if err != nil {
 		t.Fatal(err)

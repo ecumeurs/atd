@@ -120,8 +120,8 @@ func TestDiffChangedFilesRebasesOntoProjectRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	savedConfig := config.ActiveConfig
-	defer func() { config.ActiveConfig = savedConfig }()
+	savedConfig := config.Snapshot()
+	defer config.Restore(savedConfig)
 
 	if err := config.LoadFromDir(projDir); err != nil {
 		t.Fatalf("config.LoadFromDir failed: %v", err)

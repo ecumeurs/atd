@@ -11,6 +11,9 @@ import (
 
 func TestTraceRecursiveTraversal(t *testing.T) {
 	// 1. Setup temp environment
+	saved := config.Snapshot()
+	t.Cleanup(func() { config.Restore(saved) })
+
 	tmpDir := t.TempDir()
 	config.LoadFromDir(tmpDir)
 	docsDir := filepath.Join(tmpDir, "docs")

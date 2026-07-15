@@ -13,3 +13,8 @@ atd/cmd/atd/bin/*
 atd/atd
 atd/scratch/
 webui/webui_bin
+
+# Test debris tombstone (test_atd_07_26.md §3.6 T-2 / incident I-1): a
+# cwd-anchored config leak once let `atd map --new` write here during
+# `go test`, and the result got committed to main. Never allow it back.
+atd/cmd/atd/cmd/pipeline_output/

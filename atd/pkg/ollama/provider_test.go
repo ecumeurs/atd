@@ -11,6 +11,9 @@ func TestResolveProvider(t *testing.T) {
 	origListModels := ListModels
 	defer func() { ListModels = origListModels }()
 
+	savedConfig := config.Snapshot()
+	defer config.Restore(savedConfig)
+
 	// Mock ListModels
 	ListModels = func(baseURL string, timeoutMs int) ([]string, error) {
 		if baseURL == "http://remote" {
@@ -82,6 +85,9 @@ func TestQueryEmbed(t *testing.T) {
 	// Save original ListModels
 	origListModels := ListModels
 	defer func() { ListModels = origListModels }()
+
+	savedConfig := config.Snapshot()
+	defer config.Restore(savedConfig)
 
 	// Case: Remote offline, Local offline, IDE only
 	ListModels = func(baseURL string, timeoutMs int) ([]string, error) {

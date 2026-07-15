@@ -15,9 +15,23 @@ func TestWorkspaceCommandsIntegration(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
+	saved := config.Snapshot()
 	oldCwd, _ := os.Getwd()
 	os.Chdir(tmpDir)
-	defer os.Chdir(oldCwd)
+	// rootCmd.Execute() binds --project to the package-level Project var,
+	// which (like config.ActiveConfig) is not reset between Execute() calls.
+	// Under `go test -count=N`, a stale "proj-1" from a prior run of this
+	// same test would make the fresh 'workspace init' below fail with "no
+	// workspace active" via PersistentPreRunE -> config.SetProject. Save and
+	// reset it alongside the config snapshot so this test is repeatable in
+	// isolation, same rationale as the config restore above.
+	savedProject := Project
+	Project = ""
+	defer func() {
+		os.Chdir(oldCwd)
+		config.Restore(saved)
+		Project = savedProject
+	}()
 
 	// 1. Test 'workspace init'
 	rootCmd.SetArgs([]string{"workspace", "init", "--name", "my-test-ws"})

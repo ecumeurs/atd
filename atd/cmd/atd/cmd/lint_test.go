@@ -131,8 +131,9 @@ expectation
 		t.Fatal(err)
 	}
 
+	saved := config.Snapshot()
+	defer config.Restore(saved)
 	config.LoadFromDir(tmpDir)
-	defer func() { config.ActiveConfig.Workspace = nil }()
 
 	out, err := runLint(tmpDir)
 	if err == nil {

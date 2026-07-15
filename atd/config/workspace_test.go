@@ -40,6 +40,9 @@ func TestLoadWorkspaceConfig(t *testing.T) {
 }
 
 func TestLoadInWorkspace(t *testing.T) {
+	saved := Snapshot()
+	defer Restore(saved)
+
 	tmp, err := os.MkdirTemp("", "atd-test-load-*")
 	if err != nil {
 		t.Fatal(err)
@@ -77,6 +80,9 @@ func TestLoadInWorkspace(t *testing.T) {
 }
 
 func TestSetProject(t *testing.T) {
+	saved := Snapshot()
+	defer Restore(saved)
+
 	tmpDir, err := os.MkdirTemp("", "atd-config-setproj-*")
 	if err != nil {
 		t.Fatal(err)
@@ -142,6 +148,9 @@ func TestLoadWorkspaceConfig_Malformed(t *testing.T) {
 }
 
 func TestDetectActiveProject_Subdir(t *testing.T) {
+	saved := Snapshot()
+	defer Restore(saved)
+
 	tmp, err := os.MkdirTemp("", "atd-test-subdir-*")
 	if err != nil {
 		t.Fatal(err)
@@ -167,6 +176,9 @@ func TestDetectActiveProject_Subdir(t *testing.T) {
 }
 
 func TestDetectActiveProject_SharedRootDoesNotShadowSpecificProject(t *testing.T) {
+	saved := Snapshot()
+	defer Restore(saved)
+
 	tmp, err := os.MkdirTemp("", "atd-test-shared-shadow-*")
 	if err != nil {
 		t.Fatal(err)
