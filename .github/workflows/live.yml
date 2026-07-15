@@ -1,0 +1,57 @@
+name: Live LLM (manual)
+
+# test_atd_07_26.md §3.5 point 3, §6 WP-5/WP-6: the opt-in, LIVE-model smoke
+# suite. This lane is intentionally its own workflow, not a job inside
+# ci.yml, and it is triggered ONLY by `workflow_dispatch` (a human clicking
+# "Run workflow", or `gh workflow run`). There is no `push` or
+# `pull_request` trigger anywhere in this file — that is what makes it
+# manual-only. It must never run automatically.
+#
+# WP-6 (fake LLM provider + parser robustness) has not landed yet, so there
+# is no live-tagged test file in the repo today. This job is a stub that
+# already wires up the invocation shape WP-6's suite is expected to use
+# (env-gated: `ATD_LIVE_LLM=1`, per §3.5) so that landing WP-6 is a
+# no-CI-changes-needed drop-in. Until then, `-run TestLive` matches zero
+# tests in both modules and the job exits 0 having made no network calls.
+#
+# Requires a real LLM provider reachable from the runner (e.g. a local
+# Ollama instance, or provider credentials supplied as repo secrets) once
+# WP-6's suite exists — deliberately NOT configured here, since this repo
+# has no such runner/secrets today and the whole point of this lane is that
+# it stays opt-in and human-triggered.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  live-llm:
+    name: live-llm (opt-in, human-triggered only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: atd/go.mod
+
+      # Placeholder invocation for the future WP-6 live suite. `-run
+      # TestLive` is the naming convention this stub assumes (adjust if
+      # WP-6 lands with a `//go:build live` tag instead, or run both).
+      # Today this matches no tests in either module and is a no-op.
+      - name: Run live-LLM suite (atd-tools module)
+        env:
+          ATD_LIVE_LLM: "1"
+        run: cd atd && go test -run TestLive ./...
+
+      - name: Run live-LLM suite (atd cmd module)
+        env:
+          ATD_LIVE_LLM: "1"
+        run: cd atd/cmd/atd && go test -run TestLive ./...
+
+      - name: W-1 tripwire
+        run: test -z "$(git status --porcelain)" || (git status --porcelain; git diff; exit 1)

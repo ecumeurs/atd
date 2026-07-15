@@ -1,0 +1,116 @@
+name: CI
+
+# test_atd_07_26.md §5.2, §6 WP-5: the CI surface for the ATD toolkit.
+#
+# Three jobs on every push/PR:
+#   - verify:       the two-module build+vet+test gate, race-enabled (WP-1's
+#                   `make verify-race`). This is the only definition of
+#                   "green" per atd/Makefile; it always covers BOTH Go
+#                   modules (atd/ and the nested atd/cmd/atd/) — the gap
+#                   that let a five-error compile break in cmd/atd ship
+#                   behind a "verified green" build (test_atd_07_26.md §2,
+#                   incident E5).
+#   - dogfood:      runs ATD on ATD's own docs/ corpus (WP-3's `make
+#                   dogfood`): a `check --full` smoke test plus the lint
+#                   ratchet and S6 corpus-parse-audit against the checked-in
+#                   baseline. Pre-existing authoring debt does not fail the
+#                   gate; new regressions do.
+#   - fixture-e2e:  the slot for the Layer-2 fixture/scenario suite (WP-2).
+#                   See the job body for why it is a placeholder today.
+#
+# No job here requires network access to an LLM or a GPU. The opt-in
+# live-LLM lane (future WP-6) is intentionally a SEPARATE workflow
+# (live.yml) gated on workflow_dispatch only, so it can never fire on push
+# or pull_request.
+#
+# Every job ends with the W-1 tripwire (test_atd_07_26.md §3.6): a test run
+# must be a pure function of the checked-out tree. `make verify`/`verify-
+# race`/`dogfood` already run the tripwire internally (see atd/Makefile),
+# but we repeat it as an explicit CI step per the WP-5 spec so the guarantee
+# holds even for the fixture-e2e placeholder and survives future changes to
+# what a job runs.
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: verify (both modules, -race)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: atd/go.mod
+
+      - name: make verify-race
+        run: make -C atd verify-race
+
+      - name: W-1 tripwire
+        run: test -z "$(git status --porcelain)" || (git status --porcelain; git diff; exit 1)
+
+  dogfood:
+    name: dogfood (lint ratchet + S6 corpus audit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: atd/go.mod
+
+      - name: make dogfood
+        run: make -C atd dogfood
+
+      - name: W-1 tripwire
+        run: test -z "$(git status --porcelain)" || (git status --porcelain; git diff; exit 1)
+
+  fixture-e2e:
+    name: fixture-e2e (Layer-2 scenario suite slot)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: atd/go.mod
+
+      # WP-2 (the fixture corpus + CLI scenario harness under
+      # atd/testdata/fixture_project/ + pkg/testutil.Sandbox) has not
+      # landed yet. Per the WP-5 spec: once it merges, the scenario tests
+      # ship as ordinary *_test.go files in the default `go test ./...`
+      # lane, so the `verify` job above already exercises them — this job
+      # would then become redundant with `verify` unless the scenario
+      # suite is deliberately split out.
+      #
+      # To keep this job meaningful as a DISTINCT gate (not just a copy of
+      # `verify`), rescope it once WP-2 lands to run only the scenario
+      # tests, e.g.:
+      #   go test ./... -run 'TestScenario_'          (naming convention), or
+      #   go test -tags e2e ./...                     (build-tag isolation)
+      # whichever convention WP-2 adopts — grep the harness for the
+      # pattern it settles on and update the `run:` line below accordingly.
+      #
+      # Until then this job is a non-race `make verify` run: a cheap,
+      # honest placeholder that keeps the job slot, name, and tripwire
+      # wired into CI now rather than bolting them on later.
+      - name: make verify (placeholder for Layer-2 scenario suite)
+        run: make -C atd verify
+
+      - name: W-1 tripwire
+        run: test -z "$(git status --porcelain)" || (git status --porcelain; git diff; exit 1)
