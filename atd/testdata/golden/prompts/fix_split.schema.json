@@ -1,0 +1,38 @@
+{
+  "properties": {
+    "parent_logic": {
+      "type": "string"
+    },
+    "splits": {
+      "items": {
+        "properties": {
+          "human_name": {
+            "type": "string"
+          },
+          "id_suffix": {
+            "type": "string"
+          },
+          "intent": {
+            "type": "string"
+          },
+          "logic": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id_suffix",
+          "human_name",
+          "intent",
+          "logic"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "parent_logic",
+    "splits"
+  ],
+  "type": "object"
+}

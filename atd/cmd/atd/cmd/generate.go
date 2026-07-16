@@ -73,7 +73,15 @@ Example:
 			return fmt.Errorf("LLM query failed: %v", err)
 		}
 
-		out, _ := json.MarshalIndent(json.RawMessage(resp.Response), "", "  ")
+		out, err := json.MarshalIndent(json.RawMessage(resp.Response), "", "  ")
+		if err != nil {
+			// Surgical fix, same class as cmd/atd/cmd/dissect.go (WP-6/S12,
+			// test_atd_07_26.md §3.5): don't discard the error and print an
+			// empty line as if generate succeeded — salvage the raw text.
+			config.Log("atd-generate", fmt.Sprintf("LLM response was not valid JSON (%v); printing raw text", err))
+			fmt.Println(resp.Response)
+			return nil
+		}
 		fmt.Println(string(out))
 		config.Log("atd-generate", "Generate complete via LLM")
 		return nil

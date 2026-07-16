@@ -1,0 +1,1 @@
+{"instruction":"Rewrite this fragmented logic into a cohesive, flowing document achieving the intent.","intent":"summarize zzfix","raw_content":"fragment one\nfragment two","system_objective":"You are an ATD Document Assembler.","target_length":"100 words"}

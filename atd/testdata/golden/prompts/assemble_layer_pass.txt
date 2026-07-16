@@ -1,0 +1,1 @@
+{"instruction":"Summarize their core intents and logic.","layer":"BUSINESS","raw_fragments":"fragment one\nfragment two","system_objective":"You are an ATD Layer Summarizer.","target_length":"100 words"}

@@ -1,0 +1,15 @@
+{
+  "properties": {
+    "audit_report": {
+      "type": "string"
+    },
+    "is_congruent": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "is_congruent",
+    "audit_report"
+  ],
+  "type": "object"
+}

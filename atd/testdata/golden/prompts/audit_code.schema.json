@@ -1,0 +1,15 @@
+{
+  "properties": {
+    "passed": {
+      "type": "boolean"
+    },
+    "resolutionMessage": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "passed",
+    "resolutionMessage"
+  ],
+  "type": "object"
+}

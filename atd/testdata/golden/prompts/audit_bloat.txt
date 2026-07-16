@@ -1,0 +1,1 @@
+{"instruction":"Evaluate if the provided text is bloated (contains compound rules or broad statements). Respond in structured JSON.","role":"Architectural Linter","strictness":0.8,"text":"One rule that does X and also Y."}

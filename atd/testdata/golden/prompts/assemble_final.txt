@@ -1,0 +1,1 @@
+{"arch_layer":"arch summary","business_layer":"biz summary","impl_layer":"impl summary","instruction":"Produce your final output ensuring it achieves the exact intent specified.","intent":"summarize zzfix","system_objective":"You are an ATD Analyst.","target_length":"100 words"}
