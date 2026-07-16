@@ -1,0 +1,35 @@
+{
+  "properties": {
+    "diffs": {
+      "items": {
+        "properties": {
+          "change_context": {
+            "type": "string"
+          },
+          "proposed_id": {
+            "type": "string"
+          },
+          "relationship": {
+            "enum": [
+              "UPDATE",
+              "CONFLICT",
+              "NEW"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposed_id",
+          "relationship",
+          "change_context"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "diffs"
+  ],
+  "type": "object"
+}

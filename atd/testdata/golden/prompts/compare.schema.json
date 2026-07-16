@@ -1,0 +1,19 @@
+{
+  "properties": {
+    "category": {
+      "type": "string"
+    },
+    "diagnosis": {
+      "type": "string"
+    },
+    "resolution": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "category",
+    "diagnosis",
+    "resolution"
+  ],
+  "type": "object"
+}

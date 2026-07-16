@@ -1,0 +1,1 @@
+{"code":"package zzfix\nfunc Beta() {}\n","instruction":"Summarize the architectural and domain-level intent of this code in 2 sentences. Focus on what subsystem it belongs to and the core rules it enforces. Do not talk about specific variable names."}

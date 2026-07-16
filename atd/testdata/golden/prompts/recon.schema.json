@@ -1,0 +1,36 @@
+{
+  "properties": {
+    "Confidence": {
+      "description": "Calibrated 0-100 confidence that the candidate code implements the atom.",
+      "type": "integer"
+    },
+    "Mismatches": {
+      "description": "Itemized concrete mismatches or unverifiable aspects. Empty array if none.",
+      "items": {
+        "properties": {
+          "aspect": {
+            "type": "string"
+          },
+          "expected": {
+            "type": "string"
+          },
+          "found": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "aspect",
+          "expected",
+          "found"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "Confidence",
+    "Mismatches"
+  ],
+  "type": "object"
+}

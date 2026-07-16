@@ -48,8 +48,14 @@ type TagsResponse struct {
 	} `json:"models"`
 }
 
-// Generate sends a generation request to an Ollama endpoint.
-func Generate(baseURL, model, prompt string, format interface{}, opts *Options) (*GenerateResponse, error) {
+// Generate sends a generation request to an Ollama endpoint. Package var
+// (mirrors the ListModels seam below) so tests can swap in a deterministic
+// fake responder with no network — see pkg/testutil/fakeprovider, built for
+// WP-6 (test_atd_07_26.md §3.5/§6) to unlock audit/dissect/map/recon parser
+// tests without a live model.
+var Generate = generateHTTP
+
+func generateHTTP(baseURL, model, prompt string, format interface{}, opts *Options) (*GenerateResponse, error) {
 	req := GenerateRequest{
 		Model:   model,
 		Prompt:  prompt,
@@ -85,8 +91,11 @@ func Generate(baseURL, model, prompt string, format interface{}, opts *Options) 
 	return &gen, nil
 }
 
-// Embed sends an embedding request to an Ollama endpoint.
-func Embed(baseURL, model, text string) ([]float32, error) {
+// Embed sends an embedding request to an Ollama endpoint. Package var for
+// the same reason as Generate above (see pkg/testutil/fakeprovider).
+var Embed = embedHTTP
+
+func embedHTTP(baseURL, model, text string) ([]float32, error) {
 	req := EmbeddingRequest{
 		Model:  model,
 		Prompt: text,

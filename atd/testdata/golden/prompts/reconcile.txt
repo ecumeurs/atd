@@ -1,0 +1,1 @@
+{"existing_store":"# existing zzfix atoms","inbound_edits":"# inbound zzfix edits","system_objective":"You are an ATD Reconciler managing conflict detection. Analyze the Inbound changes against the Existing knowledge store. Return a Semantic Diff mapping identifying contradictions or overlaps."}

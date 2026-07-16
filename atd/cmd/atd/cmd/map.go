@@ -169,7 +169,15 @@ func runMapPropose(filePath, fileContent string) (string, error) {
 	var intentResult struct {
 		Intent string `json:"intent"`
 	}
-	json.Unmarshal([]byte(resp.Response), &intentResult)
+	if err := json.Unmarshal([]byte(resp.Response), &intentResult); err != nil {
+		// Surgical fix (WP-6/S12, test_atd_07_26.md §3.5): this Unmarshal
+		// error used to be discarded, so a malformed response (fenced,
+		// truncated, prose-wrapped) silently produced an empty Intent and
+		// runMapPropose carried on building a skeleton with a blank
+		// "**Intent:**" line — a zero-value success. Fail loudly instead,
+		// including enough of the raw response to diagnose.
+		return "", fmt.Errorf("intent extraction returned malformed JSON: %v (raw response: %.200s)", err, resp.Response)
+	}
 	intent := intentResult.Intent
 
 	// Derive proposed atom fields
@@ -212,7 +220,14 @@ func runMapDiscover(filePath, fileContent, docsDir string) (string, error) {
 		var res struct {
 			Intent string `json:"intent"`
 		}
-		json.Unmarshal([]byte(resp.Response), &res)
+		if err := json.Unmarshal([]byte(resp.Response), &res); err != nil {
+			// Surgical fix (WP-6/S12, test_atd_07_26.md §3.5): as in
+			// runMapPropose above, a discarded Unmarshal error here used to
+			// let a malformed response silently become an empty codeIntent,
+			// which then drove a semantic search on "" — a zero-value
+			// success masquerading as a completed discover step.
+			return "", fmt.Errorf("intent extraction returned malformed JSON: %v (raw response: %.200s)", err, resp.Response)
+		}
 		codeIntent = res.Intent
 	}
 
@@ -293,7 +308,14 @@ func runMapDiscover(filePath, fileContent, docsDir string) (string, error) {
 		Recommendations []string `json:"recommendations"`
 		Rationale       string   `json:"rationale"`
 	}
-	json.Unmarshal([]byte(respRec.Response), &rec)
+	if err := json.Unmarshal([]byte(respRec.Response), &rec); err != nil {
+		// Surgical fix (WP-6/S12, test_atd_07_26.md §3.5): a discarded
+		// Unmarshal error here used to render "### Recommended Atom
+		// Links\n\n### Rationale\n" — a well-formed-looking but entirely
+		// empty report — instead of surfacing that the model's response
+		// didn't parse.
+		return "", fmt.Errorf("link recommendation returned malformed JSON: %v (raw response: %.200s)", err, respRec.Response)
+	}
 
 	var b strings.Builder
 	b.WriteString("### Recommended Atom Links\n")

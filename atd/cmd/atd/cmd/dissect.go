@@ -74,7 +74,18 @@ func runDissect(target string, useLLM bool) (string, error) {
 		return "", fmt.Errorf("LLM query failed: %v", err)
 	}
 
-	out, _ := json.MarshalIndent(json.RawMessage(resp.Response), "", "  ")
+	out, err := json.MarshalIndent(json.RawMessage(resp.Response), "", "  ")
+	if err != nil {
+		// KNOWN DEFECT surgical fix (WP-6/S12, test_atd_07_26.md §3.5): the
+		// model didn't return valid JSON (fenced/truncated/prose-wrapped).
+		// MarshalIndent's error was previously discarded (`_`), so `out`
+		// silently stayed nil and callers printed an empty string that read
+		// as a successful, empty dissect — a zero-value success. Salvage the
+		// raw response instead so the caller sees exactly what the model
+		// returned rather than nothing.
+		config.Log("atd-dissect", fmt.Sprintf("Dissect of %s: LLM response was not valid JSON (%v); returning raw text", filepath.Base(target), err))
+		return resp.Response, nil
+	}
 	config.Log("atd-dissect", fmt.Sprintf("Dissect of %s complete via LLM", filepath.Base(target)))
 	return string(out), nil
 }

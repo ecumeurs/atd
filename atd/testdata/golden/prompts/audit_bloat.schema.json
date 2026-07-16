@@ -1,0 +1,15 @@
+{
+  "properties": {
+    "is_bloated": {
+      "type": "boolean"
+    },
+    "reason": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "is_bloated",
+    "reason"
+  ],
+  "type": "object"
+}

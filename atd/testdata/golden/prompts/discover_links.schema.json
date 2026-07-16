@@ -1,0 +1,18 @@
+{
+  "properties": {
+    "rationale": {
+      "type": "string"
+    },
+    "recommendations": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "recommendations",
+    "rationale"
+  ],
+  "type": "object"
+}

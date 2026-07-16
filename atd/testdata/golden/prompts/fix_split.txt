@@ -1,0 +1,1 @@
+{"atom_to_split":"## THE RULE / LOGIC\nDoes X and also Y.","instruction":"Split it into N focused child atoms, each with EXACTLY ONE rule in its logic section. Output as structured JSON.","system_objective":"You are an ATD architect. The following ATD atom VIOLATES the 'Minimum Atomic Scale' rule — its RULE/LOGIC section describes more than one distinct state-changing rule."}
