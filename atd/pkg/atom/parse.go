@@ -272,11 +272,21 @@ func ParseMeta(path string) (id, humanName, atomType string, err error) {
 
 // BuildContent generates a complete .atom.md file from an AtomData struct.
 func BuildContent(a AtomData) string {
+	// The non-empty branch starts with a newline so the list begins on its
+	// own line (matching FormatYAMLList's style in update.go). Without it,
+	// the outer template's "parents: %s" placed the FIRST "  - [[id]]"
+	// entry on the same line as the "parents:" key; Parse's inline-list
+	// branch stripped the "[[..]]" brackets but not a leading "- ", so the
+	// first parent round-tripped as "- <id>" instead of "<id>" — corrupting
+	// every child atom's first (and often only) parent link, e.g. `atd
+	// fix`'s split-atom path (cmd/atd/cmd/fix.go), which always sets
+	// exactly one parent via BuildContent.
 	var parentsStr strings.Builder
 	if len(a.Parents) == 0 {
 		parentsStr.WriteString(" []")
 	} else {
 		sort.Strings(a.Parents)
+		parentsStr.WriteString("\n")
 		for _, p := range a.Parents {
 			parentsStr.WriteString(fmt.Sprintf("  - [[%s]]\n", p))
 		}
