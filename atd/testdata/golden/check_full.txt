@@ -1,0 +1,10 @@
+# check --full (sorted by atom id for golden stability)
+api_zzfix_beta           impl=2 tests=1 status=OK
+contract_zzfix           impl=0 tests=0 status=NO_IMPL
+mech_zzfix_gamma         impl=1 tests=1 status=OK
+mech_zzfix_orphan        impl=0 tests=0 status=NO_IMPL
+req_zzfix_alpha          impl=0 tests=0 status=NO_IMPL
+req_zzfix_draft          impl=0 tests=0 status=NO_IMPL
+req_zzfix_tech_debt_backlog impl=0 tests=0 status=NO_IMPL
+rule_zzfix_untested      impl=1 tests=0 status=NO_TESTS
+vision_zzfix             impl=0 tests=0 status=NO_IMPL

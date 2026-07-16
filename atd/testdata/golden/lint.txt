@@ -1,0 +1,1 @@
+OK: All atoms passed structural validation.
