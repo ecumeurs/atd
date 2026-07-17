@@ -9,7 +9,9 @@
 
 ## 0. TL;DR
 
-> ⚠️ **Warning — the current suite is not sandboxed and has already damaged the repo.** A full `go test ./...` run in `cmd/atd` can **rewrite its own test source files** (reproduced; root cause in §2.1: leaked global config + cwd fallback + `UpdateLinks`' repo-walk), and one such self-mutation was committed to `main` unnoticed. Until the sandbox contract (§3.6) lands, treat any unexplained working-tree diff after a test run as suite-inflicted, and run tests before staging, never between `git add` and `git commit`.
+> ✅ **Status update (2026-07-17): WP-0 through WP-7 have been executed and merged to `main`** — see the execution record in §8. The warning below is preserved for historical context; the sandbox contract landed first (commit `ca641eb`) and incident I-1 is closed.
+
+> ⚠️ **Warning (historical, resolved by WP-0) — the suite was not sandboxed and had already damaged the repo.** A full `go test ./...` run in `cmd/atd` could **rewrite its own test source files** (reproduced; root cause in §2.1: leaked global config + cwd fallback + `UpdateLinks`' repo-walk), and one such self-mutation was committed to `main` unnoticed. Until the sandbox contract (§3.6) landed, any unexplained working-tree diff after a test run had to be treated as suite-inflicted.
 
 1. **The suite is green but shallow.** ~2 450 test LOC against ~13 000 production LOC, and the tests that exist are mostly flag-existence checks, string-classification micro-tests, and happy-path parses. Packages at the heart of ATD's value proposition are the least tested: `pkg/exploration` (the graph engine) sits at **10.7 %** coverage, `pkg/coverage` (the `check` engine) at **23 %**, and `pkg/audit`, `pkg/indexer`, `pkg/llmservice`, `pkg/mcp`, `pkg/chat` have **zero** test files.
 2. **The bug classes that actually hurt were all integration-level** — bare-id silent zeros, `trace`/`check` disagreement, the phantom-tool drift, the H3 parser swallow, the MCP handlers referencing deleted functions. Not one of them was catchable by the current unit tests, and not one *would be* caught by adding more of the same kind of unit test. The missing layer is **scenario tests against a fixture corpus** and **contract tests on the MCP surface**.
@@ -323,3 +325,47 @@ Fuzz targets for `atom.Parse`/`extractLinks`; opt-in live-LLM smoke suite (`ATD_
 ATD's failure history is unusually legible: every serious defect lived **on a seam** — between two tools' answers, between the declared schema and the handler, between the docs corpus and the registered reality, between two Go modules. The current suite tests *inside* components, so it was green through all of it. The fix is not "more coverage" in the abstract; it is a fixture corpus that exercises the CLI/MCP surface the way agents actually hit it, contract tests that make schema-vs-handler and docs-vs-registry drift build-breaking, and a dogfood gate that makes ATD's own corpus the permanent integration test. That last piece is also the point: a governance tool whose CI proves it governs itself is its own best demo.
 
 And incident I-1 sets the order of operations beyond argument: before the suite can be *extended*, it must be *contained*. A test run that can rewrite its own fixtures — and once committed the damage to `main` — fails the most basic requirement of a test system: that observing the code does not change it. WP-0 is a half-day of work; nothing else in this report is trustworthy until it lands.
+
+---
+
+## 8. Execution Record — orchestrated pass of 2026-07-16/17
+
+All of §6 was executed by a coordinating agent delegating to 7 subagents (WP-0 solo and first per the critical path; WP-2∥WP-3, then WP-4∥WP-6, then WP-7 split three ways by package, each in an isolated git worktree merged back to `main`). Every WP finished with `make -C atd verify` green and `git status --porcelain` empty. WP-8's cheap parts were folded in (FuzzParse seed corpus via WP-7, `TestLive*` opt-in suite via WP-6). Range: `ca641eb`..`3b7fdd7`, ~6 800 lines of tests/infrastructure.
+
+### 8.1 Per-WP results
+
+| WP | Commit(s) | Outcome |
+|---|---|---|
+| WP-0 sandbox | `ca641eb` | P-1 scope guard (`pathInside` + `LoadedFromFallback()` refusal, loud stderr warning), P-2 `_test.go`/`testdata/` skip, T-1 snapshot/restore in **all** offenders (audit found more than the report listed: also `lint`, `workspace_integration`, `config/workspace_test.go`, `exploration`, `ollama`, `coverage` tests, plus the cobra `--project` persistent-flag leak), T-2 debris deleted + tombstoned, W-1 tripwire in `pkg/testutil`. AC2 proven: re-introduced naked `LoadFromDir(t.TempDir())` causes zero repo writes. |
+| WP-1 verify gate | `c3954ca` | `make verify`/`verify-race` over both modules + tripwire; CLAUDE.md updated. Finding: a tracked `go.work` **already existed** and does *not* close the two-module gap (`go list ./...` from `atd/` still never sees the nested module) — the Makefile is the guard, as §5.1's fallback anticipated. |
+| WP-2 fixture + harness | `44efa65`,`1e4ee15`,`2693176` | `testdata/fixture_project/` + `fixture_workspace/`, full `testutil.Sandbox/Run/Golden/Git` API, scenarios S1–S5/S7/S8/S13 all green under `t.Parallel()`/`-race`, goldens deterministic. |
+| WP-3 dogfood gate | `4ee2196` | `make dogfood`/`dogfood-quick`/`dogfood-update-baseline`; baseline = 176 fingerprints (47 missing EXPECTATION, 43 missing TECHNICAL INTERFACE, 31 impl-without-test, 51 unresolved links, 4 misc); S6 corpus audit (`dogfood` build tag) — zero H3-swallow on the real corpus; hook template extended in `init.go`. |
+| WP-4 MCP contracts | `1996365` | Wiring sweep over all 25 registered tools, schema-honesty + exhaustive per-tool param accounting, tool-set↔docs equality (pins exactly the 8 missing `api_atd_serve_*` atoms: env, config, workspace_list/use/stats, heatmap ×3), error-shape tests. All three red-flip ACs demonstrated. |
+| WP-5 CI | `f9d729f`, `3b7fdd7` | `ci.yml`: verify-race + coverage-floors, dogfood, isolated `TestScenario_|TestGolden_` suite — every job tripwired; `live.yml` is `workflow_dispatch`-only. All job command sequences verified locally (no remote/CI runner exists yet). |
+| WP-6 LLM boundary | `47da6e1` | `testutil/fakeprovider` covering **both** seams (`chat.Provider`, and new `ollama.Generate`/`Embed` package vars mirroring the `ListModels` seam — the only product seam change). S12 malformed-input matrix, deterministic audit/dissect/map/recon/search-embedding logic tests, 28 prompt goldens, `TestLive*` stubs. Whole suite proven green with `http_proxy` pointed at a dead port. |
+| WP-7 back-fill | `9152f05`,`c5e07e7`,`6d5ee70`, `3b7fdd7` | `pkg/exploration` 10.7 % → **73.0 %**, `pkg/coverage` 23.2 % → **64.6 %**, `pkg/atom` ~40 % → **79.2 %**; floors (60/60/70) enforced via `make coverage-floors` in CI, ratchet-up-only. |
+
+### 8.2 Product bugs found and FIXED during the pass
+
+- **`BuildContent` parent-link corruption** (found by the WP-7 round-trip property): the first `parents:` entry was emitted on the key line, so `Parse` returned `"- <id>"` instead of `"<id>"` — silently corrupting every child atom produced by `atd fix`'s split path. Fixed in `pkg/atom/parse.go`.
+- **Five zero-value-success parser paths** (WP-6, surgical): `dissect.go` and `generate.go` returned an **empty string as success** on any malformed LLM response (discarded `MarshalIndent` error); `map.go`'s propose/discover/recommendation paths discarded `Unmarshal` errors and proceeded on blank intents. All five now error loudly or salvage, each pinned by a regression test.
+
+### 8.3 Defect backlog — pinned as `KNOWN DEFECT`, not fixed (grep `KNOWN DEFECT` under `atd/`)
+
+1. Strip-`TYPE_`-prefix resolver retry exists only on the workspace resolver; standalone projects fail prefixed ids like nonsense, no suggestions (E1-adjacent).
+2. `query` never errors — nonsense id → silent empty array; the one tool of the four violating "resolve or shout".
+3. MCP `atd_update` has no `force` param — MCP clients can never override the STABLE+BUSINESS guard (CLI `--force` works).
+4. MCP registry: `required` is unenforced (`atd_recon` without `atom` silently enters discover mode); `argBool/argString/argInt` silently coerce wrong-typed args to zero values; `atd_check.line` declared-but-never-read; 6 tools have docs-vs-schema param drift (allowlisted in `mcp_docs_equality_test.go`).
+5. Nondeterministic output ordering: `coverage.GenerateReport` full mode and trace `CodeLinks`/`TestLinks` (unordered map iteration).
+6. Trace `ImplementationRate` double-counts dependents (fully-implemented 3-chain reports 0.5); `config.MaxDepth` is dead code for trace.
+7. cwd-anchored path resolution: `runStats` hardcodes `"."`; `atd_roadmap`/`atd_crawl`/`atd_trace` MCP handlers resolve against process cwd (I-1-shaped). **Needs a human decision:** `atd_config`'s `task`+`model` branch calls a bare `config.Load()` and can *write* to whatever real `.atd` sits above the process cwd.
+8. `BuildContent`⇄`Parse` round-trip broken for `Tags`/`Dependents`/`Interface`/`Metadata` (hardcoded/omitted in `BuildContent` — needs a serialization-format decision).
+9. Remaining zero-value-success paths: audit-bloat JSON missing `is_bloated` → silent PASS; reconcile response without `diffs` → prints `null`, exits 0.
+10. `check --full` walks the entire project root regardless of `--docs`, picking up nested test fixtures (`tests/trace/docs/`, `test-workspace/`) — why the dogfood gate ratchets on `lint` and uses `check --full` only as a smoke test.
+11. Ambiguous bare id in a workspace resolves first-registered-project-wins with no ambiguity signal; `ListFiles` dotdir filtering misses top-level `.git/`.
+
+### 8.4 Spec deviations worth knowing
+
+- The report's line numbers held (~395, ~286-289), but its offender list for T-1 was incomplete — see WP-0 row above; the audit-everything instruction was what caught the rest.
+- `fixture-e2e` in CI was rescoped from placeholder to the real isolated scenario suite once WP-2 settled on the `TestScenario_` naming convention.
+- The dogfood gate does not ratchet on `check --full` NO_IMPL/NO_TESTS counts (would fight docs-first authoring — a fresh unimplemented atom is *supposed* to show NO_IMPL); it ratchets on `lint` + S6 only.
