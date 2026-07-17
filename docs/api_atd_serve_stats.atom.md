@@ -42,6 +42,10 @@ Produce quantitative documentation health metrics: total atoms, atoms by type, s
     "docs": {
       "type": "string",
       "description": "Override docs directory path."
+    },
+    "workspace": {
+      "type": "boolean",
+      "description": "If true, aggregate stats from all projects in the workspace."
     }
   }
 }

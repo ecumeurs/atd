@@ -532,29 +532,46 @@ func TestScenario_S4_StableBusinessGuard(t *testing.T) {
 		}
 	})
 
-	// KNOWN DEFECT: the MCP atd_update tool (cmd/atd/cmd/mcp_tools.go) has
-	// no `force` parameter in its InputSchema, and its handler never reads
-	// one -- unlike the CLI's --force flag. test_atd_07_26.md's S4
-	// explicitly expects an MCP path "same via r.Call(atd_update, ...)";
-	// today an MCP client has NO way to override the STABLE+BUSINESS guard
-	// at all. This pins the current (always-refuses, force-silently-
-	// ignored) behavior rather than silently loosening the assertion.
-	t.Run("mcp_path_force_param_not_wired", func(t *testing.T) {
+	// The MCP atd_update tool (cmd/atd/cmd/mcp_tools.go) now declares a
+	// `force` parameter in its InputSchema and reads it into the same
+	// UpdateOptions.Force path the CLI's --force flag uses
+	// (test_atd_07_26.md §8.3 item 3, fixed): an MCP client can override the
+	// STABLE+BUSINESS guard exactly like the CLI can. Proves both halves:
+	// without force the MCP path is refused identically to the CLI path
+	// tested above; with force:true it succeeds and the edit lands.
+	t.Run("mcp_path_force_param_wired", func(t *testing.T) {
 		sb2 := testutil.Sandbox(t, "fixture_project")
 		path := filepath.Join(sb2.DocsDir, "req_zzfix_alpha.atom.md")
 
 		r := mcp.NewRegistry()
 		RegisterMCPTools(r)
 
+		refused := sb2.Run(func() (string, error) {
+			return r.Call("atd_update", map[string]any{
+				"file": path,
+				"set":  []any{"priority=8"},
+			})
+		})
+		if refused.Err == nil {
+			t.Fatal("expected atd_update via MCP without force on a STABLE BUSINESS atom to be refused, got success")
+		}
+
 		res := sb2.Run(func() (string, error) {
 			return r.Call("atd_update", map[string]any{
 				"file":  path,
 				"set":   []any{"priority=9"},
-				"force": true, // accepted into the args map, but never read by the handler
+				"force": true,
 			})
 		})
-		if res.Err == nil {
-			t.Fatal("KNOWN DEFECT expectation changed: atd_update via MCP with force:true unexpectedly succeeded on a STABLE BUSINESS atom -- if force is now wired into the MCP handler, update/remove this pin")
+		if res.Err != nil {
+			t.Fatalf("expected atd_update via MCP with force:true to override the STABLE+BUSINESS guard, got error: %v", res.Err)
+		}
+		updated, err := atom.Parse(path)
+		if err != nil {
+			t.Fatalf("re-parsing updated atom: %v", err)
+		}
+		if updated.Priority != "9" {
+			t.Errorf("expected priority updated to 9 via MCP force, got %q", updated.Priority)
 		}
 	})
 }

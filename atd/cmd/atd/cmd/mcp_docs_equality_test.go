@@ -28,61 +28,33 @@ import (
 
 // missingToolAtomsAllowlist is a SHRINKING allowlist (test_atd_07_26.md §6
 // WP-4 AC: "either author [the 8 missing tool atoms] in this WP ... or
-// start the equality test with an explicit, shrinking allowlist"). Every
-// name below is a currently-registered MCP tool with NO corresponding
-// api_atd_serve_<name> atom in docs/ yet (investigation_atd_07_26.md D1's
-// "8 missing tool atoms" -- the count matches exactly). Remove an entry
-// once its atom is authored; do NOT add entries here for new drift -- a
-// newly registered tool with no atom should fail this test, not grow this
-// list.
-var missingToolAtomsAllowlist = map[string]bool{
-	"atd_env":             true,
-	"atd_config":          true,
-	"atd_workspace_list":  true,
-	"atd_workspace_use":   true,
-	"atd_workspace_stats": true,
-	"atd_heatmap":         true,
-	"atd_heatmap_code":    true,
-	"atd_heatmap_project": true,
-}
+// start the equality test with an explicit, shrinking allowlist"). The 8
+// tools originally missing an api_atd_serve_<name> atom
+// (investigation_atd_07_26.md D1) -- atd_env, atd_config,
+// atd_workspace_list/use/stats, and atd_heatmap/_code/_project -- all now
+// have one authored in docs/ (test_atd_07_26.md §8.3 item 4d), so this
+// allowlist is intentionally empty. Do not add entries here for new drift
+// -- a newly registered tool with no atom should fail this test, not grow
+// this list.
+var missingToolAtomsAllowlist = map[string]bool{}
 
 // docParamViolationsAllowlist is the same shrinking-allowlist pattern
-// applied to individual parameters: each entry names a param an EXISTING
-// api_atd_serve_* atom documents in its "### Input Schema" JSON block that
-// the actually-registered tool schema does not declare at all. Found by
-// manually diffing every atom's Input Schema block against
-// RegisterMCPTools' InputSchema in mcp_tools.go (2026-07-26/16) -- none of
-// these are hypothetical:
-//
-//   - atd_audit:      registered schema has ZERO properties (empty object);
-//     the atom documents docs/threshold/code/atom, none of which the
-//     handler reads from args (docs/threshold come from config; the
-//     code+atom "compliance mode" the atom's LOGIC section describes is
-//     not wired into runFullAudit's signature at all).
-//   - atd_crawl:       registered schema only declares gaps/workspace; the
-//     atom also documents src/docs, but the handler hardcodes
-//     src="." and docs=config.DocsDir(), never reading either from args.
-//   - atd_dissect:     registered schema only declares file; the atom also
-//     documents llm, but the MCP handler hardcodes useLLM=true
-//     unconditionally (runDissect(file, true)), ignoring any llm arg.
-//   - atd_index:       registered schema has ZERO properties; the atom
-//     documents dir/db/mode, but the handler hardcodes ".",
-//     config.IndexDBPath(...), and "all".
-//   - atd_stats:       registered schema only declares workspace; the atom
-//     also documents src/docs, neither read from args.
-//   - atd_test_links:  registered schema only declares atom; the atom also
-//     documents src/docs, neither read from args.
-//
-// Remove an entry (or a single param from its slice) once the atom or the
-// schema is corrected to match -- this is drift being PINNED, not policy.
-var docParamViolationsAllowlist = map[string][]string{
-	"atd_audit":      {"docs", "threshold", "code", "atom"},
-	"atd_crawl":      {"src", "docs"},
-	"atd_dissect":    {"llm"},
-	"atd_index":      {"dir", "db", "mode"},
-	"atd_stats":      {"src", "docs"},
-	"atd_test_links": {"src", "docs"},
-}
+// applied to individual parameters: each entry would name a param an
+// EXISTING api_atd_serve_* atom documents in its "### Input Schema" JSON
+// block that the actually-registered tool schema does not declare at all.
+// As of test_atd_07_26.md §8.3 item 4d, the six tools originally found here
+// (atd_audit, atd_crawl, atd_dissect, atd_index, atd_stats, atd_test_links)
+// have all been reconciled -- each param the atom documented that had a
+// real, wireable counterpart (docs/threshold on atd_audit; src/docs on
+// atd_crawl/atd_stats; docs on atd_test_links; llm on atd_dissect;
+// dir/db/mode on atd_index) is now actually read by its handler, and the
+// one param that had no backing implementation at all (atd_audit's
+// "code"/"atom" compliance mode -- there never was a runFullAudit signature
+// to wire it to) was removed from the atom instead of invented from
+// scratch. This allowlist is intentionally empty; do not add entries for
+// new drift -- a newly-authored atom with stale params should fail this
+// test, not grow this list.
+var docParamViolationsAllowlist = map[string][]string{}
 
 // inputSchemaBlockPattern matches the fenced ```json block that follows a
 // "### Input Schema" heading in every api_atd_serve_* atom that documents

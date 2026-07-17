@@ -2,17 +2,20 @@ package cmd
 
 // Schema-honesty and error-shape tests (test_atd_07_26.md §3.3 #2 and #4).
 //
-// Before writing paramCases below, every one of the 25 registered tools'
+// Before writing paramCases below, every one of the registered tools'
 // InputSchema.properties was manually cross-checked against its handler
-// closure in cmd/atd/cmd/mcp_tools.go (grepping for argString/argBool/
-// argInt/direct args[...] reads of each declared key). Exactly one
-// declared-but-never-read parameter was found across the entire registry:
-// atd_check's "line" -- the report's own "known liar" (test_atd_07_26.md
-// §3.3 #2, §1 item 3). Every other declared property IS read somewhere in
-// its handler. paramCases below pins that one true defect plus a
-// representative spot-check of live params across several other tools, to
-// demonstrate the with/without method generalizes rather than re-deriving
-// the same fact 60 times.
+// closure in cmd/atd/cmd/mcp_tools.go (grepping for mcpArgs.String/Bool/
+// Int/Float64/direct args[...] reads of each declared key). The one
+// declared-but-never-read parameter this originally found -- atd_check's
+// "line", the report's own "known liar" (test_atd_07_26.md §3.3 #2, §1 item
+// 3) -- has since been removed from the schema entirely (§8.3 item 4c):
+// runCoverageCheck has no line-scoping concept to wire it to, so "simpler,
+// preferred" won over inventing one from scratch. Every currently-declared
+// property IS read somewhere in its handler. paramCases below is a
+// representative spot-check of live params across several tools (including
+// atd_dissect's newly-wired "llm" toggle, §8.3 item 4d), to demonstrate the
+// with/without method generalizes rather than re-deriving the same fact for
+// every one of the ~25 registered tools.
 import (
 	"path/filepath"
 	"strings"
@@ -39,19 +42,22 @@ type paramCase struct {
 
 var paramCases = []paramCase{
 	{
-		// The report's headline example: atd_check declares "line" (requires
-		// "file") but runCoverageCheck's signature has no line parameter at
-		// all -- the MCP handler never extracts args["line"], so any value
-		// is silently discarded.
-		tool:  "atd_check",
-		param: "line",
+		// §8.3 item 4d: atd_dissect's "llm" toggle was documented in
+		// api_atd_serve_dissect.atom.md but the MCP handler used to hardcode
+		// runDissect(file, true) unconditionally. Now wired: llm=false
+		// returns the raw prompt text directly (IDE-passthrough mode);
+		// omitting it (default true) routes through ollama.Query, which the
+		// fixture project's provider-less .atd sends down the IDE-fallback
+		// path, producing the "Task delegated to IDE Agent" message instead
+		// of the raw prompt -- a clear behavioral difference either way.
+		tool:  "atd_dissect",
+		param: "llm",
 		without: func(sb *testutil.SB) map[string]any {
 			return map[string]any{"file": filepath.Join(sb.SrcDir, "beta.go")}
 		},
 		with: func(sb *testutil.SB) map[string]any {
-			return map[string]any{"file": filepath.Join(sb.SrcDir, "beta.go"), "line": 999999}
+			return map[string]any{"file": filepath.Join(sb.SrcDir, "beta.go"), "llm": false}
 		},
-		knownDefect: "KNOWN DEFECT (test_atd_07_26.md §3.3 #2, §1 item 3): atd_check's \"line\" schema param is never read by the handler (mcp_tools.go's atd_check closure extracts base/target/full/file/semantic only) or passed into runCoverageCheck, which has no line parameter in its signature at all. An out-of-range line (999999) produces byte-identical output to omitting it entirely.",
 	},
 	{
 		tool:  "atd_query",
@@ -112,13 +118,13 @@ var paramCases = []paramCase{
 }
 
 // TestMCPContract_SchemaHonesty pins test_atd_07_26.md §3.3 #2: every
-// declared InputSchema param either measurably changes the tool's output
-// (asserted here) or is a documented KNOWN DEFECT (atd_check's "line").
-// Choice recorded for the AC report: "line" is pinned rather than trivially
-// deleted from the schema, matching WP-2's established house style
-// (scenario_test.go's S4 pins atd_update's missing "force" the same way)
-// and keeping this WP's deliverable confined to the new test file rather
-// than reaching into mcp_tools.go.
+// declared InputSchema param must measurably change the tool's output
+// (asserted here), or be a documented KNOWN DEFECT. As of §8.3's defect
+// pass there is no longer a standing declared-but-dead param anywhere in
+// the registry -- atd_check's "line" (the report's original "known liar")
+// was removed from the schema rather than wired to a nonexistent concept
+// in runCoverageCheck (item 4c); every remaining paramCase below asserts a
+// live, wired param.
 func TestMCPContract_SchemaHonesty(t *testing.T) {
 	r := mcp.NewRegistry()
 	RegisterMCPTools(r)
@@ -151,7 +157,7 @@ func TestMCPContract_SchemaHonesty(t *testing.T) {
 			}
 
 			if !differs {
-				t.Errorf("%s's %q param is declared in InputSchema but produced byte-identical output with and without it -- either wire it into the handler or pin it as a KNOWN DEFECT (see atd_check/line above for the pattern)\nwithout: err=%v output=%q\nwith:    err=%v output=%q",
+				t.Errorf("%s's %q param is declared in InputSchema but produced byte-identical output with and without it -- either wire it into the handler or pin it as a KNOWN DEFECT (set paramCase.knownDefect explaining why)\nwithout: err=%v output=%q\nwith:    err=%v output=%q",
 					pc.tool, pc.param, without.Err, without.Output, with.Err, with.Output)
 			}
 		})
@@ -217,18 +223,19 @@ func TestMCPContract_ErrorShapes(t *testing.T) {
 		}
 	})
 
-	// KNOWN DEFECT: atd_recon's InputSchema declares `"required": ["atom",
-	// "candidate"]`, but the registry (pkg/mcp.Registry.Call) never
-	// validates "required" against the schema -- it is purely descriptive.
-	// The atd_recon handler (mcp_tools.go) calls runMap(candidate, atom,
-	// docsDir, false); when atom=="" and isNew==false, runMap's switch falls
-	// through to its DEFAULT branch (runMapDiscover) instead of the confirm
-	// branch, silently changing MODE rather than refusing the call. This is
+	// atd_recon's InputSchema declares `"required": ["atom", "candidate"]`.
+	// This used to be purely descriptive: the registry never validated
+	// "required" against the schema, and the handler's runMap(candidate,
+	// atom, docsDir, false) call would fall through to the DEFAULT
+	// (discover) branch on an empty atom instead of refusing the call --
 	// the "silent empty/wrong success" shape §7.2 "resolve or shout" warns
-	// against, on the write^H^H^Hread side: a caller who forgot "atom"
-	// wanted a confirm-mode verdict and got a discover-mode recommendation
-	// list instead, with no error at all.
-	t.Run("missing_required_arg_atom_recon_silently_changes_mode", func(t *testing.T) {
+	// against, on the write^H^H^Hread side. pkg/mcp.Registry.Call now
+	// enforces "required" centrally (test_atd_07_26.md §8.3 item 4a) before
+	// any handler runs, so a caller who forgets "atom" is refused loudly,
+	// naming both the tool and the missing argument, rather than silently
+	// getting a discover-mode recommendation list instead of the confirm-
+	// mode verdict they asked for.
+	t.Run("missing_required_arg_atom_recon_refused", func(t *testing.T) {
 		sb := testutil.Sandbox(t, "fixture_project")
 		defer chdirT(t, sb.Root)()
 		res := sb.Run(func() (string, error) {
@@ -236,20 +243,25 @@ func TestMCPContract_ErrorShapes(t *testing.T) {
 				"candidate": filepath.Join(sb.SrcDir, "beta.go"),
 			})
 		})
-		if res.Err != nil {
-			t.Errorf("KNOWN DEFECT expectation changed: atd_recon called without required \"atom\" now errors (%v) -- if the registry or handler now validates required args, this pin should be relaxed to assert an error, and the wiring case's minimal-args assumption should be revisited", res.Err)
+		if res.Err == nil {
+			t.Fatal("expected atd_recon called without required \"atom\" to be refused, got success")
+		}
+		if !strings.Contains(res.Err.Error(), "atd_recon") {
+			t.Errorf("expected the error to name the tool \"atd_recon\", got: %v", res.Err)
+		}
+		if !strings.Contains(strings.ToLower(res.Err.Error()), "atom") {
+			t.Errorf("expected the error to mention the missing \"atom\" argument, got: %v", res.Err)
 		}
 	})
 
-	// KNOWN DEFECT: the argBool/argString/argInt helpers in mcp_tools.go
-	// silently fall back to their default on a type mismatch instead of
-	// erroring -- there is no JSON-arg type validation anywhere on the MCP
-	// path. Demonstrated on atd_check's "full": a string "true" is not a
-	// bool, so argBool's `v.(bool)` type assertion fails and `full` is
-	// silently treated as false (diff mode) rather than rejected or
-	// coerced -- producing a materially different report than the intended
-	// full-project audit, with no error surfaced anywhere.
-	t.Run("wrong_arg_type_full_string_instead_of_bool", func(t *testing.T) {
+	// mcpArgs (mcp_tools.go) used to silently fall back to each accessor's
+	// default on a type mismatch instead of erroring -- there was no
+	// JSON-arg type validation anywhere on the MCP path. Demonstrated here
+	// on atd_check's "full": a string "true" is not a bool, so it is now a
+	// loud, named type error instead of being silently treated as false
+	// (diff mode) -- the KNOWN DEFECT this pinned (test_atd_07_26.md §8.3
+	// item 4b) is fixed.
+	t.Run("wrong_arg_type_full_string_instead_of_bool_rejected", func(t *testing.T) {
 		sb := testutil.Sandbox(t, "fixture_project")
 		sb.Git(t)
 		defer chdirT(t, sb.Root)()
@@ -263,11 +275,11 @@ func TestMCPContract_ErrorShapes(t *testing.T) {
 		if boolTrue.Err != nil {
 			t.Fatalf("atd_check(full=true) errored: %v", boolTrue.Err)
 		}
-		if stringTrue.Err != nil {
-			t.Fatalf("KNOWN DEFECT expectation changed: atd_check(full=\"true\") now errors (%v) -- if wrong-type args are now rejected, this pin should assert that error instead", stringTrue.Err)
+		if stringTrue.Err == nil {
+			t.Fatal("expected atd_check(full=\"true\") (string, not bool) to be rejected with a loud type error, got success")
 		}
-		if boolTrue.Output == stringTrue.Output {
-			t.Errorf("KNOWN DEFECT expectation changed: atd_check(full=\"true\") (string) now produces the same output as atd_check(full=true) (bool) -- if argBool now coerces string booleans, update this pin")
+		if !strings.Contains(stringTrue.Err.Error(), "full") {
+			t.Errorf("expected the type error to name the offending argument \"full\", got: %v", stringTrue.Err)
 		}
 	})
 }
