@@ -35,10 +35,6 @@ Audit @test-link tags in source code to find which atoms are verified by which t
 {
   "type": "object",
   "properties": {
-    "src": {
-      "type": "string",
-      "description": "Path to source code to scan."
-    },
     "atom": {
       "type": "string",
       "description": "Optional: Filter for a specific Atom ID."

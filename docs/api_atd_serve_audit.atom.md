@@ -1,7 +1,7 @@
 ---
 id: api_atd_serve_audit
 human_name: "MCP Tool: atd_audit"
-description: "Audit ATD atoms for documentation bloat and semantic collisions. Can also check code compliance against a specific atom."
+description: "Audit ATD atoms for documentation bloat and semantic collisions across the docs directory."
 type: API
 version: 1.0
 status: STABLE
@@ -28,7 +28,7 @@ This atom describes the JSON schema and functionality as exposed to the MCP clie
 
 ## TECHNICAL INTERFACE (The Bridge)
 ### Description
-Audit ATD atoms for documentation bloat and semantic collisions. Can also check code compliance against a specific atom.
+Audit ATD atoms for documentation bloat and semantic collisions across the docs directory.
 
 ### Input Schema
 ```json
@@ -40,15 +40,8 @@ Audit ATD atoms for documentation bloat and semantic collisions. Can also check 
       "description": "Override docs directory path."
     },
     "threshold": {
-      "description": "Cosine similarity threshold for collision detection (0.0\u20131.0). Defaults to config value."
-    },
-    "code": {
-      "type": "string",
-      "description": "Path to code file for compliance mode (requires 'atom')."
-    },
-    "atom": {
-      "type": "string",
-      "description": "Path to atom file for compliance mode (requires 'code')."
+      "type": "number",
+      "description": "Cosine similarity threshold for collision detection (0.0\u20131.0). Defaults to the configured diff_similarity_threshold (or 0.85)."
     }
   }
 }

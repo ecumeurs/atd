@@ -9,39 +9,99 @@ import (
 	"atd-tools/pkg/mcp"
 )
 
-func argString(args map[string]any, key, fallback string) string {
-	if v, ok := args[key]; ok {
-		if s, ok := v.(string); ok {
-			return s
-		}
+// mcpArgs wraps a single MCP tool call's raw arguments map and enforces
+// that declared parameters are well-typed: a value present under the
+// wrong JSON/Go type is a loud error rather than a silently-coerced zero
+// value (test_atd_07_26.md §3.3 #2 / §8.3 item 4 -- the argBool/argString/
+// argInt KNOWN DEFECT: e.g. atd_check(full="true") used to be silently
+// treated as full=false, producing a diff-mode report with no error at
+// all). Every handler below reads its args through the accessors here,
+// then checks Err() once before dispatching to its run* function --
+// "required" presence is enforced earlier still, centrally, by
+// pkg/mcp.Registry.Call via each Tool's declared InputSchema "required".
+type mcpArgs struct {
+	tool string
+	args map[string]any
+	err  error
+}
+
+func newMCPArgs(tool string, args map[string]any) *mcpArgs {
+	return &mcpArgs{tool: tool, args: args}
+}
+
+func (a *mcpArgs) typeErr(key, want string, got any) {
+	if a.err == nil {
+		a.err = fmt.Errorf("%s: argument %q must be a %s, got %T", a.tool, key, want, got)
 	}
+}
+
+func (a *mcpArgs) String(key, fallback string) string {
+	v, ok := a.args[key]
+	if !ok || v == nil {
+		return fallback
+	}
+	s, ok := v.(string)
+	if !ok {
+		a.typeErr(key, "string", v)
+		return fallback
+	}
+	return s
+}
+
+func (a *mcpArgs) Bool(key string, fallback bool) bool {
+	v, ok := a.args[key]
+	if !ok || v == nil {
+		return fallback
+	}
+	b, ok := v.(bool)
+	if !ok {
+		a.typeErr(key, "boolean", v)
+		return fallback
+	}
+	return b
+}
+
+func (a *mcpArgs) Int(key string, fallback int) int {
+	v, ok := a.args[key]
+	if !ok || v == nil {
+		return fallback
+	}
+	switch val := v.(type) {
+	case int:
+		return val
+	case int32:
+		return int(val)
+	case int64:
+		return int(val)
+	case float64:
+		return int(val)
+	}
+	a.typeErr(key, "number", v)
 	return fallback
 }
 
-func argBool(args map[string]any, key string) bool {
-	if v, ok := args[key]; ok {
-		if b, ok := v.(bool); ok {
-			return b
-		}
+func (a *mcpArgs) Float64(key string, fallback float64) float64 {
+	v, ok := a.args[key]
+	if !ok || v == nil {
+		return fallback
 	}
-	return false
+	switch val := v.(type) {
+	case float64:
+		return val
+	case float32:
+		return float64(val)
+	case int:
+		return float64(val)
+	case int32:
+		return float64(val)
+	case int64:
+		return float64(val)
+	}
+	a.typeErr(key, "number", v)
+	return fallback
 }
 
-func argInt(args map[string]any, key string, defaultVal int) int {
-	if v, ok := args[key]; ok {
-		switch val := v.(type) {
-		case int:
-			return val
-		case float64:
-			return int(val)
-		case int32:
-			return int(val)
-		case int64:
-			return int(val)
-		}
-	}
-	return defaultVal
-}
+func (a *mcpArgs) Err() error { return a.err }
 
 // RegisterMCPTools registers all ATD subcommands as MCP tools.
 // All tools auto-configure from the .atd project configuration.
@@ -59,16 +119,20 @@ Returns a JSON array of matching atoms with full frontmatter.`,
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"field":       map[string]any{"type": "string", "description": "Frontmatter field to search (e.g. 'type', 'status', 'id', 'layer', 'tags'). Omit to search all fields."},
-				"search":      map[string]any{"type": "string", "description": "Value to match (case-insensitive substring)."},
-				"paths_only":  map[string]any{"type": "boolean", "description": "If true, return only a JSON array of absolute file paths."},
+				"field":      map[string]any{"type": "string", "description": "Frontmatter field to search (e.g. 'type', 'status', 'id', 'layer', 'tags'). Omit to search all fields."},
+				"search":     map[string]any{"type": "string", "description": "Value to match (case-insensitive substring)."},
+				"paths_only": map[string]any{"type": "boolean", "description": "If true, return only a JSON array of absolute file paths."},
 			},
 			"required": []string{"search"},
 		},
 	}, func(args map[string]any) (string, error) {
-		field := argString(args, "field", "")
-		search := argString(args, "search", "")
-		pathsOnly := argBool(args, "paths_only")
+		a := newMCPArgs("atd_query", args)
+		field := a.String("field", "")
+		search := a.String("search", "")
+		pathsOnly := a.Bool("paths_only", false)
+		if err := a.Err(); err != nil {
+			return "", err
+		}
 		return runQuery(field, search, pathsOnly)
 	})
 
@@ -81,14 +145,22 @@ Set gaps=true during VERIFY stage to find STABLE atoms with no code implementati
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
+				"src":       map[string]any{"type": "string", "description": "Path to source code directory. Defaults to the current directory."},
+				"docs":      map[string]any{"type": "string", "description": "Override docs directory path."},
 				"gaps":      map[string]any{"type": "boolean", "description": "If true, return only STABLE atoms with zero code implementations (orphan detection)."},
 				"workspace": map[string]any{"type": "boolean", "description": "If true, crawl the entire workspace."},
 			},
 		},
 	}, func(args map[string]any) (string, error) {
-		gaps := argBool(args, "gaps")
-		workspace := argBool(args, "workspace")
-		return runCrawl(".", config.DocsDir(), gaps, workspace)
+		a := newMCPArgs("atd_crawl", args)
+		src := a.String("src", ".")
+		docs := a.String("docs", config.DocsDir())
+		gaps := a.Bool("gaps", false)
+		workspace := a.Bool("workspace", false)
+		if err := a.Err(); err != nil {
+			return "", err
+		}
+		return runCrawl(src, docs, gaps, workspace)
 	})
 
 	// @spec-link [[api_atd_serve_weave]]
@@ -112,6 +184,7 @@ This is mandatory after any atom creation to keep the dependency graph consisten
 		Description: `Surgically modify ATD atom files — the ONLY correct way to edit .atom.md files.
 Use for: creating new atoms (provide file path + all required fields), changing status/priority/layer, editing H2 sections (intent, logic, interface, expectation), injecting @spec-link tags into source code.
 For batch operations, use 'filter' instead of 'file' to update all matching atoms in one call.
+Pass force:true to override the STABLE+BUSINESS governance guard (mirrors the CLI's --force flag) -- otherwise updating a STABLE atom whose layer is BUSINESS is refused.
 NEVER rewrite an entire .atom.md file manually — always use this tool.`,
 		InputSchema: map[string]any{
 			"type": "object",
@@ -125,17 +198,20 @@ NEVER rewrite an entire .atom.md file manually — always use this tool.`,
 				"expectation":    map[string]any{"type": "string", "description": "New EXPECTATION section text."},
 				"spec_link":      map[string]any{"type": "string", "description": "Atom ID to inject as @spec-link in a source file (requires spec_link_file)."},
 				"spec_link_file": map[string]any{"type": "string", "description": "Source file path for @spec-link injection."},
+				"force":          map[string]any{"type": "boolean", "description": "If true, override the STABLE+BUSINESS governance guard and confirm the modification (mirrors the CLI's --force flag)."},
 			},
 		},
 	}, func(args map[string]any) (string, error) {
-		file := argString(args, "file", "")
-		filter := argString(args, "filter", "")
-		intent := argString(args, "intent", "")
-		logic := argString(args, "logic", "")
-		iface := argString(args, "interface", "")
-		expectation := argString(args, "expectation", "")
-		specLink := argString(args, "spec_link", "")
-		specFile := argString(args, "spec_link_file", "")
+		a := newMCPArgs("atd_update", args)
+		file := a.String("file", "")
+		filter := a.String("filter", "")
+		intent := a.String("intent", "")
+		logic := a.String("logic", "")
+		iface := a.String("interface", "")
+		expectation := a.String("expectation", "")
+		specLink := a.String("spec_link", "")
+		specFile := a.String("spec_link_file", "")
+		force := a.Bool("force", false)
 
 		var setPairs []string
 		if raw, ok := args["set"]; ok {
@@ -148,18 +224,22 @@ NEVER rewrite an entire .atom.md file manually — always use this tool.`,
 			}
 		}
 
+		if err := a.Err(); err != nil {
+			return "", err
+		}
+
 		if filter != "" {
 			if file != "" {
 				return "", fmt.Errorf("cannot use both 'file' and 'filter'")
 			}
-			return runBatchUpdate(filter, setPairs, intent, logic, iface, expectation, specLink, specFile)
+			return runBatchUpdate(filter, setPairs, intent, logic, iface, expectation, specLink, specFile, force)
 		}
 
 		if file == "" {
 			return "", fmt.Errorf("either 'file' or 'filter' is required")
 		}
 
-		return runUpdate(file, setPairs, intent, logic, iface, expectation, specLink, specFile)
+		return runUpdate(file, setPairs, intent, logic, iface, expectation, specLink, specFile, force)
 	})
 
 	// @spec-link [[api_atd_serve_roadmap]]
@@ -176,8 +256,12 @@ Use during cold-start PLAN stage to prioritize which files to dissect first.`,
 			"required": []string{"dir"},
 		},
 	}, func(args map[string]any) (string, error) {
-		dir := argString(args, "dir", ".")
-		out := argString(args, "out", "roadmap.json")
+		a := newMCPArgs("atd_roadmap", args)
+		dir := a.String("dir", ".")
+		out := a.String("out", "roadmap.json")
+		if err := a.Err(); err != nil {
+			return "", err
+		}
 		return runRoadmap(dir, out)
 	})
 
@@ -189,12 +273,20 @@ Use during VERIFY stage to assess overall documentation quality, or in CI to gen
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
+				"src":       map[string]any{"type": "string", "description": "Path to source code directory. Defaults to the current directory."},
+				"docs":      map[string]any{"type": "string", "description": "Override docs directory path."},
 				"workspace": map[string]any{"type": "boolean", "description": "If true, aggregate stats from all projects in the workspace."},
 			},
 		},
 	}, func(args map[string]any) (string, error) {
-		workspace := argBool(args, "workspace")
-		return runStats(".", config.DocsDir(), workspace)
+		a := newMCPArgs("atd_stats", args)
+		src := a.String("src", ".")
+		docs := a.String("docs", config.DocsDir())
+		workspace := a.Bool("workspace", false)
+		if err := a.Err(); err != nil {
+			return "", err
+		}
+		return runStats(src, docs, workspace)
 	})
 
 	// @spec-link [[api_atd_serve_check]]
@@ -212,16 +304,19 @@ When semantic:true is added, each impl link is also checked for LLM compliance �
 				"target":   map[string]any{"type": "string", "description": "Optional: target commit/ref to compare to (defaults to working tree)."},
 				"full":     map[string]any{"type": "boolean", "description": "Optional: audit the entire project instead of just the diff."},
 				"file":     map[string]any{"type": "string", "description": "Optional: target a specific file for verification."},
-				"line":     map[string]any{"type": "integer", "description": "Optional: target a specific line for verification (requires 'file')."},
 				"semantic": map[string]any{"type": "boolean", "description": "Optional: add LLM compliance check per impl link (consumes tokens). Returns PASS/FAIL per @spec-link."},
 			},
 		},
 	}, func(args map[string]any) (string, error) {
-		base := argString(args, "base", "")
-		target := argString(args, "target", "")
-		full := argBool(args, "full")
-		file := argString(args, "file", "")
-		semantic := argBool(args, "semantic")
+		a := newMCPArgs("atd_check", args)
+		base := a.String("base", "")
+		target := a.String("target", "")
+		full := a.Bool("full", false)
+		file := a.String("file", "")
+		semantic := a.Bool("semantic", false)
+		if err := a.Err(); err != nil {
+			return "", err
+		}
 
 		verifyArgs := []string{}
 		if base != "" {
@@ -242,7 +337,7 @@ Supports structured layer-by-layer summarization by the LLM by passing structure
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"starts":     map[string]any{"type": "string", "description": "Comma-separated list of root Atom IDs to begin assembly from."},
+				"starts":          map[string]any{"type": "string", "description": "Comma-separated list of root Atom IDs to begin assembly from."},
 				"intent":          map[string]any{"type": "string", "description": "The intent the LLM should focus on (e.g., summarize, executive summary). Defaults to 'Executive Summary'."},
 				"length":          map[string]any{"type": "string", "description": "Length constraint: 'short', 'default', 'extended', 'long'."},
 				"structured":      map[string]any{"type": "boolean", "description": "If true, group atoms by layer and perform multi-pass summarization."},
@@ -253,13 +348,17 @@ Supports structured layer-by-layer summarization by the LLM by passing structure
 			"required": []string{"starts"},
 		},
 	}, func(args map[string]any) (string, error) {
-		starts := argString(args, "starts", "")
-		intent := argString(args, "intent", "Executive Summary")
-		length := argString(args, "length", "default")
-		structured := argBool(args, "structured")
-		asJSON := argBool(args, "json")
-		onlyParents := argBool(args, "only_parents")
-		onlyDependents := argBool(args, "only_dependents")
+		a := newMCPArgs("atd_assemble", args)
+		starts := a.String("starts", "")
+		intent := a.String("intent", "Executive Summary")
+		length := a.String("length", "default")
+		structured := a.Bool("structured", false)
+		asJSON := a.Bool("json", false)
+		onlyParents := a.Bool("only_parents", false)
+		onlyDependents := a.Bool("only_dependents", false)
+		if err := a.Err(); err != nil {
+			return "", err
+		}
 		return runAssemble(starts, intent, length, structured, asJSON, onlyParents, onlyDependents, config.DocsDir())
 	})
 
@@ -276,10 +375,11 @@ Supports structured layer-by-layer summarization by the LLM by passing structure
 			"required": []string{"atom"},
 		},
 	}, func(args map[string]any) (string, error) {
-		atomID, _ := args["atom"].(string)
-		summary, _ := args["summary"].(bool)
-		if atomID == "" {
-			return "", fmt.Errorf("atom is required")
+		a := newMCPArgs("atd_trace", args)
+		atomID := a.String("atom", "")
+		summary := a.Bool("summary", false)
+		if err := a.Err(); err != nil {
+			return "", err
 		}
 		return runTrace(atomID, config.DocsDir(), ".", summary)
 	})
@@ -293,11 +393,17 @@ Use during VERIFY stage to confirm test coverage per atom, or before modifying a
 			"type": "object",
 			"properties": map[string]any{
 				"atom": map[string]any{"type": "string", "description": "Optional: filter results for a specific Atom ID."},
+				"docs": map[string]any{"type": "string", "description": "Override docs directory path."},
 			},
 		},
 	}, func(args map[string]any) (string, error) {
-		atomID := argString(args, "atom", "")
-		return runCoverageCheck("atom", atomID, "", config.DocsDir(), false, false, nil)
+		a := newMCPArgs("atd_test_links", args)
+		atomID := a.String("atom", "")
+		docs := a.String("docs", config.DocsDir())
+		if err := a.Err(); err != nil {
+			return "", err
+		}
+		return runCoverageCheck("atom", atomID, "", docs, false, false, nil)
 	})
 
 	// ── LLM-Backed Tools (require Ollama or IDE Agent fallback) ──────────
@@ -312,12 +418,18 @@ The tool uses the LLM provider configured in .atd; if no provider is available, 
 			"type": "object",
 			"properties": map[string]any{
 				"file": map[string]any{"type": "string", "description": "Path to the source or documentation file to dissect."},
+				"llm":  map[string]any{"type": "boolean", "description": "If true (default), route through the tiered Ollama provider. If false, return the raw prompt for IDE Agent passthrough."},
 			},
 			"required": []string{"file"},
 		},
 	}, func(args map[string]any) (string, error) {
-		file := argString(args, "file", "")
-		return runDissect(file, true)
+		a := newMCPArgs("atd_dissect", args)
+		file := a.String("file", "")
+		useLLM := a.Bool("llm", true)
+		if err := a.Err(); err != nil {
+			return "", err
+		}
+		return runDissect(file, useLLM)
 	})
 
 	// @spec-link [[api_atd_serve_index]]
@@ -326,14 +438,24 @@ The tool uses the LLM provider configured in .atd; if no provider is available, 
 		Description: `Build or refresh the semantic vector index of all source code and ATD documents.
 Uses nomic-embed-text to generate embeddings stored in a SQLite database. Files unchanged since last indexing are automatically skipped (mtime-based caching).
 Run before using atd_search (semantic mode), or after significant code/documentation changes to keep the index fresh.
-This tool takes no parameters — it indexes the entire project using the .atd configuration.`,
+Defaults to indexing the entire project ('all' mode) using the .atd configuration.`,
 		InputSchema: map[string]any{
-			"type":       "object",
-			"properties": map[string]any{},
+			"type": "object",
+			"properties": map[string]any{
+				"dir":  map[string]any{"type": "string", "description": "Directory to crawl and index. Defaults to the current directory."},
+				"db":   map[string]any{"type": "string", "description": "Path to the SQLite index database. Defaults to <docs_path>/.atd_index.db."},
+				"mode": map[string]any{"type": "string", "description": "What to index: 'code', 'docs', or 'all'. Defaults to 'all'."},
+			},
 		},
 	}, func(args map[string]any) (string, error) {
-		db := config.IndexDBPath(config.DocsDir())
-		return runIndex(".", db, "all")
+		a := newMCPArgs("atd_index", args)
+		dir := a.String("dir", ".")
+		db := a.String("db", config.IndexDBPath(config.DocsDir()))
+		mode := a.String("mode", "all")
+		if err := a.Err(); err != nil {
+			return "", err
+		}
+		return runIndex(dir, db, mode)
 	})
 
 	// @spec-link [[api_atd_serve_search]]
@@ -354,11 +476,15 @@ Use during PLAN stage to find related code or atoms by meaning, or to locate imp
 			},
 		},
 	}, func(args map[string]any) (string, error) {
-		query := argString(args, "query", "")
-		grep := argString(args, "grep", "")
-		scope := argString(args, "scope", "all")
-		pathsOnly := argBool(args, "paths_only")
-		limit := argInt(args, "limit", 5)
+		a := newMCPArgs("atd_search", args)
+		query := a.String("query", "")
+		grep := a.String("grep", "")
+		scope := a.String("scope", "all")
+		pathsOnly := a.Bool("paths_only", false)
+		limit := a.Int("limit", 5)
+		if err := a.Err(); err != nil {
+			return "", err
+		}
 		db := config.IndexDBPath(config.DocsDir())
 		if grep != "" {
 			return runGrepSearch(grep, pathsOnly)
@@ -374,13 +500,21 @@ Default mode: detect bloated atoms and semantic collisions (duplicate/overlappin
 Use during PLAN stage after creating new atoms to check for overlap.`,
 		InputSchema: map[string]any{
 			"type": "object",
-			"properties": map[string]any{},
+			"properties": map[string]any{
+				"docs":      map[string]any{"type": "string", "description": "Override docs directory path."},
+				"threshold": map[string]any{"type": "number", "description": "Cosine similarity threshold for collision detection (0.0-1.0). Defaults to the configured diff_similarity_threshold (or 0.85)."},
+			},
 		},
 	}, func(args map[string]any) (string, error) {
-		docs := config.DocsDir()
-		threshold := config.ActiveConfig.DiffSimilarityThreshold
-		if threshold <= 0 {
-			threshold = 0.85
+		a := newMCPArgs("atd_audit", args)
+		defaultThreshold := config.ActiveConfig.DiffSimilarityThreshold
+		if defaultThreshold <= 0 {
+			defaultThreshold = 0.85
+		}
+		docs := a.String("docs", config.DocsDir())
+		threshold := a.Float64("threshold", defaultThreshold)
+		if err := a.Err(); err != nil {
+			return "", err
 		}
 		return runFullAudit(docs, threshold, false)
 	})
@@ -399,8 +533,12 @@ Use during cold-start to verify discovered file-atom links before applying @spec
 			"required": []string{"atom", "candidate"},
 		},
 	}, func(args map[string]any) (string, error) {
-		atom := argString(args, "atom", "")
-		candidate := argString(args, "candidate", "")
+		a := newMCPArgs("atd_recon", args)
+		atom := a.String("atom", "")
+		candidate := a.String("candidate", "")
+		if err := a.Err(); err != nil {
+			return "", err
+		}
 		return runMap(candidate, atom, config.DocsDir(), false)
 	})
 
@@ -424,9 +562,13 @@ Propose mode (file + new:true): treats the file as entirely undocumented and ret
 			"required": []string{"file"},
 		},
 	}, func(args map[string]any) (string, error) {
-		file := argString(args, "file", "")
-		atom := argString(args, "atom", "")
-		isNew := argBool(args, "new")
+		a := newMCPArgs("atd_map", args)
+		file := a.String("file", "")
+		atom := a.String("atom", "")
+		isNew := a.Bool("new", false)
+		if err := a.Err(); err != nil {
+			return "", err
+		}
 		return runMap(file, atom, config.DocsDir(), isNew)
 	})
 
@@ -459,17 +601,21 @@ Use 'task'+'model' to reassign which LLM model handles a specific task type (e.g
 			},
 		},
 	}, func(args map[string]any) (string, error) {
-		list := argBool(args, "list")
+		a := newMCPArgs("atd_config", args)
+		list := a.Bool("list", false)
+		atomType := a.String("bloating_factor", "")
+		task := a.String("task", "")
+		model := a.String("model", "")
+		if err := a.Err(); err != nil {
+			return "", err
+		}
 		if list {
 			out, _ := json.MarshalIndent(config.ActiveConfig, "", "  ")
 			return string(out), nil
 		}
-		atomType := argString(args, "bloating_factor", "")
 		if atomType != "" {
 			return runConfigGetBloating(atomType)
 		}
-		task := argString(args, "task", "")
-		model := argString(args, "model", "")
 		if task != "" && model != "" {
 			return runConfigUpdate(task, model)
 		}
@@ -503,7 +649,7 @@ Use to discover available projects when working in a monorepo.`,
 			return "No workspace active", nil
 		}
 		out, _ := json.MarshalIndent(config.ActiveConfig.Workspace.Projects, "", "  ")
-		return fmt.Sprintf("Workspace: %s\nActive Project: %s\nProjects:\n%s", 
+		return fmt.Sprintf("Workspace: %s\nActive Project: %s\nProjects:\n%s",
 			config.ActiveConfig.Workspace.WorkspaceName, config.ActiveConfig.ActiveProject, string(out)), nil
 	})
 
@@ -519,7 +665,11 @@ Subsequent tool calls will be scoped to this project.`,
 			"required": []string{"project"},
 		},
 	}, func(args map[string]any) (string, error) {
-		project := argString(args, "project", "")
+		a := newMCPArgs("atd_workspace_use", args)
+		project := a.String("project", "")
+		if err := a.Err(); err != nil {
+			return "", err
+		}
 		if err := config.SetProject(project); err != nil {
 			return "", err
 		}
@@ -539,7 +689,7 @@ Subsequent tool calls will be scoped to this project.`,
 
 	r.Register(mcp.Tool{
 		Name: "atd_heatmap",
-		Description: `Get heat map metrics for a specific atom. 
+		Description: `Get heat map metrics for a specific atom.
 Layers: dependency (coupling), code (implementation density), updates (instability).`,
 		InputSchema: map[string]any{
 			"type": "object",
@@ -549,7 +699,11 @@ Layers: dependency (coupling), code (implementation density), updates (instabili
 			"required": []string{"atom"},
 		},
 	}, func(args map[string]any) (string, error) {
-		atomID := argString(args, "atom", "")
+		a := newMCPArgs("atd_heatmap", args)
+		atomID := a.String("atom", "")
+		if err := a.Err(); err != nil {
+			return "", err
+		}
 		return runHeatmapAtom(atomID)
 	})
 
@@ -564,7 +718,11 @@ Layers: dependency (coupling), code (implementation density), updates (instabili
 			"required": []string{"file"},
 		},
 	}, func(args map[string]any) (string, error) {
-		file := argString(args, "file", "")
+		a := newMCPArgs("atd_heatmap_code", args)
+		file := a.String("file", "")
+		if err := a.Err(); err != nil {
+			return "", err
+		}
 		return runHeatmapCode(file)
 	})
 
@@ -578,7 +736,11 @@ Layers: dependency (coupling), code (implementation density), updates (instabili
 			},
 		},
 	}, func(args map[string]any) (string, error) {
-		layer := argString(args, "layer", "all")
+		a := newMCPArgs("atd_heatmap_project", args)
+		layer := a.String("layer", "all")
+		if err := a.Err(); err != nil {
+			return "", err
+		}
 		return runHeatmapProject(layer)
 	})
 }

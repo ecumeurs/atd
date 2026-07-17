@@ -28,7 +28,7 @@ This atom describes the JSON schema and functionality as exposed to the MCP clie
 - **Default behavior**: audits uncommitted changes via `git diff`, extracting `@spec-link`/`@test-link` tags touched by the diff.
 - **`base`/`target`**: optionally compare a specific commit/ref range instead of the working tree diff.
 - **`full`**: audit the entire project's coverage regardless of what has changed.
-- **`file`** (+ optional `line`): narrow the check to a specific source file (and line within it).
+- **`file`**: narrow the check to a specific source file.
 - **`semantic`**: additionally runs an LLM compliance check per impl link — the linked code is compared against the atom specification and returns PASS/FAIL per link. This consumes tokens via the configured LLM provider.
 - **CLI counterpart**: the standalone `atd check` CLI command (see `check_coverage.go`) exposes an overlapping but distinct flag set — `--atom` (check one atom's full coverage), `--file`, `--full`, `--semantic`, `--out` (write report to file), and `--docs` (override docs directory). The MCP tool schema below reflects only the arguments accepted by the `atd_check` MCP tool itself.
 
@@ -57,10 +57,6 @@ Unified coverage report: lists impl links (@spec-link) and test links (@test-lin
       "type": "string",
       "description": "Optional: target a specific file for verification."
     },
-    "line": {
-      "type": "integer",
-      "description": "Optional: target a specific line for verification (requires 'file')."
-    },
     "semantic": {
       "type": "boolean",
       "description": "Optional: add LLM compliance check per impl link (consumes tokens). Returns PASS/FAIL per @spec-link."
@@ -76,7 +72,7 @@ None — default mode is git-diff driven.
 - `atd_check()` — coverage report for the current uncommitted diff.
 - `atd_check(base="HEAD~5")` — coverage report comparing against a specific ref.
 - `atd_check(full=true)` — coverage report for the whole project.
-- `atd_check(file="src/foo.go", line=42)` — coverage for a specific file/line.
+- `atd_check(file="src/foo.go")` — coverage for a specific file.
 - `atd_check(semantic=true)` — add LLM-based compliance check per `@spec-link`.
 
 ## EXPECTATION (For Testing)

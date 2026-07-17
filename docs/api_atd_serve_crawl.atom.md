@@ -45,6 +45,10 @@ Crawl ATD docs and source code. Returns a dependency graph JSON. Set gaps=true t
     "docs": {
       "type": "string",
       "description": "Override docs directory path."
+    },
+    "workspace": {
+      "type": "boolean",
+      "description": "If true, crawl the entire workspace."
     }
   }
 }
