@@ -116,21 +116,20 @@ func TestScenario_S1_IDFormResolution(t *testing.T) {
 // testScenarioS1Standalone runs against the standalone fixture_project (no
 // workspace). Here "canonical id" and "bare id" are the literal same
 // string: without a workspace.Resolver there is no project-qualification
-// layer to strip. The "TYPE_-prefixed id" and "nonsense id" cases are
-// therefore pinned together as a single KNOWN DEFECT:
+// layer to strip.
 //
-//	KNOWN DEFECT: pkg/workspace/resolver.go's strip-known-prefix retry
-//	(Addendum B, atd_feedback_evaluation_2026-07-13.md) — which lets
-//	"requirement_req_x" resolve to "req_x" — lives only on
-//	workspace.Resolver. A standalone project (no .atd.workspace found
-//	upward) never constructs one (pkg/exploration/explorer.go's
-//	NewExplorerWithConfig leaves Resolver nil), so CanonicalAtomID falls
-//	back to an exact map lookup with no retry: a redundant
-//	TYPE_-prefixed id fails EXACTLY like a genuinely nonsense id, with
-//	no "did you mean" suggestion either (SuggestAtomID's fallback only
-//	handles the cross-project bare-tail case). See
-//	testScenarioS1Workspace below for proof the underlying mechanism
-//	does work once a workspace is present.
+// FIXED (test_atd_07_26.md §8.3 #1): pkg/workspace/resolver.go's
+// strip-known-prefix retry (Addendum B, atd_feedback_evaluation_2026-07-13.md)
+// — which lets "requirement_req_x" resolve to "req_x" — used to live only on
+// workspace.Resolver. A standalone project (no .atd.workspace found upward)
+// never constructs one (pkg/exploration/explorer.go's NewExplorerWithConfig
+// leaves Resolver nil), so CanonicalAtomID/ResolveAtom fell back to an exact
+// map lookup with no retry: a redundant TYPE_-prefixed id failed EXACTLY
+// like a genuinely nonsense id. pkg/exploration/resolve.go's
+// CanonicalAtomID/ResolveAtom now apply the same strip-and-retry directly in
+// their standalone (no e.Resolver) path, so the TYPE_-prefixed case below now
+// resolves just like testScenarioS1Workspace's workspace-resolver case
+// already did.
 func testScenarioS1Standalone(t *testing.T) {
 	t.Parallel()
 	sb := testutil.Sandbox(t, "fixture_project")
@@ -160,8 +159,11 @@ func testScenarioS1Standalone(t *testing.T) {
 		typeRes := sb.Run(func() (string, error) {
 			return runCoverageCheck("atom", typePrefixed, "", sb.DocsDir, false, false, nil)
 		})
-		if typeRes.Err == nil {
-			t.Errorf("KNOWN DEFECT expectation changed: TYPE_-prefixed id %q unexpectedly resolved in a standalone project via check; if this now passes, generalize the fix and update this pin", typePrefixed)
+		if typeRes.Err != nil {
+			t.Errorf("expected TYPE_-prefixed id %q to resolve via the standalone strip-and-retry in a standalone project via check, got error: %v", typePrefixed, typeRes.Err)
+		}
+		if typeRes.Output != wantRes.Output {
+			t.Errorf("TYPE_-prefixed id resolved to a different report than canonical:\ntype-prefixed:\n%s\ncanonical:\n%s", typeRes.Output, wantRes.Output)
 		}
 
 		nonsenseRes := sb.Run(func() (string, error) {
@@ -211,8 +213,11 @@ func testScenarioS1Standalone(t *testing.T) {
 		}
 
 		typeRes := sb.Run(func() (string, error) { return runTrace(typePrefixed, sb.DocsDir, sb.Root, false) })
-		if typeRes.Err == nil {
-			t.Errorf("KNOWN DEFECT expectation changed: TYPE_-prefixed id %q unexpectedly resolved in a standalone project via trace; if this now passes, generalize the fix and update this pin", typePrefixed)
+		if typeRes.Err != nil {
+			t.Errorf("expected TYPE_-prefixed id %q to resolve via the standalone strip-and-retry in a standalone project via trace, got error: %v", typePrefixed, typeRes.Err)
+		}
+		if normalizeTraceJSON(t, wantRes.Output) != normalizeTraceJSON(t, typeRes.Output) {
+			t.Errorf("TYPE_-prefixed id traced differently than canonical:\ntype-prefixed:\n%s\ncanonical:\n%s", typeRes.Output, wantRes.Output)
 		}
 
 		nonsenseRes := sb.Run(func() (string, error) { return runTrace(nonsense, sb.DocsDir, sb.Root, false) })
@@ -225,16 +230,17 @@ func testScenarioS1Standalone(t *testing.T) {
 	})
 
 	t.Run("query", func(t *testing.T) {
-		// KNOWN DEFECT: query is architecturally different from
-		// check/test_links/trace -- it is a case-insensitive SUBSTRING
-		// search over frontmatter fields (pkg/exploration/query.go), never
-		// canonicalizes an id, and never errors: a nonsense search string
-		// just returns an empty/null JSON array, not a loud "not found".
-		// This is the "silent empty" shape the report's own philosophy
-		// warns against (§7.2 "resolve or shout"), and it is the one tool
-		// of the four that does not follow it. Pinning both halves below:
-		// canonical/bare agree (trivially, since both ARE the id and query
-		// substring-matches it), and nonsense returns empty without error.
+		// FIXED (test_atd_07_26.md §8.3 #2): query used to be architecturally
+		// different from check/test_links/trace -- it is a case-insensitive
+		// SUBSTRING search over frontmatter fields (pkg/exploration/query.go)
+		// that never canonicalizes an id and never errors, so a nonsense
+		// search string just returned an empty/null JSON array, not a loud
+		// "not found". runQuery (cmd/atd/cmd/query.go) now treats a
+		// zero-match field="id" lookup as a resolution, not a general
+		// keyword search, and errors loudly naming the input -- matching
+		// check/trace/test_links. Other fields are untouched: a substring
+		// search with no hits on e.g. field="tags" is still a legitimate
+		// empty result (see pkg/exploration/query_test.go).
 		wantRes := sb.Run(func() (string, error) { return runQuery("id", canonical, false) })
 		gotRes := sb.Run(func() (string, error) { return runQuery("id", bare, false) })
 		if wantRes.Err != nil || gotRes.Err != nil {
@@ -252,13 +258,11 @@ func testScenarioS1Standalone(t *testing.T) {
 		}
 
 		nonsenseRes := sb.Run(func() (string, error) { return runQuery("id", nonsense, false) })
-		if nonsenseRes.Err != nil {
-			t.Errorf("KNOWN DEFECT expectation changed: query now errors on a nonsense id (%v) -- if intentional, this pin should be relaxed to require an error, matching check/trace", nonsenseRes.Err)
+		if nonsenseRes.Err == nil {
+			t.Fatal("expected a loud error for a nonsense atom id via query, got none")
 		}
-		var noMatches []atom.AtomData
-		_ = json.Unmarshal([]byte(nonsenseRes.Output), &noMatches)
-		if len(noMatches) != 0 {
-			t.Errorf("expected no matches for nonsense id %q, got %+v", nonsense, noMatches)
+		if !strings.Contains(nonsenseRes.Err.Error(), nonsense) {
+			t.Errorf("expected query's error to name the input id %q, got: %v", nonsense, nonsenseRes.Err)
 		}
 	})
 }
@@ -267,8 +271,8 @@ func testScenarioS1Standalone(t *testing.T) {
 // fixture_workspace's zzfix_a project, where a workspace.Resolver IS active
 // (an .atd.workspace exists above it) -- proving Addendum B's strip-and-
 // retry mechanism generalizes to check/test_links/trace (not just
-// pkg/workspace/resolver_test.go's own unit tests), in direct contrast to
-// the standalone KNOWN DEFECT above.
+// pkg/workspace/resolver_test.go's own unit tests), the same way
+// testScenarioS1Standalone above now proves it for the standalone path too.
 func testScenarioS1Workspace(t *testing.T) {
 	t.Parallel()
 	ws := testutil.Sandbox(t, "fixture_workspace")

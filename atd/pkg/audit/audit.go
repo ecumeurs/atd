@@ -19,6 +19,21 @@ type AuditReport struct {
 	Text string
 }
 
+// hasKey reports whether the raw JSON object in resp declares key at its top
+// level. Go's encoding/json does not error when a struct's tagged field is
+// absent from the source object -- it just leaves the field at its zero
+// value -- so a typed Unmarshal alone can't distinguish "the model said
+// false" from "the model never answered". Probing into a generic map first
+// closes that gap for the "is_bloated" parse below.
+func hasKey(resp, key string) bool {
+	var probe map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(resp), &probe); err != nil {
+		return false
+	}
+	_, ok := probe[key]
+	return ok
+}
+
 type atomAuditMeta struct {
 	ID           string
 	FilePath     string
@@ -135,8 +150,23 @@ func RunFullAudit(docsDir string, threshold float64, workspace bool) (*AuditRepo
 					output.WriteString(fmt.Sprintf("  [ERROR] Failed to parse intent response: %v\n", err))
 					continue
 				}
+				if !hasKey(resI.Response, "is_bloated") {
+					// Syntactically valid JSON that simply omits "is_bloated"
+					// unmarshals with no error at all -- bI.IsBloated would
+					// silently stay its zero value (false), classifying the
+					// atom PASS even though the model's response was
+					// unusable. Treat a missing required key the same as
+					// malformed JSON: a loud [ERROR] line, never a silent
+					// PASS.
+					output.WriteString(fmt.Sprintf("  [ERROR] Intent response missing required \"is_bloated\" key: %.200s\n", resI.Response))
+					continue
+				}
 				if err := json.Unmarshal([]byte(resL.Response), &bL); err != nil {
 					output.WriteString(fmt.Sprintf("  [ERROR] Failed to parse logic response: %v\n", err))
+					continue
+				}
+				if !hasKey(resL.Response, "is_bloated") {
+					output.WriteString(fmt.Sprintf("  [ERROR] Logic response missing required \"is_bloated\" key: %.200s\n", resL.Response))
 					continue
 				}
 

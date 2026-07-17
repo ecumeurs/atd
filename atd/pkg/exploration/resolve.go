@@ -3,6 +3,7 @@ package exploration
 import (
 	"atd-tools/pkg/atom"
 	"atd-tools/pkg/workspace"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -26,6 +27,21 @@ func (e *Explorer) CanonicalAtomID(refID string) (string, error) {
 		return refID, nil
 	}
 
+	// Retry once with a leading known type/layer token stripped (e.g.
+	// "requirement_req_x" -> "req_x"), the same strip-and-retry
+	// workspace.Resolver already does for workspace-aware projects -- a
+	// standalone project (no e.Resolver) deserves the same forgiveness
+	// instead of failing a redundantly-prefixed id exactly like a genuinely
+	// nonexistent one.
+	if stripped, hasPrefix := workspace.StripKnownPrefix(refID); hasPrefix {
+		if _, ok := e.Graph.Atoms[stripped]; ok {
+			return stripped, nil
+		}
+	}
+
+	if suggestion := e.SuggestAtomID(refID); suggestion != "" {
+		return "", fmt.Errorf("atom '%s' not found (did you mean '%s'?)", refID, suggestion)
+	}
 	return "", fmt.Errorf("atom '%s' not found", refID)
 }
 
@@ -55,7 +71,7 @@ func (e *Explorer) SuggestAtomID(bareID string) string {
 func (e *Explorer) ResolveAtom(refID string) (*atom.AtomData, error) {
 	if e.Resolver != nil {
 		parsed, err := e.Resolver.Resolve(refID)
-		if err == workspace.ErrUnknownProject {
+		if err == workspace.ErrUnknownProject || errors.Is(err, workspace.ErrAmbiguousAtom) {
 			return nil, err
 		}
 		if err == nil && parsed.Location != nil {
@@ -83,5 +99,17 @@ func (e *Explorer) ResolveAtom(refID string) (*atom.AtomData, error) {
 		return node, nil
 	}
 
+	// Retry once with a leading known type/layer token stripped -- see the
+	// matching comment in CanonicalAtomID above; this is the same
+	// generalization applied to ResolveAtom's standalone path.
+	if stripped, hasPrefix := workspace.StripKnownPrefix(refID); hasPrefix {
+		if node, ok := e.Graph.Atoms[stripped]; ok {
+			return node, nil
+		}
+	}
+
+	if suggestion := e.SuggestAtomID(refID); suggestion != "" {
+		return nil, fmt.Errorf("atom '%s' not found (did you mean '%s'?)", refID, suggestion)
+	}
 	return nil, fmt.Errorf("atom '%s' not found", refID)
 }

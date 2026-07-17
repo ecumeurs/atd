@@ -63,7 +63,18 @@ Returns a JSON mapping of proposed IDs to their relationship with existing atoms
 		var result struct {
 			Diffs []interface{} `json:"diffs"`
 		}
-		if err := json.Unmarshal([]byte(resp.Response), &result); err != nil {
+		// A syntactically-valid JSON *object* that simply lacks a "diffs"
+		// key (or carries "diffs": null) unmarshals into result with
+		// Diffs == nil and no error -- printing that would be the literal
+		// string "null", a zero-value success that neither surfaces the
+		// model's actual (unusable) response nor signals that
+		// reconciliation produced nothing parseable. Treat it the same as
+		// the malformed-JSON case below: salvage the raw response so the
+		// operator sees exactly what the model said.
+		if err := json.Unmarshal([]byte(resp.Response), &result); err == nil && result.Diffs != nil {
+			beauty, _ := json.MarshalIndent(result.Diffs, "", "  ")
+			fmt.Println(string(beauty))
+		} else {
 			var rawSlice []interface{}
 			if errS := json.Unmarshal([]byte(resp.Response), &rawSlice); errS == nil {
 				beauty, _ := json.MarshalIndent(rawSlice, "", "  ")
@@ -71,9 +82,6 @@ Returns a JSON mapping of proposed IDs to their relationship with existing atoms
 			} else {
 				fmt.Println(resp.Response)
 			}
-		} else {
-			beauty, _ := json.MarshalIndent(result.Diffs, "", "  ")
-			fmt.Println(string(beauty))
 		}
 
 		return nil

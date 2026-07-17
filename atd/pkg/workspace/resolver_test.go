@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -140,4 +141,77 @@ func TestResolver(t *testing.T) {
 			t.Errorf("Expected ErrAtomNotFound when stripped id still doesn't exist, got %v", err)
 		}
 	})
+}
+
+// TestResolver_AmbiguousBareID pins the fix for test_atd_07_26.md §8.3 #11:
+// a bare id that exists identically in more than one non-current project
+// used to silently resolve to whichever project BuildIndex's "first one
+// wins" loop registered first, with no signal to the caller that the id was
+// ambiguous. It must now return a loud error wrapping ErrAmbiguousAtom that
+// names every candidate project and the "project:id" syntax.
+func TestResolver_AmbiguousBareID(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "atd-workspace-ambiguous-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	setupFile := func(path, id string) {
+		dir := filepath.Dir(path)
+		os.MkdirAll(dir, 0755)
+		os.WriteFile(path, []byte("---\nid: "+id+"\n---"), 0644)
+	}
+
+	// projA and projB both declare "dup_atom"; projC (where resolution
+	// happens from) has no local copy, so there is no local-project
+	// tie-breaker to fall back on.
+	setupFile(filepath.Join(tempDir, "projA/docs/dup_atom.atom.md"), "dup_atom")
+	setupFile(filepath.Join(tempDir, "projB/docs/dup_atom.atom.md"), "dup_atom")
+	setupFile(filepath.Join(tempDir, "projC/docs/own_atom.atom.md"), "own_atom")
+
+	ws := &Workspace{
+		WorkspaceConfig: WorkspaceConfig{
+			WorkspaceRoot: tempDir,
+			Projects: []Project{
+				{Name: "projA", Path: "projA", FullDocsPath: filepath.Join(tempDir, "projA/docs")},
+				{Name: "projB", Path: "projB", FullDocsPath: filepath.Join(tempDir, "projB/docs")},
+				{Name: "projC", Path: "projC", FullDocsPath: filepath.Join(tempDir, "projC/docs")},
+			},
+		},
+	}
+
+	idx, err := ws.BuildIndex()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := NewResolver(ws, idx, "projC")
+	_, err = r.Resolve("[[dup_atom]]")
+	if err == nil {
+		t.Fatal("expected an ambiguity error resolving a bare id that exists identically in two projects")
+	}
+	if !errors.Is(err, ErrAmbiguousAtom) {
+		t.Errorf("expected the error to wrap ErrAmbiguousAtom, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "dup_atom") {
+		t.Errorf("expected the error to name the ambiguous id, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "projA") || !strings.Contains(err.Error(), "projB") {
+		t.Errorf("expected the error to name both candidate projects, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "projA:dup_atom") {
+		t.Errorf("expected the error to suggest the \"project:id\" syntax, got: %v", err)
+	}
+
+	// A local copy in the resolving project always wins deterministically --
+	// no ambiguity signal needed, since that's an intentional local shadow,
+	// not an accidental collision.
+	rLocal := NewResolver(ws, idx, "projA")
+	parsed, err := rLocal.Resolve("[[dup_atom]]")
+	if err != nil {
+		t.Fatalf("expected projA's own local copy to resolve without ambiguity, got: %v", err)
+	}
+	if parsed.Type != ReferenceLocal {
+		t.Errorf("expected ReferenceLocal for projA's own copy, got %v", parsed.Type)
+	}
 }

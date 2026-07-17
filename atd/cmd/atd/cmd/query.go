@@ -7,6 +7,7 @@ import (
 	"atd-tools/pkg/exploration"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -41,6 +42,19 @@ func runQuery(field, search string, pathsOnly bool) (string, error) {
 	}
 
 	matches := explorer.Query(field, search)
+
+	// "resolve or shout": an id-field query is a lookup, not a general
+	// keyword search, so a total miss must error loudly (naming the input
+	// and suggesting a near match) rather than silently returning an empty
+	// array like check/trace used to before this fix -- see
+	// test_atd_07_26.md §8.3 #2. Other fields stay a plain substring search,
+	// where zero matches is a legitimate, non-error result.
+	if len(matches) == 0 && strings.EqualFold(field, "id") {
+		if suggestion := explorer.SuggestAtomID(search); suggestion != "" {
+			return "", fmt.Errorf("atom '%s' not found (did you mean '%s'?)", search, suggestion)
+		}
+		return "", fmt.Errorf("atom '%s' not found", search)
+	}
 
 	if pathsOnly {
 		var paths []string

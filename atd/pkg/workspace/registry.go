@@ -17,15 +17,17 @@ type AtomLocation struct {
 // AtomIndex maps atom IDs to their location across the workspace.
 type AtomIndex struct {
 	sync.RWMutex
-	ByID      map[string]*AtomLocation // "atom_id" -> location
-	ByProject map[string][]string      // "project_name" -> ["atom1_id", "atom2_id"]
+	ByID       map[string]*AtomLocation // "atom_id" -> location
+	ByProject  map[string][]string      // "project_name" -> ["atom1_id", "atom2_id"]
+	Duplicates map[string][]string      // "atom_id" -> every non-shared project that declares it, in registration order; len > 1 means ambiguous
 }
 
 // BuildIndex scans all projects in the workspace and builds the atom index.
 func (ws *Workspace) BuildIndex() (*AtomIndex, error) {
 	idx := &AtomIndex{
-		ByID:      make(map[string]*AtomLocation),
-		ByProject: make(map[string][]string),
+		ByID:       make(map[string]*AtomLocation),
+		ByProject:  make(map[string][]string),
+		Duplicates: make(map[string][]string),
 	}
 
 	// 1. Index shared atoms in workspace root docs/ folder (if exists)
@@ -53,9 +55,14 @@ func (ws *Workspace) BuildIndex() (*AtomIndex, error) {
 
 		idx.ByProject[project.Name] = atoms
 		for _, atomID := range atoms {
+			// Track every project that declares this id (not just the first),
+			// so the resolver can tell a clean match from an ambiguous one
+			// instead of silently picking whichever project registered first.
+			idx.Duplicates[atomID] = append(idx.Duplicates[atomID], project.Name)
+
 			// If already exists (e.g. in shared), local project takes precedence for that project context?
-			// For now, first one wins or we report collisions in audit.
-			// The resolver will handle context-based resolution.
+			// For now, first one wins; ambiguity across projects is surfaced via
+			// AmbiguousProjects/Resolver instead.
 			if _, exists := idx.ByID[atomID]; !exists {
 				idx.ByID[atomID] = &AtomLocation{
 					Project: project.Name,
@@ -74,6 +81,18 @@ func (idx *AtomIndex) FindAtom(atomID string) *AtomLocation {
 	idx.RLock()
 	defer idx.RUnlock()
 	return idx.ByID[atomID]
+}
+
+// AmbiguousProjects returns every project that declares atomID, in
+// registration order, when more than one does -- an empty/nil slice means the
+// id is unique (or absent) across the workspace's projects.
+func (idx *AtomIndex) AmbiguousProjects(atomID string) []string {
+	idx.RLock()
+	defer idx.RUnlock()
+	if projects := idx.Duplicates[atomID]; len(projects) > 1 {
+		return projects
+	}
+	return nil
 }
 
 // FindAtomInProject finds an atom in a specific project.

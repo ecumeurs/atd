@@ -124,29 +124,32 @@ func TestReconcile_MalformedResponses(t *testing.T) {
 	}
 }
 
-// TestReconcile_ValidObjectWithoutDiffsKey pins a genuine defect: any
-// syntactically-valid JSON *object* that lacks a "diffs" key — including
-// the field-report's real-world wrong-shape case — unmarshals into the
-// anonymous struct with Diffs == nil and no error, so the command prints
-// literally "null" and exits 0.
+// TestReconcile_ValidObjectWithoutDiffsKey pins the fix for a genuine
+// defect: any syntactically-valid JSON *object* that lacks a "diffs" key —
+// including the field-report's real-world wrong-shape case — used to
+// unmarshal into the anonymous struct with Diffs == nil and no error, so
+// the command printed literally "null" and exited 0: a zero-value success
+// that neither surfaced the model's actual (unusable) response nor
+// signaled that reconciliation produced nothing parseable.
 //
-// KNOWN DEFECT (test_atd_07_26.md §3.5/S12): "null" is a zero-value success
-// — it neither surfaces the model's actual (unusable) response nor signals
-// that reconciliation produced nothing parseable. A fix would need to treat
-// a missing/nil "diffs" key as the salvage case (print raw response) or as
-// an explicit error; that changes the command's output contract, so per
-// WP-6 instructions it is pinned here rather than fixed. If fixed, this
-// test must be updated to assert the new loud behavior.
+// FIXED (test_atd_07_26.md §8.3 #9b): reconcile.go now treats a
+// missing/nil "diffs" key the same as the malformed-JSON case just above —
+// the raw response is salvaged (printed verbatim) so the operator sees
+// exactly what the model said instead of a misleadingly empty "null".
 func TestReconcile_ValidObjectWithoutDiffsKey(t *testing.T) {
 	fake := fakeprovider.InstallOllama(t)
 	// The real-world case from the field report: valid JSON, wrong shape.
-	fake.SetJSON(`{"Confidence": 0, "Mismatches": "Yes, there are several problems"}`)
+	resp := `{"Confidence": 0, "Mismatches": "Yes, there are several problems"}`
+	fake.SetJSON(resp)
 
 	out, err := runReconcileCmd(t)
 	if err != nil {
 		t.Fatalf("reconcile: %v", err)
 	}
-	if strings.TrimSpace(out) != "null" {
-		t.Fatalf("KNOWN DEFECT expectation changed: a valid-JSON-wrong-shape response no longer prints the zero-value \"null\" -- if the parser now salvages or errors loudly, update this pin to assert that behavior. Got: %q", out)
+	if strings.TrimSpace(out) == "null" {
+		t.Fatal("a valid-JSON-object-without-diffs-key response must never silently print the zero-value \"null\"")
+	}
+	if !strings.Contains(out, `"Mismatches"`) {
+		t.Errorf("expected the raw response salvaged in output so the operator sees the actual wrong-shape response, got: %q", out)
 	}
 }

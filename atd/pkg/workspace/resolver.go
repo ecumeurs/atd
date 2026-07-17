@@ -17,6 +17,7 @@ const (
 
 var ErrAtomNotFound = errors.New("atom not found")
 var ErrUnknownProject = errors.New("unknown project qualifier")
+var ErrAmbiguousAtom = errors.New("ambiguous atom id")
 
 // knownIDPrefixes lists leading underscore-delimited tokens that are ATD
 // type/layer words rather than part of an atom's actual id. When a bare id
@@ -40,9 +41,12 @@ var knownIDPrefixes = map[string]bool{
 	"workflow":    true,
 }
 
-// stripKnownPrefix removes a leading known type/layer token (e.g. "requirement_")
+// StripKnownPrefix removes a leading known type/layer token (e.g. "requirement_")
 // from a bare atom id, returning the stripped id and true if a prefix was found.
-func stripKnownPrefix(atomID string) (string, bool) {
+// Exported so pkg/exploration's standalone (non-workspace) resolution path can
+// retry with the same stripped id the workspace Resolver uses below, instead of
+// this generalization being a workspace-only trick.
+func StripKnownPrefix(atomID string) (string, bool) {
 	idx := strings.Index(atomID, "_")
 	if idx <= 0 {
 		return atomID, false
@@ -151,22 +155,26 @@ func (r *Resolver) Resolve(ref string) (*ParsedReference, error) {
 	}
 
 	// Local reference - check current project, shared root, then the rest of the workspace
-	if loc, project, refType, ok := r.resolveBareID(parsed.AtomID); ok {
+	if loc, project, refType, err := r.resolveBareID(parsed.AtomID); err == nil {
 		parsed.Location = loc
 		parsed.Type = refType
 		parsed.Project = project
 		return parsed, nil
+	} else if errors.Is(err, ErrAmbiguousAtom) {
+		return parsed, r.ambiguousError(parsed.AtomID)
 	}
 
 	// Retry once with a leading known type/layer token stripped, e.g.
 	// "requirement_req_ui_session_timeout" -> "req_ui_session_timeout".
-	if stripped, hasPrefix := stripKnownPrefix(parsed.AtomID); hasPrefix {
-		if loc, project, refType, ok := r.resolveBareID(stripped); ok {
+	if stripped, hasPrefix := StripKnownPrefix(parsed.AtomID); hasPrefix {
+		if loc, project, refType, err := r.resolveBareID(stripped); err == nil {
 			parsed.AtomID = stripped
 			parsed.Location = loc
 			parsed.Type = refType
 			parsed.Project = project
 			return parsed, nil
+		} else if errors.Is(err, ErrAmbiguousAtom) {
+			return parsed, r.ambiguousError(stripped)
 		}
 	}
 
@@ -174,27 +182,46 @@ func (r *Resolver) Resolve(ref string) (*ParsedReference, error) {
 	return parsed, ErrAtomNotFound
 }
 
+// ambiguousError builds the loud, actionable error for a bare id that exists
+// identically in more than one workspace project: it names every candidate
+// project and the "project:id" syntax needed to pick one, rather than the
+// previous silent first-registered-project-wins behavior.
+func (r *Resolver) ambiguousError(atomID string) error {
+	projects := r.index.AmbiguousProjects(atomID)
+	example := atomID
+	if len(projects) > 0 {
+		example = fmt.Sprintf("%s:%s", projects[0], atomID)
+	}
+	return fmt.Errorf("%w: atom id %q exists in multiple projects (%s) -- use \"project:%s\" syntax (e.g. %q) to disambiguate", ErrAmbiguousAtom, atomID, strings.Join(projects, ", "), atomID, example)
+}
+
 // resolveBareID looks up a bare atom id across the current project, the
 // workspace root (shared docs), and then every other project in the
 // workspace. It returns the matched location, the project it classifies
 // under ("" for local, "shared" or a project name for cross-project), the
-// resulting reference type, and whether a match was found.
-func (r *Resolver) resolveBareID(atomID string) (*AtomLocation, string, ReferenceType, bool) {
+// resulting reference type, and an error: nil on a clean match, ErrAmbiguousAtom
+// if the id exists identically in more than one non-current, non-shared
+// project with no way to pick a winner, or ErrAtomNotFound otherwise.
+func (r *Resolver) resolveBareID(atomID string) (*AtomLocation, string, ReferenceType, error) {
 	if r.currentProject != "" {
 		if loc := r.index.FindAtomInProject(r.currentProject, atomID); loc != nil {
-			return loc, "", ReferenceLocal, true
+			return loc, "", ReferenceLocal, nil
 		}
 	}
 
 	if loc := r.index.FindAtomInWorkspaceRoot(atomID); loc != nil {
-		return loc, "shared", ReferenceCrossProject, true
+		return loc, "shared", ReferenceCrossProject, nil
+	}
+
+	if projects := r.index.AmbiguousProjects(atomID); len(projects) > 1 {
+		return nil, "", ReferenceUnresolved, ErrAmbiguousAtom
 	}
 
 	if loc := r.index.FindAtom(atomID); loc != nil {
-		return loc, loc.Project, ReferenceCrossProject, true
+		return loc, loc.Project, ReferenceCrossProject, nil
 	}
 
-	return nil, "", ReferenceUnresolved, false
+	return nil, "", ReferenceUnresolved, ErrAtomNotFound
 }
 
 // CanonicalForm returns the canonical [[project:atom_id]] format if it's cross-project.
