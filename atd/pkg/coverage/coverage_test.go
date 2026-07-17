@@ -4,7 +4,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -317,15 +316,15 @@ func TestGenerateReport_FileModeDedup(t *testing.T) {
 }
 
 // TestGenerateReport_FullMode exercises `--full` mode: every atom in the
-// fixture's docs/ must appear exactly once, with the expected impl/test
-// counts (this mirrors testdata/golden/check_full.txt's sorted content).
+// fixture's docs/ must appear exactly once, sorted by atom id, with the
+// expected impl/test counts (this mirrors testdata/golden/check_full.txt's
+// content).
 //
-// KNOWN DEFECT (WP-2, cmd/atd/cmd/golden_test.go): full mode's row order
-// comes directly from ranging over explorer.Graph.Atoms, a Go map, so row
-// order is not deterministic run to run. This test sorts rows by AtomID
-// before comparing rather than asserting positional order — per WP-7
-// instructions this is worked around in the test, not "fixed" in
-// buildCoverageReport/GenerateReport.
+// Full mode's row order used to come directly from ranging over
+// explorer.Graph.Atoms, a Go map, so row order was not deterministic run to
+// run (test_atd_07_26.md §8.3 #5). GenerateReport now sorts atom ids before
+// building the report, so rows are asserted in that exact order below --
+// no test-side sort needed.
 func TestGenerateReport_FullMode(t *testing.T) {
 	t.Parallel()
 	sb := testutil.Sandbox(t, "fixture_project")
@@ -345,7 +344,6 @@ func TestGenerateReport_FullMode(t *testing.T) {
 	}
 
 	rows := parseReportRows(t, res.Output)
-	sort.Slice(rows, func(i, j int) bool { return rows[i].AtomID < rows[j].AtomID })
 
 	want := []reportRow{
 		{"api_zzfix_beta", 2, 1, "OK"},
@@ -365,6 +363,76 @@ func TestGenerateReport_FullMode(t *testing.T) {
 		if rows[i] != w {
 			t.Errorf("row %d: expected %+v, got %+v", i, w, rows[i])
 		}
+	}
+}
+
+// TestGenerateReport_FullModeScopedToDocsDir pins the fix for
+// test_atd_07_26.md §8.3 #10: full mode used to walk the entire project
+// root regardless of the configured docs path, so nested test fixtures
+// living elsewhere under the project root (e.g. the real repo's
+// tests/trace/docs/ or test-workspace/) leaked into `check --full` as
+// extra rows. This reproduces that shape by dropping an atom file in a
+// nested docs/ directory outside the sandbox's configured DocsDir, and
+// asserts it does NOT appear in the full-mode report.
+func TestGenerateReport_FullModeScopedToDocsDir(t *testing.T) {
+	t.Parallel()
+	sb := testutil.Sandbox(t, "fixture_project")
+
+	nestedDocsDir := filepath.Join(sb.Root, "tests", "trace", "docs")
+	if err := os.MkdirAll(nestedDocsDir, 0o755); err != nil {
+		t.Fatalf("creating nested docs dir: %v", err)
+	}
+	nestedAtom := `---
+id: zzfix_nested_outside_docs
+human_name: "zzfix Nested Outside Docs"
+type: REQUIREMENT
+version: 1.0
+status: STABLE
+priority: 3
+tags: [zzfix]
+parents: []
+dependents: []
+layer: BUSINESS
+---
+
+# zzfix Nested Outside Docs
+
+## INTENT
+To live outside the sandbox's configured docs/ (under tests/trace/docs/ instead), so full mode's docs-path scoping has a real nested fixture to exclude.
+
+## THE RULE / LOGIC
+Must never appear in ` + "`check --full`" + `'s report for this sandbox.
+
+## TECHNICAL INTERFACE
+- **Code Tag:** none.
+
+## EXPECTATION
+` + "`check --full`" + ` scoped to sb.DocsDir must not list zzfix_nested_outside_docs.
+`
+	nestedFile := filepath.Join(nestedDocsDir, "zzfix_nested_outside_docs.atom.md")
+	if err := os.WriteFile(nestedFile, []byte(nestedAtom), 0o644); err != nil {
+		t.Fatalf("writing nested atom file: %v", err)
+	}
+
+	res := sb.Run(func() (string, error) {
+		report, err := GenerateReport("", "", "", sb.DocsDir, true, false, nil)
+		if err != nil {
+			return "", err
+		}
+		return report.Text, nil
+	})
+	if res.Err != nil {
+		t.Fatalf("GenerateReport(full=true): %v", res.Err)
+	}
+
+	rows := parseReportRows(t, res.Output)
+	for _, r := range rows {
+		if r.AtomID == "zzfix_nested_outside_docs" {
+			t.Errorf("full mode leaked an atom from outside the configured docs path: %+v", r)
+		}
+	}
+	if len(rows) != 9 {
+		t.Errorf("expected the 9 real fixture atoms only, got %d: %+v", len(rows), rows)
 	}
 }
 

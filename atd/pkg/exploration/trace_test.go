@@ -2,8 +2,8 @@ package exploration
 
 // Trace unit back-fill (test_atd_07_26.md §3.1 item 1, §6 WP-7): a real
 // cross-layer chain via testdata/fixture_project, plus hand-built cyclic and
-// deep-chain graphs to pin WalkUp/WalkDown's cycle-safety and the
-// (non-existent) depth limit.
+// deep-chain graphs to pin WalkUp/WalkDown's cycle-safety and configured
+// depth limit.
 
 import (
 	"fmt"
@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"atd-tools/config"
 	"atd-tools/pkg/atom"
 	"atd-tools/pkg/testutil"
 )
@@ -19,9 +20,12 @@ import (
 // TestTrace_FixtureProjectChain traces req_zzfix_alpha, whose dependent
 // chain is req_zzfix_alpha -> api_zzfix_beta -> mech_zzfix_gamma plus the
 // sibling rule_zzfix_untested (test_atd_07_26.md §3.2's fixture design).
-// CodeLinks/TestLinks are sorted before comparison per the pinned
-// nondeterminism (pkg/exploration/trace.go builds them from Go maps; see
-// cmd/atd/cmd/scenario_test.go's normalizeTraceJSON).
+// CodeLinks/TestLinks are asserted against an exact, ordered slice: trace.go
+// now sorts both before returning (test_atd_07_26.md §8.3 #5 -- they used to
+// come straight out of Go map iteration, so run-to-run order was not
+// deterministic; cmd/atd/cmd/scenario_test.go's normalizeTraceJSON worked
+// around that upstream of this fix and remains harmless now that the source
+// is already sorted).
 func TestTrace_FixtureProjectChain(t *testing.T) {
 	t.Parallel()
 	sb := testutil.Sandbox(t, "fixture_project")
@@ -53,21 +57,67 @@ func TestTrace_FixtureProjectChain(t *testing.T) {
 		t.Error("expected AncestryComplete = true (no ancestors to fail the STABLE check)")
 	}
 
-	// NOTE (documented oddity, not fixed by this back-fill): trace.go seeds
-	// totalPool with len(Dependents) (=3 here) BEFORE the loop below adds
-	// one more increment per dependent that is IMPLEMENTATION or an
-	// ARCHITECTURE atom with a direct @spec-link -- all 3 dependents qualify
-	// here, so totalPool ends up double-counted at 3+3=6 rather than the 3
-	// a reader would expect, halving ImplementationRate. All 3 qualifying
-	// dependents (api_zzfix_beta, mech_zzfix_gamma, rule_zzfix_untested) are
-	// in fact fully implemented; this asserts the actual (halved) rate the
-	// double-count produces, not the "3 of 3" a naive reading would expect.
-	if got, want := snap.HealthSummary.ImplementationRate, 0.5; got != want {
-		t.Errorf("ImplementationRate = %v, want %v (see double-count note above; if trace.go's totalPool seeding changed, update this pin)", got, want)
+	wantCodeLinks := []string{"src/beta.go", "src/gamma.go", "src/untested.go"}
+	if !reflect.DeepEqual(snap.GraphSlice.CodeLinks, wantCodeLinks) {
+		t.Errorf("CodeLinks = %v, want %v (in sorted order)", snap.GraphSlice.CodeLinks, wantCodeLinks)
+	}
+	wantTestLinks := []string{"src/beta_test.go", "src/gamma_test.go"}
+	if !reflect.DeepEqual(snap.GraphSlice.TestLinks, wantTestLinks) {
+		t.Errorf("TestLinks = %v, want %v (in sorted order)", snap.GraphSlice.TestLinks, wantTestLinks)
+	}
+
+	// All 3 dependents (api_zzfix_beta, mech_zzfix_gamma, rule_zzfix_untested)
+	// carry a @spec-link, so the pool trace.go builds from "IMPLEMENTATION
+	// dependents" + "ARCHITECTURE dependents with a direct @spec-link" is
+	// exactly these 3, all implemented -- rate 3/3 = 1.0. (Previously
+	// totalPool was seeded with len(Dependents) AND re-incremented once per
+	// qualifying dependent in the loop below, double-counting the pool and
+	// halving this to 0.5 -- see TestTrace_ImplementationRateFullyCoveredChain
+	// for a minimal, from-scratch pin of the same fix.)
+	if got, want := snap.HealthSummary.ImplementationRate, 1.0; got != want {
+		t.Errorf("ImplementationRate = %v, want %v", got, want)
 	}
 	const wantTestRate = 2.0 / 3.0
 	if got := snap.HealthSummary.TestCoverageRate; got < wantTestRate-0.001 || got > wantTestRate+0.001 {
 		t.Errorf("TestCoverageRate = %v, want ~%v", got, wantTestRate)
+	}
+}
+
+// TestTrace_ImplementationRateFullyCoveredChain pins the fix for the
+// totalPool double-count (test_atd_07_26.md §8.3 #6a): a fully-implemented
+// and fully-tested 3-atom chain (BUSINESS root -> IMPLEMENTATION child ->
+// IMPLEMENTATION grandchild) must report ImplementationRate == 1.0 and
+// TestCoverageRate == 1.0, not 0.5. Built from scratch (no fixture project)
+// so the pool math is unambiguous: exactly 2 qualifying dependents, both
+// implemented and tested.
+func TestTrace_ImplementationRateFullyCoveredChain(t *testing.T) {
+	t.Parallel()
+	graph := &DependencyGraph{Atoms: map[string]*atom.AtomData{
+		"zz_rate_root":       {ID: "zz_rate_root", Status: "STABLE", Layer: "BUSINESS", Type: "REQUIREMENT", Dependents: []string{"zz_rate_child"}},
+		"zz_rate_child":      {ID: "zz_rate_child", Status: "STABLE", Layer: "IMPLEMENTATION", Type: "MECHANIC", Dependents: []string{"zz_rate_grandchild"}},
+		"zz_rate_grandchild": {ID: "zz_rate_grandchild", Status: "STABLE", Layer: "IMPLEMENTATION", Type: "MECHANIC"},
+	}}
+	e := &Explorer{
+		Graph: graph,
+		SpecLinks: []SpecLink{
+			{AtomID: "zz_rate_child", FilePath: "child.go", Line: 1},
+			{AtomID: "zz_rate_grandchild", FilePath: "grandchild.go", Line: 1},
+		},
+		TestLinks: []TestLink{
+			{AtomID: "zz_rate_child", TestFile: "child_test.go", Line: 1},
+			{AtomID: "zz_rate_grandchild", TestFile: "grandchild_test.go", Line: 1},
+		},
+	}
+
+	snap, err := e.Trace("zz_rate_root")
+	if err != nil {
+		t.Fatalf("Trace: %v", err)
+	}
+	if got, want := snap.HealthSummary.ImplementationRate, 1.0; got != want {
+		t.Errorf("ImplementationRate = %v, want %v for a fully-implemented chain", got, want)
+	}
+	if got, want := snap.HealthSummary.TestCoverageRate, 1.0; got != want {
+		t.Errorf("TestCoverageRate = %v, want %v for a fully-tested chain", got, want)
 	}
 }
 
@@ -136,14 +186,13 @@ func TestTrace_CyclicParentsAndDependentsNoInfiniteLoop(t *testing.T) {
 	}
 }
 
-// TestTrace_LongParentChainIgnoresConfiguredMaxDepth documents a real gap:
-// config.Config.MaxDepth exists (default 10, config/config.go) but
-// WalkUp/WalkDown (trace.go) never read it -- the only bound on recursion
-// is the visited-map cycle guard, not an actual depth counter. A 15-deep
-// pure chain (no cycle) is walked to its end, not truncated at 10. This is
-// pinned as current behavior per this WP's instructions (pin, don't fix);
-// see the final report for a pointer back to this test.
-func TestTrace_LongParentChainIgnoresConfiguredMaxDepth(t *testing.T) {
+// TestTrace_LongParentChainRespectsConfiguredMaxDepth pins the fix for
+// test_atd_07_26.md §8.3 #6b: config.Config.MaxDepth (default 10) is now
+// wired into WalkUp/WalkDown (trace.go), so a 15-deep pure chain (no cycle)
+// is truncated at the configured depth instead of being walked to its end.
+// Depth is counted in hops from the traced atom (depth 0), so a MaxDepth of
+// 10 yields exactly 10 ancestors (depths 1..10).
+func TestTrace_LongParentChainRespectsConfiguredMaxDepth(t *testing.T) {
 	t.Parallel()
 	const depth = 15
 	atoms := make(map[string]*atom.AtomData, depth)
@@ -155,15 +204,15 @@ func TestTrace_LongParentChainIgnoresConfiguredMaxDepth(t *testing.T) {
 		}
 		atoms[id] = &atom.AtomData{ID: id, Status: "STABLE", Layer: "ARCHITECTURE", Type: "API", Parents: parents}
 	}
-	e := &Explorer{Graph: &DependencyGraph{Atoms: atoms}}
+	e := &Explorer{Graph: &DependencyGraph{Atoms: atoms}, Config: &config.Config{MaxDepth: 10}}
 
 	snap, err := e.Trace("zz_chain_00")
 	if err != nil {
 		t.Fatalf("Trace: %v", err)
 	}
-	if len(snap.GraphSlice.Parents) != depth-1 {
-		t.Errorf("expected all %d ancestors to be walked despite config.MaxDepth's default of 10 (MaxDepth is not wired into WalkUp/WalkDown), got %d: %v",
-			depth-1, len(snap.GraphSlice.Parents), snap.GraphSlice.Parents)
+	if len(snap.GraphSlice.Parents) != 10 {
+		t.Errorf("expected traversal to stop at config.MaxDepth=10, got %d ancestors: %v",
+			len(snap.GraphSlice.Parents), snap.GraphSlice.Parents)
 	}
 }
 

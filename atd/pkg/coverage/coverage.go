@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -57,9 +58,22 @@ func GenerateReport(mode, atomID, filePath, docsDir string, full, semantic bool,
 	switch {
 	case full:
 		mode = "full"
-		for id := range explorer.Graph.Atoms {
+		absDocsDir := docsDir
+		if !filepath.IsAbs(absDocsDir) {
+			absDocsDir = filepath.Join(explorer.ProjectRoot, absDocsDir)
+		}
+		for id, node := range explorer.Graph.Atoms {
+			if node != nil && node.FilePath != "" && !underDir(node.FilePath, absDocsDir) {
+				// Skip atoms whose file lives outside the configured docs
+				// path (e.g. nested test fixtures such as tests/trace/docs/
+				// or test-workspace/ under the project root) -- full mode
+				// must report on the configured docs corpus, not everything
+				// ListFiles happened to walk under the project root.
+				continue
+			}
 			atomIDs = append(atomIDs, id)
 		}
+		sort.Strings(atomIDs)
 
 	case atomID != "":
 		mode = "atom"
@@ -273,6 +287,15 @@ func diffChangedFiles(gitArgs []string) (codeFiles, atomFiles []string, err erro
 		}
 	}
 	return codeFiles, atomFiles, nil
+}
+
+// underDir reports whether path lives at or below dir.
+func underDir(path, dir string) bool {
+	rel, err := filepath.Rel(dir, path)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (!strings.HasPrefix(rel, "..") && !filepath.IsAbs(rel))
 }
 
 func gitToplevel(root string) (string, error) {

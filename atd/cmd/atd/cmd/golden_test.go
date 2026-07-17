@@ -19,13 +19,14 @@ import (
 
 // TestGolden_CheckFull goldens `check --full` against fixture_project.
 //
-// check --full's row order comes directly from ranging over
-// explorer.Graph.Atoms (a Go map) in coverage.GenerateReport's `full`
-// branch -- unsorted, so raw report text is NOT stable run to run even
-// though every row's content is. Sorting rows by AtomID before golding
-// is required for the "-update twice produces no diff" AC; it also makes
-// the golden diffable/meaningful (a real regression shows as a content
-// change, not a reshuffle).
+// coverage.GenerateReport's `full` branch now sorts atom ids itself
+// (test_atd_07_26.md §8.3 #5 -- row order used to come directly from
+// ranging over explorer.Graph.Atoms, a Go map, so raw report text was NOT
+// stable run to run even though every row's content was). The sort here is
+// therefore redundant with the source but kept as a defensive belt-and-
+// braces for the "-update twice produces no diff" AC, and it keeps the
+// golden diffable/meaningful (a real regression shows as a content change,
+// not a reshuffle).
 func TestGolden_CheckFull(t *testing.T) {
 	t.Parallel()
 	sb := testutil.Sandbox(t, "fixture_project")

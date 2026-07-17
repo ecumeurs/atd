@@ -3,6 +3,7 @@ package exploration
 import (
 	"atd-tools/pkg/atom"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -139,11 +140,19 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 	for f := range codeFiles {
 		snap.GraphSlice.CodeLinks = append(snap.GraphSlice.CodeLinks, f)
 	}
+	sort.Strings(snap.GraphSlice.CodeLinks)
 	for f := range testFiles {
 		snap.GraphSlice.TestLinks = append(snap.GraphSlice.TestLinks, f)
 	}
+	sort.Strings(snap.GraphSlice.TestLinks)
 
-	totalPool := len(snap.GraphSlice.Dependents)
+	// totalPool/implementedCount only ever grow via the target-itself checks
+	// below and the per-dependent loop further down -- it must NOT also be
+	// seeded from len(Dependents), since that double-counts every dependent
+	// that qualifies (IMPLEMENTATION, or ARCHITECTURE with a direct
+	// @spec-link) as both a pool slot from the seed AND a pool slot from the
+	// loop, halving ImplementationRate for a fully-covered chain.
+	totalPool := 0
 	implementedCount := 0
 	testedCount := 0
 
@@ -207,8 +216,26 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 	return snap, nil
 }
 
+// configuredMaxDepth returns the max traversal depth (in hops from the walk's
+// starting atom) that WalkUp/WalkDown should honor, or 0 for "unlimited" --
+// e.Config is nil for hand-built Explorers in tests, and a non-positive
+// MaxDepth is treated the same as unconfigured rather than as "walk nothing".
+func (e *Explorer) configuredMaxDepth() int {
+	if e.Config == nil || e.Config.MaxDepth <= 0 {
+		return 0
+	}
+	return e.Config.MaxDepth
+}
+
 func (e *Explorer) WalkUp(id string, visited map[string]bool, onVisit func(string)) {
+	e.walkUp(id, visited, onVisit, 0)
+}
+
+func (e *Explorer) walkUp(id string, visited map[string]bool, onVisit func(string), depth int) {
 	if visited[id] {
+		return
+	}
+	if maxDepth := e.configuredMaxDepth(); maxDepth > 0 && depth > maxDepth {
 		return
 	}
 	visited[id] = true
@@ -218,12 +245,19 @@ func (e *Explorer) WalkUp(id string, visited map[string]bool, onVisit func(strin
 	}
 	onVisit(id)
 	for _, p := range node.Parents {
-		e.WalkUp(strings.TrimSpace(p), visited, onVisit)
+		e.walkUp(strings.TrimSpace(p), visited, onVisit, depth+1)
 	}
 }
 
 func (e *Explorer) WalkDown(id string, visited map[string]bool, onVisit func(string)) {
+	e.walkDown(id, visited, onVisit, 0)
+}
+
+func (e *Explorer) walkDown(id string, visited map[string]bool, onVisit func(string), depth int) {
 	if visited[id] {
+		return
+	}
+	if maxDepth := e.configuredMaxDepth(); maxDepth > 0 && depth > maxDepth {
 		return
 	}
 	visited[id] = true
@@ -233,6 +267,6 @@ func (e *Explorer) WalkDown(id string, visited map[string]bool, onVisit func(str
 	}
 	onVisit(id)
 	for _, d := range node.Dependents {
-		e.WalkDown(strings.TrimSpace(d), visited, onVisit)
+		e.walkDown(strings.TrimSpace(d), visited, onVisit, depth+1)
 	}
 }
