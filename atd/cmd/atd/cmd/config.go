@@ -56,6 +56,20 @@ func runConfigUpdate(task, model string) (string, error) {
 		return "", err
 	}
 
+	// P-1 scope guard (test_atd_07_26.md §3.6, §8.3 defect #7): config.Load()
+	// above just re-resolved the active config from the process's cwd,
+	// which is not necessarily the project this MCP server (or CLI
+	// invocation) is meant to be operating on. If no real .atd was found
+	// anywhere above cwd, ProjectRoot() is just the cwd fallback, not a
+	// genuine project boundary -- writing a task/model assignment there
+	// would create or clobber a ".atd" wherever the process happened to be
+	// invoked from, exactly the write-side hazard incident I-1 (§2.1)
+	// demonstrated for rename propagation. Refuse loudly instead of
+	// guessing.
+	if config.LoadedFromFallback() {
+		return "", fmt.Errorf("atd: refusing to write task/model assignment (task=%q, model=%q): active config is cwd-fallback-anchored (no .atd found above the current directory), not a genuine project root; run atd from a directory containing a real .atd file, or switch to the intended project first (e.g. atd_workspace_use), before reassigning task models", task, model)
+	}
+
 	root := config.ProjectRoot()
 	if root == "" {
 		return "", fmt.Errorf("could not find .atd file to update")

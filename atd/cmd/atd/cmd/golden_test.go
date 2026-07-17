@@ -9,7 +9,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -70,35 +69,31 @@ func TestGolden_Lint(t *testing.T) {
 
 // TestGolden_Stats goldens `stats` against fixture_project.
 //
-// KNOWN DEFECT: runStats (cmd/atd/cmd/stats.go) builds its explorer via
-// exploration.NewExplorer(".", docsDir) -- the root is the literal string
-// ".", ignoring both the srcPath parameter and config.ProjectRoot(). Since
-// Explorer.Load walks ProjectRoot for *every* file (atoms and links alike,
-// see pkg/exploration/explorer.go), calling runStats from a test process
-// scans the test binary's own working directory, not any sandbox passed
-// via parameters -- a read-only cousin of the I-1 cwd-anchoring hazard
-// (test_atd_07_26.md §2.1), just without the destructive write. The only
-// way to exercise it against a sandbox is to chdir into it first, exactly
-// as cmd/atd/cmd/workspace_integration_test.go already does for a
-// different command -- so, like that test, this one is NOT t.Parallel().
+// Regression test for test_atd_07_26.md §8.3 defect #7: runStats
+// (cmd/atd/cmd/stats.go) used to build its explorer via
+// exploration.NewExplorer(".", docsDir) -- the literal string ".", ignoring
+// both the srcPath parameter and config.ProjectRoot(). Since Explorer.Load
+// walks ProjectRoot for every file (atoms and links alike, see
+// pkg/exploration/explorer.go), calling runStats from a test process used
+// to scan the test binary's own working directory instead of any sandbox
+// passed via parameters -- a read-only cousin of the I-1 cwd-anchoring
+// hazard (test_atd_07_26.md §2.1), just without the destructive write. A
+// prior version of this test worked around the bug with an explicit
+// os.Chdir(sb.Root)/restore dance (mirroring
+// cmd/atd/cmd/workspace_integration_test.go). Now that runStats passes
+// srcPath straight through to NewExplorer -- which falls back to
+// config.ProjectRoot() when srcPath is "", exactly what sb.Run's
+// config.LoadFromDir(sb.Root) sets up -- the chdir workaround is gone and
+// this test is back to the plain Sandbox/Run/Golden shape the other golden
+// tests use. KNOWN DEFECT expectation changed: if this test starts failing
+// because runStats silently resolves against the process cwd again,
+// runStats has regressed to hardcoding "." (or an equivalent) and must be
+// fixed instead of reintroducing the chdir workaround.
 func TestGolden_Stats(t *testing.T) {
+	t.Parallel()
 	sb := testutil.Sandbox(t, "fixture_project")
 
-	oldWD, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(sb.Root); err != nil {
-		t.Fatal(err)
-	}
 	res := sb.Run(func() (string, error) { return runStats("", sb.DocsDir, false) })
-	// Restore cwd immediately -- (*SB).Golden below walks upward from the
-	// current working directory to find testdata/golden, which must be the
-	// test package's own directory, not the sandbox we chdir'd into above.
-	if err := os.Chdir(oldWD); err != nil {
-		t.Fatal(err)
-	}
-
 	if res.Err != nil {
 		t.Fatalf("stats: %v", res.Err)
 	}

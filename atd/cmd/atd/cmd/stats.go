@@ -51,7 +51,14 @@ var statsCmd = &cobra.Command{
 }
 
 func runStats(srcPath, docsDir string, workspaceFlag bool) (string, error) {
-	explorer := exploration.NewExplorer(".", docsDir)
+	// Resolve against the loaded config's project root, not the process cwd
+	// (test_atd_07_26.md §2.1/§3.6, §8.3 defect #7). NewExplorer already
+	// falls back to config.ProjectRoot() when srcPath is "" -- passing the
+	// literal "." here instead bypassed that and anchored every stats run to
+	// whatever directory the process happened to be started/invoked from
+	// (an MCP server's cwd, a `go test` binary's package dir, etc.), a
+	// read-only cousin of the I-1 cwd-anchoring hazard.
+	explorer := exploration.NewExplorer(srcPath, docsDir)
 
 	if workspaceFlag {
 		ws, err := workspace.LoadWorkspace(".")
@@ -90,17 +97,29 @@ func runStats(srcPath, docsDir string, workspaceFlag bool) (string, error) {
 	// can still land in the graph under a bare key if the resolver's
 	// "current project" detection is off. To catch that case too, we also
 	// check FilePath: atoms found by this project's own file crawl always
-	// get a path relative to ProjectRoot (see Explorer.Load), while atoms
-	// pulled in via the workspace atom index (ResolveAtom) always carry an
-	// absolute AtomLocation.Path (see workspace.AtomIndex.BuildIndex). An
-	// absolute FilePath is therefore also a reliable cross-project signal,
+	// live under explorer.ProjectRoot (see Explorer.Load, which joins
+	// ProjectRoot with each relative path it walks), while atoms pulled in
+	// via the workspace atom index (ResolveAtom) carry an AtomLocation.Path
+	// rooted at a *different* project's directory (see
+	// workspace.AtomIndex.BuildIndex) and so fall outside it. Containment
+	// (via filepath.Rel) is therefore the reliable cross-project signal,
 	// independent of how the id happened to get keyed.
-	// If we don't exclude these here, every aggregate below (total, by-type,
-	// by-status, by-layer, stable/orphan/implemented counts) ends up
-	// describing a mixed population that is neither "this project's atoms"
-	// nor "the workspace's atoms". Workspace scope legitimately aggregates
-	// atoms from every project via LoadWorkspace/the index, so no filter
-	// is applied there.
+	//
+	// This used to be a plain filepath.IsAbs(node.FilePath) check, which
+	// only worked by accident: it relied on explorer.ProjectRoot itself
+	// being a relative "." (defect #7 -- see the NewExplorer call above),
+	// which made every local FilePath relative too and every workspace-index
+	// FilePath (always absolute) look distinctly "foreign". Now that
+	// ProjectRoot is resolved to config.ProjectRoot() (always absolute),
+	// every local FilePath is absolute as well, so IsAbs alone can no longer
+	// distinguish them -- containment relative to explorer.ProjectRoot can.
+	//
+	// If we don't exclude cross-project atoms here, every aggregate below
+	// (total, by-type, by-status, by-layer, stable/orphan/implemented
+	// counts) ends up describing a mixed population that is neither "this
+	// project's atoms" nor "the workspace's atoms". Workspace scope
+	// legitimately aggregates atoms from every project via
+	// LoadWorkspace/the index, so no filter is applied there.
 	isLocalAtom := func(id string, node *atom.AtomData) bool {
 		if workspaceFlag {
 			return true
@@ -108,8 +127,11 @@ func runStats(srcPath, docsDir string, workspaceFlag bool) (string, error) {
 		if strings.Contains(id, ":") {
 			return false
 		}
-		if node.FilePath != "" && filepath.IsAbs(node.FilePath) {
-			return false
+		if node.FilePath != "" {
+			rel, err := filepath.Rel(explorer.ProjectRoot, node.FilePath)
+			if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				return false
+			}
 		}
 		return true
 	}

@@ -88,7 +88,11 @@ Set gaps=true during VERIFY stage to find STABLE atoms with no code implementati
 	}, func(args map[string]any) (string, error) {
 		gaps := argBool(args, "gaps")
 		workspace := argBool(args, "workspace")
-		return runCrawl(".", config.DocsDir(), gaps, workspace)
+		// Anchor to the loaded config's project root, not the process cwd
+		// (test_atd_07_26.md §2.1/§8.3 defect #7) -- an I-1-shaped hazard for
+		// a long-lived MCP server process whose cwd need not match the
+		// active project.
+		return runCrawl(config.ProjectRoot(), config.DocsDir(), gaps, workspace)
 	})
 
 	// @spec-link [[api_atd_serve_weave]]
@@ -176,7 +180,10 @@ Use during cold-start PLAN stage to prioritize which files to dissect first.`,
 			"required": []string{"dir"},
 		},
 	}, func(args map[string]any) (string, error) {
-		dir := argString(args, "dir", ".")
+		// Fall back to the loaded config's project root, not the process cwd
+		// (test_atd_07_26.md §2.1/§8.3 defect #7), if the caller omits "dir"
+		// despite it being declared required.
+		dir := argString(args, "dir", config.ProjectRoot())
 		out := argString(args, "out", "roadmap.json")
 		return runRoadmap(dir, out)
 	})
@@ -194,7 +201,12 @@ Use during VERIFY stage to assess overall documentation quality, or in CI to gen
 		},
 	}, func(args map[string]any) (string, error) {
 		workspace := argBool(args, "workspace")
-		return runStats(".", config.DocsDir(), workspace)
+		// Anchor to the loaded config's project root, not the process cwd
+		// (test_atd_07_26.md §2.1/§8.3 defect #7): runStats now honors this
+		// argument (see cmd/atd/cmd/stats.go), so passing the literal "."
+		// here would have reintroduced the same cwd-anchoring hazard the
+		// stats.go fix just closed.
+		return runStats(config.ProjectRoot(), config.DocsDir(), workspace)
 	})
 
 	// @spec-link [[api_atd_serve_check]]
@@ -281,7 +293,13 @@ Supports structured layer-by-layer summarization by the LLM by passing structure
 		if atomID == "" {
 			return "", fmt.Errorf("atom is required")
 		}
-		return runTrace(atomID, config.DocsDir(), ".", summary)
+		// Anchor to the loaded config's project root, not the process cwd
+		// (test_atd_07_26.md §2.1/§8.3 defect #7): the CLI's own `trace`
+		// command passes "" here (its --src flag defaults to ""), which lets
+		// exploration.NewExplorer fall back to config.ProjectRoot() -- the
+		// literal "." this handler passed instead skipped that fallback and
+		// anchored the walk to the MCP server process's cwd.
+		return runTrace(atomID, config.DocsDir(), config.ProjectRoot(), summary)
 	})
 
 	// @spec-link [[api_atd_serve_test_links]]
@@ -534,7 +552,11 @@ Subsequent tool calls will be scoped to this project.`,
 			"properties": map[string]any{},
 		},
 	}, func(args map[string]any) (string, error) {
-		return runStats(".", config.DocsDir(), true)
+		// Anchor to the loaded config's project root, not the process cwd --
+		// see the atd_stats handler above for why the literal "." is unsafe
+		// now that runStats honors this argument (test_atd_07_26.md §8.3
+		// defect #7).
+		return runStats(config.ProjectRoot(), config.DocsDir(), true)
 	})
 
 	r.Register(mcp.Tool{
