@@ -93,12 +93,13 @@ func TestLoad_ParsesDocsAndFiltersCodeByExtensionAndPath(t *testing.T) {
 // TestListFiles_SkipsIgnoredDirectories pins ListFiles' path-based ignore
 // filter (explorer.go): vendor/, node_modules/, dist/, build/ are matched
 // as plain substrings anywhere in the relative path, so they're skipped
-// whether they sit at the tree root or nested. The dotdir check is
-// different and narrower: it looks for the literal substring "/." (a slash
-// immediately before a dot), which only matches a dotdir *nested* under
-// something else -- a dotdir sitting directly at ProjectRoot (e.g. a
-// top-level .git/) has no leading "/" before its own name and is NOT
-// filtered. This test pins both halves, including that asymmetry.
+// whether they sit at the tree root or nested. The dotdir check used to be
+// narrower: it only looked for the literal substring "/." (a slash
+// immediately before a dot), which matched a dotdir *nested* under something
+// else but missed one sitting directly at ProjectRoot (e.g. a top-level
+// .git/), since that has no leading "/" before its own name. FIXED
+// (test_atd_07_26.md §8.3 #11): the filter now also checks whether rel
+// itself starts with a dot, catching the top-level case too.
 func TestListFiles_SkipsIgnoredDirectories(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
@@ -109,7 +110,7 @@ func TestListFiles_SkipsIgnoredDirectories(t *testing.T) {
 	writeTestFile(t, root, "dist/skip.go", "x")
 	writeTestFile(t, root, "build/skip.go", "x")
 	writeTestFile(t, root, "sub/.git/skip", "x") // nested dotdir: rel contains "/." -> filtered
-	writeTestFile(t, root, ".git/topskip", "x")  // KNOWN GAP: see doc comment above -- top-level dotdir is NOT filtered
+	writeTestFile(t, root, ".git/topskip", "x")  // top-level dotdir: rel now starts with "." -> filtered too
 
 	e := &Explorer{ProjectRoot: root}
 	files, err := e.ListFiles()
@@ -118,7 +119,7 @@ func TestListFiles_SkipsIgnoredDirectories(t *testing.T) {
 	}
 	sort.Strings(files)
 
-	want := []string{".git/topskip", "src/keep.go"}
+	want := []string{"src/keep.go"}
 	if !reflect.DeepEqual(files, want) {
 		t.Errorf("ListFiles() = %v, want %v", files, want)
 	}

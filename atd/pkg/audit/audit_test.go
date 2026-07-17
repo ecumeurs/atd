@@ -229,23 +229,17 @@ n/a
 	}
 }
 
-// TestRunFullAudit_BloatParser_MissingKey pins a genuine defect: unlike
-// syntactically-invalid JSON (handled loudly above), a syntactically VALID
-// JSON object that simply omits "is_bloated" unmarshals with no error at
-// all — Go's encoding/json does not require declared fields to be present.
-// bI.IsBloated silently stays its zero value (false), so the atom is
-// silently classified PASS even though the model's response was
-// unusable.
+// TestRunFullAudit_BloatParser_MissingKey pins the fix for a genuine defect:
+// unlike syntactically-invalid JSON (handled loudly above), a syntactically
+// VALID JSON object that simply omits "is_bloated" used to unmarshal with no
+// error at all — Go's encoding/json does not require declared fields to be
+// present — leaving bI.IsBloated at its zero value (false) and silently
+// classifying the atom PASS even though the model's response was unusable.
 //
-// KNOWN DEFECT (test_atd_07_26.md §3.5/S12): a genuinely surgical fix here
-// would require checking key presence (e.g. via a map[string]interface{}
-// probe before the typed Unmarshal) rather than trusting the typed
-// Unmarshal's silence — a small change, but one that touches the same
-// parsing path for both the intent and logic calls and needs a live-model
-// sanity pass to confirm real responses never legitimately omit the key.
-// Left as a pinned defect per WP-6 instructions rather than a wholesale
-// parser rewrite; if fixed, this test should start failing here and should
-// be updated to assert the new loud behavior.
+// FIXED (test_atd_07_26.md §8.3 #9a): audit.go's hasKey helper probes the raw
+// response into a map[string]json.RawMessage before trusting the typed
+// Unmarshal's silence, and treats a missing "is_bloated" key the same as
+// malformed JSON — a loud [ERROR] line, never a silent PASS.
 func TestRunFullAudit_BloatParser_MissingKey(t *testing.T) {
 	fake := fakeprovider.InstallOllama(t)
 
@@ -277,7 +271,10 @@ n/a
 		t.Fatalf("RunFullAudit: %v", err)
 	}
 
-	if !strings.Contains(report.Text, "Auditing: zzfix_missingkey.atom.md ... [PASS]") {
-		t.Fatalf("KNOWN DEFECT expectation changed: a valid-JSON-but-missing-key bloat response no longer silently classifies as PASS -- if fixed, update this pin to assert loud handling instead:\n%s", report.Text)
+	if strings.Contains(report.Text, "Auditing: zzfix_missingkey.atom.md ... [PASS]") {
+		t.Errorf("a valid-JSON-but-missing-key bloat response must never silently classify as PASS:\n%s", report.Text)
+	}
+	if !strings.Contains(report.Text, "[ERROR]") || !strings.Contains(report.Text, "is_bloated") {
+		t.Errorf("expected a loud [ERROR] line naming the missing \"is_bloated\" key, got:\n%s", report.Text)
 	}
 }

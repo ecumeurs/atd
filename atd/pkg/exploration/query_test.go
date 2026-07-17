@@ -68,10 +68,16 @@ func TestQuery(t *testing.T) {
 	})
 
 	t.Run("no_match_returns_empty_not_error", func(t *testing.T) {
-		// Query has no error return at all -- a miss is always a silent
-		// empty/nil slice (see cmd/atd/cmd/scenario_test.go's S1 "query"
-		// subtest, which pins the same "silent empty" shape at the CLI
-		// layer as a KNOWN DEFECT relative to check/trace's loud errors).
+		// Query itself has no error return at all -- a miss is always a
+		// silent empty/nil slice, and that stays true here: Query is a
+		// general case-insensitive substring search across every field, so
+		// "no matches" is a legitimate, non-error outcome for most fields
+		// (e.g. a keyword search that just doesn't hit anything). The
+		// "resolve or shout" fix for field="id" (test_atd_07_26.md §8.3 #2)
+		// lives one layer up, in cmd/atd/cmd/query.go's runQuery wrapper
+		// (see cmd/atd/cmd/scenario_test.go's S1 "query" subtest), which
+		// now errors loudly on a zero-match id lookup instead of leaving
+		// this pure search function's contract unchanged.
 		got := e.Query("id", "does_not_exist_anywhere")
 		if len(got) != 0 {
 			t.Errorf("expected no matches, got %v", got)

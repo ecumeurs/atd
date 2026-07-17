@@ -537,10 +537,12 @@ func TestGenerateReport_DiffMode(t *testing.T) {
 // canonical id, the bare id, and a redundant TYPE_-prefixed id must all
 // produce byte-identical reports (Addendum B's workspace-resolver
 // strip-and-retry, generalized from pkg/workspace/resolver_test.go's own
-// unit tests through to the check engine). This needs a workspace fixture
-// (fixture_workspace/zzfix_a): a standalone project's CanonicalAtomID has no
-// Resolver and falls back to an exact map lookup with no TYPE_-prefix retry
-// (see scenario_test.go's testScenarioS1Standalone KNOWN DEFECT comment).
+// unit tests through to the check engine). This uses a workspace fixture
+// (fixture_workspace/zzfix_a) to exercise the workspace.Resolver path
+// specifically; pkg/exploration/resolve_test.go's
+// TestResolveAtom_StandaloneBareIDAndKnownDefect covers the equivalent
+// standalone-project case now that CanonicalAtomID's own strip-and-retry
+// (test_atd_07_26.md §8.3 #1) applies there too.
 func TestGenerateReport_IDCanonicalization(t *testing.T) {
 	t.Parallel()
 	ws := testutil.Sandbox(t, "fixture_workspace")

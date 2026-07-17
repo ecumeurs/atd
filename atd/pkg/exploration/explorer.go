@@ -272,7 +272,8 @@ func (e *Explorer) ListFiles() ([]string, error) {
 			return nil
 		}
 
-		if strings.Contains(rel, "/.") ||
+		if strings.HasPrefix(rel, ".") ||
+			strings.Contains(rel, "/.") ||
 			strings.Contains(rel, "vendor/") ||
 			strings.Contains(rel, "node_modules/") ||
 			strings.Contains(rel, "dist/") ||
