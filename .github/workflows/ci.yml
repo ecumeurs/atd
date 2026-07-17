@@ -57,6 +57,11 @@ jobs:
       - name: make verify-race
         run: make -C atd verify-race
 
+      # WP-7 (test_atd_07_26.md §5.3): per-package coverage floors on the
+      # engine packages (exploration/coverage/atom). Ratchets up, never down.
+      - name: make coverage-floors
+        run: make -C atd coverage-floors
+
       - name: W-1 tripwire
         run: test -z "$(git status --porcelain)" || (git status --porcelain; git diff; exit 1)
 
@@ -90,27 +95,13 @@ jobs:
         with:
           go-version-file: atd/go.mod
 
-      # WP-2 (the fixture corpus + CLI scenario harness under
-      # atd/testdata/fixture_project/ + pkg/testutil.Sandbox) has not
-      # landed yet. Per the WP-5 spec: once it merges, the scenario tests
-      # ship as ordinary *_test.go files in the default `go test ./...`
-      # lane, so the `verify` job above already exercises them — this job
-      # would then become redundant with `verify` unless the scenario
-      # suite is deliberately split out.
-      #
-      # To keep this job meaningful as a DISTINCT gate (not just a copy of
-      # `verify`), rescope it once WP-2 lands to run only the scenario
-      # tests, e.g.:
-      #   go test ./... -run 'TestScenario_'          (naming convention), or
-      #   go test -tags e2e ./...                     (build-tag isolation)
-      # whichever convention WP-2 adopts — grep the harness for the
-      # pattern it settles on and update the `run:` line below accordingly.
-      #
-      # Until then this job is a non-race `make verify` run: a cheap,
-      # honest placeholder that keeps the job slot, name, and tripwire
-      # wired into CI now rather than bolting them on later.
-      - name: make verify (placeholder for Layer-2 scenario suite)
-        run: make -C atd verify
+      # WP-2's Layer-2 suite (fixture corpus + pkg/testutil.Sandbox harness)
+      # lives in the nested module as ordinary *_test.go files under the
+      # TestScenario_ / TestGolden_ naming convention, so the `verify` job
+      # also runs it; this job runs it in isolation with -v so a scenario
+      # failure is immediately legible as a Layer-2 regression, per WP-5.
+      - name: Layer-2 scenario + golden suite
+        run: cd atd/cmd/atd && go test -v -run 'TestScenario_|TestGolden_' ./cmd/...
 
       - name: W-1 tripwire
         run: test -z "$(git status --porcelain)" || (git status --porcelain; git diff; exit 1)

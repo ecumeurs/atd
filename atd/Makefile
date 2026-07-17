@@ -18,7 +18,7 @@ CMD_MODULE := $(CURDIR)/cmd/atd
 MODULES    := $(ROOT) $(CMD_MODULE)
 REPO_ROOT  := $(abspath $(ROOT)/..)
 
-.PHONY: verify verify-race tripwire dogfood dogfood-quick dogfood-update-baseline
+.PHONY: verify verify-race tripwire dogfood dogfood-quick dogfood-update-baseline coverage-floors
 
 verify:
 	@set -e; \
@@ -70,6 +70,24 @@ dogfood:
 # every commit that stages an atom file.
 dogfood-quick:
 	@cd $(CMD_MODULE) && go test -tags dogfood ./cmd/... -run TestDogfoodLintRatchet
+
+# WP-7 coverage floors (test_atd_07_26.md §5.3): per-package floors on the
+# engine packages only -- no blanket threshold (it breeds flag-tests).
+# Ratchet upward when a package durably clears a higher bar; never downward.
+COVERAGE_FLOORS := pkg/exploration:60 pkg/coverage:60 pkg/atom:70
+
+coverage-floors:
+	@set -e; fail=0; \
+	for spec in $(COVERAGE_FLOORS); do \
+		pkg=$${spec%:*}; floor=$${spec#*:}; \
+		pct=$$(cd $(ROOT) && go test -cover ./$$pkg | grep -oE 'coverage: [0-9.]+' | grep -oE '[0-9.]+'); \
+		if [ -z "$$pct" ]; then echo "FAIL $$pkg: could not measure coverage"; fail=1; \
+		elif awk -v p="$$pct" -v f="$$floor" 'BEGIN{exit !(p+0 >= f+0)}'; then \
+			echo "ok   $$pkg coverage $$pct% >= floor $$floor%"; \
+		else \
+			echo "FAIL $$pkg coverage $$pct% < floor $$floor%"; fail=1; \
+		fi; \
+	done; exit $$fail
 
 # Conscious ratchet-down (or, when reviewed, ratchet-tighten): regenerates
 # testdata/dogfood_baseline.txt to mirror current reality for both
