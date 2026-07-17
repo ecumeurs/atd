@@ -1,5 +1,5 @@
 ---
-id: mechanic_atd_update
+id: service_atd_update
 human_name: "ATD Update"
 type: MECHANIC
 version: 1.0
@@ -23,4 +23,4 @@ Reads an atom file (or multiple atom files matched via `--filter`), applies fiel
 ## TECHNICAL INTERFACE (The Bridge)
 - **Command:** `atd update [--file <atom.md> | --filter <query>] [-set key=value] [-intent <text>] [-logic <text>] [--spec-link <id> <source_file>]`
 - **LLM Task:** None (deterministic)
-- **Code Tag:** `@spec-link [[mechanic_atd_update]]`
+- **Code Tag:** `@spec-link [[service_atd_update]]`

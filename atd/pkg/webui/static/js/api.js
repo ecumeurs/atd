@@ -33,7 +33,7 @@ export async function fetchAtomTests(id) {
     return resp.json();
 }
 
-// @spec-link [[mechanic_atd_update]]
+// @spec-link [[service_atd_update]]
 export async function updateAtom(id, data) {
     const resp = await fetch('/api/atd/\${id}/update', {
         method: 'POST',
@@ -43,7 +43,7 @@ export async function updateAtom(id, data) {
     return resp;
 }
 
-// @spec-link [[mechanic_atd_update]]
+// @spec-link [[service_atd_update]]
 export async function bulkUpdate(ids, status) {
     const resp = await fetch('/api/bulk-update', {
         method: 'POST',
@@ -53,7 +53,7 @@ export async function bulkUpdate(ids, status) {
     return resp;
 }
 
-// @spec-link [[mechanic_atd_update]]
+// @spec-link [[service_atd_update]]
 export async function applyProposal(action, atomId, content) {
     const resp = await fetch('/api/gemini/apply-proposal', {
         method: 'POST',

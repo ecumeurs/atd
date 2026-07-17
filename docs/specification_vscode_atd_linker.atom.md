@@ -1,11 +1,12 @@
 ---
 id: specification_vscode_atd_linker
+human_name: "VS Code ATD Linker"
 type: SPECIFICATION
 status: STABLE
 priority: 5
 version: 1.0.0
 parents:
-  - [[atd_philosophy]]
+  - [[domain_atd_philosophy]]
 dependents:
   - [[service_vscode_atd_ui]]
   - [[service_vscode_linker_features]]
@@ -14,12 +15,10 @@ layer: ARCHITECTURE
 
 # VS Code ATD Linker
 
-**Intent:** 
+## INTENT
 Provide seamless navigation and traceability within Atomic Traceable Documentation (ATD) enabled codebases directly from the VS Code editor.
 
----
-
-## Technical Interface
+## TECHNICAL INTERFACE (The Bridge)
 
 The extension implements standard VS Code language features:
 
@@ -33,9 +32,7 @@ The extension implements standard VS Code language features:
 1.  **ATD Graph Explorer**: A sidebar tree view (in the "ATD" activity bar container) that displays the local graph slice (parents and dependents) for the currently active atom file. It uses `atd trace` to fetch child health status.
 2.  **ATD System Graph**: A webview panel showing the full system architecture graph, generated using `atd crawl` and rendered via Vis.js.
 
----
-
-## The Rule / Logic
+## THE RULE / LOGIC
 
 1.  **Link Detection**: Matches the regex `/\[\[([^\]]+)\]\]/g`.
 2.  **Path Resolution**: 
@@ -51,7 +48,7 @@ The extension implements standard VS Code language features:
 
 ---
 
-## Expectation
+## EXPECTATION (For Testing)
 
 - Developers can navigate between atoms and from source code to atoms without manual searching.
 - Documentation becomes a live, navigable map of the system architecture.

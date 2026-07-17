@@ -1,5 +1,5 @@
 ---
-id: mechanic_atd_init
+id: service_atd_init
 human_name: "ATD Init Command"
 type: MECHANIC
 version: 1.0
@@ -28,7 +28,7 @@ Bootstrap a `.atd` configuration file in any project directory, enabling all oth
 ## TECHNICAL INTERFACE (The Bridge)
 - **Binary:** `scripts/cmd/atd/cmd/init.go`
 - **Usage:** `atd init [--dir PATH] [--docs PATH] [--model NAME] [--force]`
-- **Code Tag:** `@spec-link [[mechanic_atd_init]]`
+- **Code Tag:** `@spec-link [[service_atd_init]]`
 
 ## EXPECTATION (For Testing)
 - Running `atd init --dir /tmp/testproject` creates `/tmp/testproject/.atd` and `/tmp/testproject/docs/`

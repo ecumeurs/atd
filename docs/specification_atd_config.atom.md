@@ -9,7 +9,6 @@ tags: [atd, config, specification]
 parents:
   - [[module_atd_cli]]
 dependents:
-  - [[service_atd_serve_config]]
   - [[service_atd_tiered_provider]]
 layer: ARCHITECTURE
 ---

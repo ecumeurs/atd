@@ -2,7 +2,7 @@
 id: mechanic_webui_explorer_workflow
 human_name: "Explorer Interaction Workflow"
 type: MECHANIC
-layer: ARCHITECTURE
+layer: IMPLEMENTATION
 version: 1.0
 status: STABLE
 priority: 3

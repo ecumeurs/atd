@@ -4,7 +4,7 @@ human_name: "ATD Project Vision"
 description: "The project-wide philosophical scope of ATD: what the system is for and where its boundaries lie. Read whenever a BUSINESS-layer atom is added or updated."
 type: VISION
 version: 1.0
-status: DRAFT
+status: STABLE
 priority: CORE
 tags: [atd, governance, vision]
 parents: []
@@ -21,12 +21,13 @@ To state, once and unambiguously, what ATD (Atomic Traceable Documentation) exis
 ATD is a **development governance substrate**, not an application. Its purpose is to keep documentation, code, and tests provably synchronized through bidirectional traceability, and to make drift between them visible and actionable.
 
 In scope:
-- Expressing every requirement, rule, and mechanic as a single-responsibility atom linked to code (`@spec-link`) and tests (`@test-link`).
+- Expressing every requirement, rule, and mechanic of the ATD tool itself as a single-responsibility atom linked to code (`@spec-link`) and tests (`@test-link`).
 - Deterministic, token-free tooling for navigating and validating that graph (query, crawl, weave, check, trace, lint, heatmap).
 - LLM-assisted extraction, classification, and auditing where a deterministic answer is impossible — always subordinate to human governance.
 - Workspace/multi-project operation over several `docs/` corpora.
 
 Out of scope (scope-creep guard):
+- Hosting atoms that describe the behaviour of any project ATD is used to document. Those belong in that project's own corpus, referenced cross-project via `[[project:atom_id]]`. This corpus is for the ATD tool only (CLI, MCP server, WebUI, VS Code extension, skill).
 - Becoming a general project-management, issue-tracking, or CI platform.
 - Replacing human architectural judgment; ATD surfaces evidence, humans decide.
 - Any feature that makes an LLM the source of truth for what the system *should* do — the atom graph is that source of truth.

@@ -35,8 +35,6 @@ dependents:
   - [[api_atd_serve_workspace_list]]
   - [[api_atd_serve_workspace_stats]]
   - [[api_atd_serve_workspace_use]]
-  - [[service_atd_serve_check]]
-  - [[service_atd_serve_config]]
 layer: ARCHITECTURE
 ---
 

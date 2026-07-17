@@ -106,7 +106,7 @@ func (s *Server) handleLLMAtomDetail(c *gin.Context) {
 	c.JSON(http.StatusOK, a)
 }
 
-// @spec-link [[mechanic_atd_update]]
+// @spec-link [[service_atd_update]]
 func (s *Server) handleApplyProposal(c *gin.Context) {
 	var proposal struct {
 		Action  string                 `json:"action"`

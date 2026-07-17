@@ -205,7 +205,7 @@ function slugify(text) {
         .replace(/-+$/, '');
 }
 
-// @spec-link [[mechanic_atd_update]]
+// @spec-link [[service_atd_update]]
 async function saveAtomChanges() {
     const atom = state.currentAtom;
     if (!atom) return;

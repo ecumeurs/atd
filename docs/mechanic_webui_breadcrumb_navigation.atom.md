@@ -2,7 +2,7 @@
 id: mechanic_webui_breadcrumb_navigation
 human_name: "Breadcrumb Navigation Logic"
 type: MECHANIC
-layer: ARCHITECTURE
+layer: IMPLEMENTATION
 version: 1.0
 status: STABLE
 priority: 3

@@ -1,5 +1,5 @@
 ---
-id: mechanic_atd_lint
+id: service_atd_lint
 human_name: "ATD Structural Linter"
 type: MECHANIC
 version: 0.1.0
@@ -31,7 +31,7 @@ Perform a fast, deterministic structural validation across all ATD atoms in a do
 ## TECHNICAL INTERFACE (The Bridge)
 - **Binary:** `scripts/cmd/atd/cmd/lint.go`
 - **Usage:** `atd lint [dir]`
-- **Code Tag:** `@spec-link [[mechanic_atd_lint]]`
+- **Code Tag:** `@spec-link [[service_atd_lint]]`
 
 ## EXPECTATION (For Testing)
 - Running `atd lint` on a directory with a missing `id` field in an atom returns a non-zero exit code and a descriptive error message.

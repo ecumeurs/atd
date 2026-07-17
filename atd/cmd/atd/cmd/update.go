@@ -1,5 +1,5 @@
 package cmd
-// @spec-link [[mechanic_atd_update]]
+// @spec-link [[service_atd_update]]
 
 import (
 	"fmt"

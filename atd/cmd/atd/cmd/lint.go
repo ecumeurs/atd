@@ -26,7 +26,7 @@ var canonicalAtomTypes = map[string]bool{
 	"SERVICE": true, "DATA": true, "BUILD": true, "USAGE": true, "SPECIFICATION": true,
 }
 
-// @spec-link [[mechanic_atd_lint]]
+// @spec-link [[service_atd_lint]]
 var lintCmd = &cobra.Command{
 	Use:   "lint [dir]",
 	Short: "Structurally validate ATD atoms",

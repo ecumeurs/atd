@@ -8,10 +8,10 @@ priority: 3
 tags: [atd, mcp, lint, validation]
 parents:
   - [[api_atd_mcp_ops]]
-  - [[mechanic_atd_lint]]
+  - [[service_atd_lint]]
   - [[service_atd_serve]]
 dependents: []
-layer: IMPLEMENTATION
+layer: ARCHITECTURE
 ---
 
 # MCP Tool: atd_lint
