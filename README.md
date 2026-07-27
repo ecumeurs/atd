@@ -44,7 +44,7 @@ atd init --force
 This creates `.atd` (full provider chain + model routing config) and the `docs/` directory.
 
 ### Ollama LLM Setup
-Many ATD tools (e.g., `atd dissect`, `atd audit`, `atd index`) use a local Ollama instance for LLM processing.
+Many ATD tools (e.g., `atd audit`, `atd recon`, `atd index`) use a local Ollama instance for LLM processing.
 
 #### 1. Start the Ollama Container
 Ensure you have Docker installed and run the following command to start the Ollama service:
@@ -60,7 +60,7 @@ docker exec -it ollama ollama pull nomic-embed-text
 ```
 
 ### MCP Integration (VS Code / Claude Desktop)
-`atd serve` starts a JSON-RPC 2.0 MCP server exposing **19 tools** — all ATD subcommands including LLM-backed operations (e.g., `atd_dissect`, `atd_search`) and deterministic diagnostics (e.g., `atd_stats`, `atd_lint`, `atd_trace`).
+`atd serve` starts a JSON-RPC 2.0 MCP server exposing all ATD subcommands including LLM-backed operations (e.g., `atd_recon`, `atd_search`) and deterministic diagnostics (e.g., `atd_stats`, `atd_lint`, `atd_trace`).
 
 **stdio transport (recommended):** Add to `.mcp.json` in your project root:
 ```json
@@ -206,18 +206,14 @@ This enables sharing common rules (e.g., authentication patterns, data schemas) 
 | [Cross-Project Atom Sharing with Destination Selection](issues/ISS-035_20260324_cross_project_sharing.md) | 2026-03-24 | Open | Low | ATD is currently single-project. There is no mechanism for sharing atoms betw... |
 | [Change History Sidecar per Atom](issues/ISS-034_20260324_changelog_sidecar.md) | 2026-03-24 | Open | Medium | Atoms have a `version` field but no change log. When an atom is modified, the... |
 | [Atom Deprecation and Archival Statuses](issues/ISS-033_20260324_atom_deprecation_archival.md) | 2026-03-24 | Open | Medium | There is no `DEPRECATED` or `ARCHIVED` status for atoms. When a feature is re... |
-| [Cold-Start and Full Audit via MCP](issues/ISS-031_20260324_cold_start_mcp.md) | 2026-03-24 | Open | High | The cold-start pipeline (`roadmap` → `index` → `dissect` → `weave` → `discove... |
 | [Implement `map-impact` sub-mode for `atd crawl`](issues/ISS-030_20260323_crawl_map_impact_submode.md) | 2026-03-23 | Open | Medium | The `atd_map_impact` tool is mentioned in the `ATD.md` rules as a "Ripple che... |
-| [Insufficient Dissection Granularity for Complex Files](issues/ISS-027_20260314_atd_dissect_quality.md) | 2026-03-14 | Open | Medium | The `atd dissect` tool fails to identify a sufficient number of atomic bounda... |
 | [Low ATD Content Verbosity](issues/ISS-026_20260314_atd_low_verbosity.md) | 2026-03-14 | Open | Low | Atoms generated during the initial creation phase (Task 03) are often sparse,... |
 | [Research efficient API logic tracking for ATD atoms](issues/ISS-020_20260306_api_logic_tracking_research.md) | 2026-03-06 | Open | Medium | Current API-typed Atoms use free-form text or simplified summaries that often... |
 | [API typed atd aren't capturing full payload/contract details](issues/ISS-019_20260306_api_atd_payload_capture_shortcoming.md) | 2026-03-06 | Open | Medium | When working on projects to test ATDs, instructions for API expectations and ... |
 | [Exclude User Stories and Use Cases from Bloat Checks](issues/ISS-018_20260305_exclude_usage_atoms_from_bloat.md) | 2026-03-05 | Open | Medium | Atoms that represent User Stories and Use Cases (typically typed as `USAGE` o... |
 | [Replace Cold Start Mass Generative Step with Audit Loop](issues/ISS-017_20260304_cold_start_audit_replacement.md) | 2026-03-04 | Open | Medium | The final step of the cold start pipeline (`atd-cold-start.sh`) instructs the... |
-| [ATD Generation Orchestration and Local Dissection](issues/ISS-011_20260304_atd_generation_orchestration.md) | 2026-03-04 | Open | Medium | There is a lack of orchestration between the IDE agent and the local ATD gene... |
 | [ATD Status Management and Workflow](issues/ISS-010_20260304_atd_status_management.md) | 2026-03-04 | Open | Medium | The `status` attribute is currently ignored. Implementing status-based logic ... |
 | [ATD Version Management Implementation](issues/ISS-009_20260304_atd_version_management.md) | 2026-03-04 | Open | Medium | The `version` attribute in ATD YAML frontmatter is currently ignored. The sys... |
 | [Link WebUI to Project Binaries](issues/ISS-007_20260304_webui_binary_link.md) | 2026-03-04 | Open | Medium | Integrate the WebUI with the project's heavy-duty binaries and scripts (e.g.,... |
-| [ATD Dissection Granularity Enforcement](issues/ISS-002_20260304_atd_granularity.md) | 2026-03-04 | Open | Medium | Ensure that the dissection of documents and general ATD creation strictly fol... |
 | [Audit Performance Optimization](issues/ISS-001_20260304_audit_performance.md) | 2026-03-04 | Open | Medium | The current auditing process is too slow. It requires access to a more perfor... |
 

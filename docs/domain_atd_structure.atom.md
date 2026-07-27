@@ -54,7 +54,7 @@ ATD enforces the "Minimum Atomic Scale" to prevent overly broad atoms:
 
 ## TECHNICAL INTERFACE
 - **Code Tag:** `@spec-link [[domain_atd_structure]]`
-- **Parser Logic:** `atd-dissect` and `Go` YAML unmarshalers.
+- **Parser Logic:** `atd`'s atom parser and `Go` YAML unmarshalers.
 
 ## EXPECTATION
 - Files must pass `atd audit` without formatting errors.

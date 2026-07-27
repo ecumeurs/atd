@@ -434,7 +434,6 @@ func (s *Server) handleHealth(c *gin.Context) {
 		"audit_bloat":                  "",
 		"intent_extract":               "",
 		"snapshot":                     "",
-		"dissect":                      "",
 		"recon":                        "",
 		"audit_code":                   "",
 		"compare":                      "",

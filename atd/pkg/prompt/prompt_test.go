@@ -6,19 +6,6 @@ import (
 	"testing"
 )
 
-func TestDissect(t *testing.T) {
-	prompt := DissectBuild("001: hello")
-	if !strings.Contains(prompt, "001: hello") {
-		t.Error("Prompt doesn't contain numbered content")
-	}
-
-	schema := DissectFormat()
-	_, err := json.Marshal(schema)
-	if err != nil {
-		t.Errorf("FormatSchema not serializable: %v", err)
-	}
-}
-
 func TestAuditCode(t *testing.T) {
 	atom := CuratedAuditAtom{
 		ID:          "rule_password_policy",
@@ -90,7 +77,6 @@ func TestRecon(t *testing.T) {
 func TestAllSchemas(t *testing.T) {
 	// Simple validation that all Format functions return valid JSON (or nil)
 	formats := []interface{}{
-		DissectFormat(),
 		AuditBloatFormat(),
 		AuditCodeFormat(),
 		CompareFormat(),

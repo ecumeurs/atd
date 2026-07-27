@@ -44,6 +44,7 @@ func (e *Explorer) Trace(targetID string) (*TraceSnapshot, error) {
 				Layer:     node.Layer,
 				Intent:    node.Intent,
 				Logic:     node.Logic,
+				FilePath:  node.FilePath,
 			}
 		}
 	}

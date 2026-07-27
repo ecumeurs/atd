@@ -18,7 +18,7 @@ layer: IMPLEMENTATION
 To provide a unified environment smoke test that validates the `.atd` configuration, verifies connectivity to all configured LLM providers, and ensures model availability for all defined tasks.
 
 ## THE RULE / LOGIC
-Pings each provider defined in `.atd`. For Ollama providers, it calls `/api/tags` to list available models. It then simulates the priority-based model resolution logic for every task type (e.g., `dissect`, `audit_code`) and reports whether the task is "Ready" or "Missing Model".
+Pings each provider defined in `.atd`. For Ollama providers, it calls `/api/tags` to list available models. It then simulates the priority-based model resolution logic for every task type (e.g., `audit_code`, `embed`) and reports whether the task is "Ready" or "Missing Model".
 
 ## TECHNICAL INTERFACE (The Bridge)
 - **Command:** `atd check`

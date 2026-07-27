@@ -78,21 +78,10 @@ fi
 echo "Top dense files prioritized:"
 cat top_targets.txt
 
-# Phase 5: Executing Cloud Dissection (Iteration 15)
-echo -e "\n[Phase 5] Executing Mechanical Dissection (atd-dissect)..."
-while read line; do
-    file_path=$(echo "$line" | awk '{print $2}')
-    if [ -z "$file_path" ]; then continue; fi
-
-    echo "-> Dissecting target: $file_path"
-    output_name=$(basename "$file_path" | sed 's/\.[^.]*$//')
-    "$BIN_DIR/atd" dissect -file "$file_path" > "$PROJECT_ROOT/pipeline_output/dissect_${output_name}.json"
-done < "$PROJECT_ROOT/top_targets.txt"
-
-echo -e "\n[Pipeline Paused] Mechanical Extraction Complete."
-echo "Agent (Cloud LLM) must now:"
-echo " 1. Read 'pipeline_output/domain_*.md.txt' and generate DOMAIN atoms."
-echo " 2. Read 'pipeline_output/dissect_*.json' and generate MECHANIC atoms (reconciling with the DOMAIN atoms)."
+echo -e "\n[Pipeline Paused] Prioritization Complete."
+echo "Agent must now:"
+echo " 1. Read 'pipeline_output/domain_*.md.txt' and author DOMAIN atoms."
+echo " 2. Read the prioritized source files in 'top_targets.txt' and author MECHANIC atoms (reconciling with the DOMAIN atoms)."
 
 # Phase 6: Automatic Dependent Weaving (Iteration 15)
 echo -e "\n[Phase 6] Weaving Atom Dependencies..."

@@ -15,7 +15,6 @@ dependents:
   - [[api_atd_serve_check]]
   - [[api_atd_serve_config]]
   - [[api_atd_serve_crawl]]
-  - [[api_atd_serve_dissect]]
   - [[api_atd_serve_env]]
   - [[api_atd_serve_heatmap]]
   - [[api_atd_serve_heatmap_code]]
@@ -53,7 +52,7 @@ Expose all ATD operations as MCP (Model Context Protocol) tools over JSON-RPC 2.
 - Emits client MCP requests: `roots/list` (if client declares `roots` capability during initialization, to locate the `.atd` config accurately)
 - Registered tools (16 as of v1.0):
   - Deterministic: `atd_query`, `atd_crawl`, `atd_weave`, `atd_update`, `atd_roadmap`, `atd_assemble`, `atd_test_links`, `atd_check`, `atd_config`, `atd_stats`
-  - LLM-backed: `atd_dissect`, `atd_index`, `atd_search`, `atd_audit`, `atd_recon`, `atd_map`
+  - LLM-backed: `atd_index`, `atd_search`, `atd_audit`, `atd_recon`, `atd_map`
 - LLM tools that print progress use `captureStdout()` redirect to avoid polluting the JSON-RPC stdio channel
 - HTTP transport validates `Origin` header against `localhost` / `127.0.0.1` to prevent DNS rebinding attacks
 - `atd init` is intentionally **not** a MCP tool — it is a one-time filesystem bootstrap

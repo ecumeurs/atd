@@ -18,7 +18,7 @@ layer: ARCHITECTURE
 To automatically resolve which LLM provider and model to use for any given task type, by checking providers in priority order and falling back gracefully to IDE Agent passthrough when no Ollama instance is available.
 
 ## THE RULE / LOGIC
-Given a task type (e.g. `dissect`, `audit_bloat`, `embed`):
+Given a task type (e.g. `audit_code`, `audit_bloat`, `embed`):
 1. Look up which model handles this task from `llm.models` in `.atd`
 2. For each provider in `llm.providers` order:
    - If type is `passthrough` → return IDE Agent fallback

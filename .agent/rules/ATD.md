@@ -73,7 +73,7 @@ Use this table to determine the correct `type`, `layer`, and expected granularit
   - `atd_map` — three modes: find matching atoms for undocumented code (default), confirm a specific match (`atom` param), or propose a new atom skeleton (`new: true`)
   - `atd_recon` — shorthand confirm mode: validate whether a candidate file implements a specific atom
   - `atd_check` — unified coverage report: impl links (`@spec-link`) and test links (`@test-link`) in one pass; add `semantic: true` for LLM compliance check per link
-  - `atd_search`, `atd_audit`, `atd_dissect` — semantic search, atom quality audit (bloat + collision), document decomposition
+  - `atd_search`, `atd_audit` — semantic search, atom quality audit (bloat + collision)
   - `atd_trace(summary=true)` — **MANDATORY** for getting narrative vertical context before code changes
 
 ### 5. The Day-to-Day Workflow

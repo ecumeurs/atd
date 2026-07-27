@@ -19,13 +19,13 @@ To illustrate how to bootstrap ATD in an existing, undocumented codebase.
 
 ## THE RULE / LOGIC
 1. **Initialize**: Run `atd init` to create the `.atd` config and the `docs/` directory.
-2. **Scan**: Run `atd dissect <file>` on key source files. The tool uses an LLM to identify logical boundaries and propose new atoms.
-3. **Refine**: Review and edit the proposed atoms in `docs/` or through the WebUI.
+2. **Prioritize**: Run `atd roadmap` to rank key source files by density, then author atoms for the highest-priority files in `docs/`.
+3. **Refine**: Review and edit the authored atoms in `docs/` or through the WebUI.
 4. **Link**: Manually or automatically (via `atd recon`) place `@spec-link` tags in the code.
 5. **Freeze**: Once stable, run `atd index` to build the semantic search database.
 
 ## TECHNICAL INTERFACE
-- **Command:** `atd init`, `atd dissect`, `atd index`.
+- **Command:** `atd init`, `atd roadmap`, `atd index`.
 
 ## EXPECTATION
 - A `docs/` directory populated with atoms.

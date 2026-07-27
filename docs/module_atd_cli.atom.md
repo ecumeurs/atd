@@ -12,8 +12,6 @@ dependents:
   - [[mechanic_atd_assemble]]
   - [[mechanic_atd_congruence]]
   - [[mechanic_atd_continue]]
-  - [[mechanic_atd_dissect]]
-  - [[mechanic_atd_generate]]
   - [[service_atd_init]]
   - [[service_atd_lint]]
   - [[mechanic_atd_recon]]

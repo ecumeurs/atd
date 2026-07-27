@@ -24,10 +24,8 @@ LINT	mechanic_atd_compare	Missing mandatory section: ## EXPECTATION
 LINT	mechanic_atd_congruence	Missing mandatory section: ## EXPECTATION
 LINT	mechanic_atd_continue	Missing mandatory section: ## EXPECTATION
 LINT	mechanic_atd_continue	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
-LINT	mechanic_atd_dissect	Missing mandatory section: ## EXPECTATION
 LINT	mechanic_atd_exploration_graph	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	mechanic_atd_fix	Missing mandatory section: ## EXPECTATION
-LINT	mechanic_atd_generate	Missing mandatory section: ## EXPECTATION
 LINT	mechanic_atd_heatmap_calculation	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	mechanic_atd_init	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	mechanic_atd_lint	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)

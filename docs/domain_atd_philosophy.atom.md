@@ -31,7 +31,7 @@ ATD operates on five core principles:
 
 4. **LLM-Assisted, Human-Governed**: Local and remote LLMs handle bulk extraction, classification, and auditing tasks. The IDE Agent handles high-intelligence tasks (generation, reconciliation). Humans govern the final architecture.
 
-5. **Token Economy**: Every LLM interaction is metered by task type. Cheap classification tasks (embedding, pass/fail) run locally. Expensive generation tasks (dissection, reconciliation) run on capable models. Deterministic tasks (weaving, updating, crawling) never touch an LLM.
+5. **Token Economy**: Every LLM interaction is metered by task type. Cheap classification tasks (embedding, pass/fail) run locally. Expensive generation tasks (reconciliation, code auditing) run on capable models. Deterministic tasks (weaving, updating, crawling) never touch an LLM.
 
 ## TECHNICAL INTERFACE (The Bridge)
 - **Code Tag:** `@spec-link [[domain_atd_philosophy]]`

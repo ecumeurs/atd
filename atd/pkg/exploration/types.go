@@ -44,6 +44,7 @@ type TraceSnapshot struct {
 	GraphSlice    TraceGraphSlice      `json:"graph_slice"`
 	Context       map[string]AtomBrief `json:"context"`
 	Warnings      []string             `json:"warnings"`
+	Summary       string               `json:"summary,omitempty"`
 }
 
 type AtomBrief struct {
@@ -53,6 +54,7 @@ type AtomBrief struct {
 	Layer     string `json:"layer"`
 	Intent    string `json:"intent"`
 	Logic     string `json:"logic"`
+	FilePath  string `json:"file_path"`
 }
 
 type HealthSummary struct {

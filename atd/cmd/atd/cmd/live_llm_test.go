@@ -140,25 +140,3 @@ func TestLiveMapConfirm(t *testing.T) {
 		t.Errorf("live recon response did not honor the ReconResult schema; got: %s", out)
 	}
 }
-
-// TestLiveDissect smokes the dissect --llm path on a tiny file and asserts
-// the model returns parseable atoms JSON (runDissect salvages raw text on
-// parse failure, so JSON-shaped output is the schema-compliance check).
-func TestLiveDissect(t *testing.T) {
-	skipUnlessLive(t)
-	root, _ := liveSandbox(t)
-
-	target := filepath.Join(root, "sample.go")
-	code := "package zzlive\n\n// Add returns a+b.\nfunc Add(a, b int) int { return a + b }\n"
-	if err := os.WriteFile(target, []byte(code), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	out, err := runDissect(target, true)
-	if err != nil {
-		t.Fatalf("live dissect: %v", err)
-	}
-	if !strings.Contains(out, "\"atoms\"") {
-		t.Errorf("live dissect response did not contain an atoms array; got: %s", out)
-	}
-}

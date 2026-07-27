@@ -44,7 +44,7 @@ func TestRunConfigUpdateRefusesFallbackAnchoredConfig(t *testing.T) {
 	}
 	t.Cleanup(func() { os.Chdir(oldWD) })
 
-	out, err := runConfigUpdate("dissect", "some-model")
+	out, err := runConfigUpdate("audit_code", "some-model")
 	if err == nil {
 		t.Fatalf("expected runConfigUpdate to refuse a fallback-anchored write, got output: %q", out)
 	}
@@ -72,7 +72,7 @@ func TestRunConfigUpdateWritesWhenProperlyAnchored(t *testing.T) {
 	}
 	t.Cleanup(func() { os.Chdir(oldWD) })
 
-	out, err := runConfigUpdate("dissect", "some-model")
+	out, err := runConfigUpdate("audit_code", "some-model")
 	if err != nil {
 		t.Fatalf("expected a properly-anchored config to accept the write, got error: %v", err)
 	}
@@ -94,11 +94,11 @@ func TestRunConfigUpdateWritesWhenProperlyAnchored(t *testing.T) {
 	}
 	found := false
 	for _, task := range mc.Tasks {
-		if task == "dissect" {
+		if task == "audit_code" {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("expected model 'some-model' to be assigned task 'dissect', got tasks: %v", mc.Tasks)
+		t.Errorf("expected model 'some-model' to be assigned task 'audit_code', got tasks: %v", mc.Tasks)
 	}
 }

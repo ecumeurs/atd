@@ -27,7 +27,7 @@ This atom describes the JSON schema and functionality as exposed to the MCP clie
 - **Endpoint Responsibility**: Acts as a bridge between the MCP protocol and the internal ATD CLI functionality.
 - **`list`**: if true, returns the full `.atd` configuration as JSON.
 - **`bloating_factor`**: an atom type name (e.g. `RULE`, `USECASE`) to query its granularity tolerance before creating atoms of that type.
-- **`task`+`model`**: both required together to reassign which LLM model handles a given task (e.g. `dissect`, `embed`, `audit_bloat`).
+- **`task`+`model`**: both required together to reassign which LLM model handles a given task (e.g. `audit_code`, `embed`, `audit_bloat`).
 - Exactly one of the three modes above must be selected per call; calling with none of `list`, `bloating_factor`, or `task`+`model` is refused.
 
 ## TECHNICAL INTERFACE (The Bridge)
@@ -49,7 +49,7 @@ View or modify the .atd project configuration. Use 'list':true to see the full c
     },
     "task": {
       "type": "string",
-      "description": "Task name to reassign (requires 'model'). E.g. 'dissect', 'embed', 'audit_bloat'."
+      "description": "Task name to reassign (requires 'model'). E.g. 'audit_code', 'embed', 'audit_bloat'."
     },
     "model": {
       "type": "string",

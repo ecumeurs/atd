@@ -16,7 +16,7 @@ var rootCmd = &cobra.Command{
 	Short:   "Atomic Traceable Documentation toolkit",
 	Version: GetVersion(),
 	Long: fmt.Sprintf(`atd is the unified CLI for managing Atomic Traceable Documentation.
-It provides subcommands for dissecting documents, auditing atoms,
+It provides subcommands for auditing atoms,
 indexing codebases, searching semantically, and more.
 
 Configuration is loaded from the .atd file found at the project root.

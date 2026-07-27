@@ -38,11 +38,6 @@ func schemaJSON(t *testing.T, v interface{}) string {
 	return string(b) + "\n"
 }
 
-func TestGoldenPrompt_Dissect(t *testing.T) {
-	golden(t, "dissect.txt", DissectBuild("001: package zzfix\n002: func Beta() {}\n"))
-	golden(t, "dissect.schema.json", schemaJSON(t, DissectFormat()))
-}
-
 func TestGoldenPrompt_Recon(t *testing.T) {
 	golden(t, "recon.txt", ReconBuild("## INTENT\nzzfix atom intent.", "package zzfix\nfunc Beta() {}\n"))
 	golden(t, "recon.schema.json", schemaJSON(t, ReconFormat()))

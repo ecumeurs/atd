@@ -12,6 +12,7 @@ type AtomBrief struct {
 	Layer     string `json:"layer"`
 	Intent    string `json:"intent"`
 	Logic     string `json:"logic"`
+	FilePath  string `json:"file_path"`
 }
 
 // TraceSummaryContext is a curated view of an atom's vertical slice for LLM summarization.

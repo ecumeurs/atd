@@ -1,6 +1,6 @@
 // Package fakeprovider is the WP-6 deliverable (test_atd_07_26.md §3.5, §6):
 // a deterministic, no-network stand-in for the LLM boundary so
-// audit/dissect/map/recon logic and the webui chat path can be tested
+// audit/map/recon logic and the webui chat path can be tested
 // without a model, network, or GPU.
 //
 // The product actually has two separate LLM seams, and this package covers
@@ -17,8 +17,8 @@
 //     resp, err := svc.Chat(ctx, req, nil)
 //
 //  2. ollama.Query / ollama.QueryEmbed (pkg/ollama) — the seam actually used
-//     by every CLI/pkg command that talks to an LLM: audit, dissect, map,
-//     reconcile, congruence, compare, fix, generate, coverage's semantic
+//     by every CLI/pkg command that talks to an LLM: audit, map,
+//     reconcile, congruence, compare, fix, coverage's semantic
 //     check, exploration's assemble/search, and the indexer. None of these
 //     go through chat.Provider or llmservice at all — they call
 //     ollama.Query(taskType, prompt, format) directly. That function
@@ -106,7 +106,7 @@ func (f *ChatProvider) CallCount() int {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// 2. ollama.Generate/ollama.Embed fake — the seam audit/dissect/map/recon/
+// 2. ollama.Generate/ollama.Embed fake — the seam audit/map/recon/
 //    search actually run on. InstallOllama is the one-call setup: it snapshots
 //    and restores config.ActiveConfig (via testutil.SnapshotConfig — the T-1
 //    idiom from incident I-1, test_atd_07_26.md §2.1/§3.6) and restores the

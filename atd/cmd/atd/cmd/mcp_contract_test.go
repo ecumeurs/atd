@@ -8,7 +8,7 @@ package cmd
 // "IDE fallback" path (pkg/ollama's ResolveProvider falls through to
 // Resolution{IsIDE: true} when llmConfig.Providers is empty) rather than
 // touching a network -- confirmed by reading pkg/ollama/provider.go,
-// pkg/audit/audit.go, pkg/indexer/index.go and cmd/atd/cmd/{dissect,map}.go
+// pkg/audit/audit.go, pkg/indexer/index.go and cmd/atd/cmd/map.go
 // before writing these cases, not assumed.
 //
 // This file covers §3.3 #1 (wiring sweep) and #2 (schema honesty) plus the
@@ -71,9 +71,6 @@ var wiringCases = map[string]wiringCase{
 	}},
 	"atd_trace":      {args: func(sb *testutil.SB) map[string]any { return map[string]any{"atom": "req_zzfix_alpha"} }},
 	"atd_test_links": {args: func(sb *testutil.SB) map[string]any { return map[string]any{} }},
-	"atd_dissect": {llmBacked: true, args: func(sb *testutil.SB) map[string]any {
-		return map[string]any{"file": filepath.Join(sb.SrcDir, "beta.go")}
-	}},
 	"atd_index":  {llmBacked: true, args: func(sb *testutil.SB) map[string]any { return map[string]any{} }},
 	"atd_search": {args: func(sb *testutil.SB) map[string]any { return map[string]any{"grep": "zzfix"} }},
 	"atd_audit":  {llmBacked: true, args: func(sb *testutil.SB) map[string]any { return map[string]any{} }},

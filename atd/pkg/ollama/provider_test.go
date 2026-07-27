@@ -37,7 +37,7 @@ func TestResolveProvider(t *testing.T) {
 		Models: map[string]config.ModelConfig{
 			"llama3.2":       {Tasks: []string{"audit"}, Priority: 0},
 			"deepseek-r1:7b": {Tasks: []string{"audit"}, Priority: 10},
-			"qwen2.5":        {Tasks: []string{"dissect"}},
+			"qwen2.5":        {Tasks: []string{"audit_code"}},
 			"nomic-embed-text": {Tasks: []string{"embed"}},
 		},
 		FallbackModel: "llama3.2",
@@ -57,7 +57,7 @@ func TestResolveProvider(t *testing.T) {
 
 	// Case 2: Version prefix match
 	// config has "qwen2.5", server has "qwen2.5:14b". Should match.
-	res, err = ResolveProvider("dissect")
+	res, err = ResolveProvider("audit_code")
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestResolveProvider(t *testing.T) {
 	// Case 4: No match, fallback to IDE
 	config.ActiveConfig.LLM.Providers[0].BaseURL = "http://offline"
 	config.ActiveConfig.LLM.Providers[1].BaseURL = "http://offline"
-	res, err = ResolveProvider("dissect")
+	res, err = ResolveProvider("audit_code")
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}

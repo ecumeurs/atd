@@ -12,10 +12,9 @@ package cmd
 // runCoverageCheck has no line-scoping concept to wire it to, so "simpler,
 // preferred" won over inventing one from scratch. Every currently-declared
 // property IS read somewhere in its handler. paramCases below is a
-// representative spot-check of live params across several tools (including
-// atd_dissect's newly-wired "llm" toggle, §8.3 item 4d), to demonstrate the
-// with/without method generalizes rather than re-deriving the same fact for
-// every one of the ~25 registered tools.
+// representative spot-check of live params across several tools, to
+// demonstrate the with/without method generalizes rather than re-deriving
+// the same fact for every one of the registered tools.
 import (
 	"path/filepath"
 	"strings"
@@ -41,24 +40,6 @@ type paramCase struct {
 }
 
 var paramCases = []paramCase{
-	{
-		// §8.3 item 4d: atd_dissect's "llm" toggle was documented in
-		// api_atd_serve_dissect.atom.md but the MCP handler used to hardcode
-		// runDissect(file, true) unconditionally. Now wired: llm=false
-		// returns the raw prompt text directly (IDE-passthrough mode);
-		// omitting it (default true) routes through ollama.Query, which the
-		// fixture project's provider-less .atd sends down the IDE-fallback
-		// path, producing the "Task delegated to IDE Agent" message instead
-		// of the raw prompt -- a clear behavioral difference either way.
-		tool:  "atd_dissect",
-		param: "llm",
-		without: func(sb *testutil.SB) map[string]any {
-			return map[string]any{"file": filepath.Join(sb.SrcDir, "beta.go")}
-		},
-		with: func(sb *testutil.SB) map[string]any {
-			return map[string]any{"file": filepath.Join(sb.SrcDir, "beta.go"), "llm": false}
-		},
-	},
 	{
 		tool:  "atd_query",
 		param: "paths_only",

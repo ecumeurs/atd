@@ -15,7 +15,6 @@ dependents:
   - [[api_atd_serve_check]]
   - [[api_atd_serve_config]]
   - [[api_atd_serve_crawl]]
-  - [[api_atd_serve_dissect]]
   - [[api_atd_serve_env]]
   - [[api_atd_serve_heatmap]]
   - [[api_atd_serve_heatmap_code]]

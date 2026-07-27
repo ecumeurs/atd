@@ -74,6 +74,7 @@ func runTrace(targetID, docsDir, srcPath string, summary bool) (string, error) {
 				Layer:     node.Layer,
 				Intent:    node.Intent,
 				Logic:     node.Logic,
+				FilePath:  node.FilePath,
 			}
 		}
 
@@ -112,7 +113,10 @@ func runTrace(targetID, docsDir, srcPath string, summary bool) (string, error) {
 				if delegateErr != nil {
 					return "", delegateErr
 				}
-				return msg, nil
+				// Add the summary field to the snapshot
+				snap.Summary = msg
+				out, _ := json.MarshalIndent(snap, "", "  ")
+				return string(out), nil
 			}
 			return "", queryErr
 		}
@@ -121,9 +125,13 @@ func runTrace(targetID, docsDir, srcPath string, summary bool) (string, error) {
 			Summary string `json:"summary"`
 		}
 		if err := json.Unmarshal([]byte(resp.Response), &result); err != nil {
-			return resp.Response, nil // Fallback to raw response
+			// Fallback to raw response
+			snap.Summary = resp.Response
+		} else {
+			snap.Summary = result.Summary
 		}
-		return result.Summary, nil
+		out, _ := json.MarshalIndent(snap, "", "  ")
+		return string(out), nil
 	}
 
 	out, _ := json.MarshalIndent(snap, "", "  ")

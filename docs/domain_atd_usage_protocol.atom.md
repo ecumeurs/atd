@@ -29,7 +29,7 @@ The ATD lifecycle operates in two distinct contexts:
 Used once, at project inception or when onboarding ATD to a legacy codebase:
 1. `roadmap` → Identify high-density files to prioritize.
 2. `index` → Build the vector DB for search and matching.
-3. `dissect` → Break source files into proposed atom boundaries.
+3. Author atoms for the prioritized source files in `docs/`.
 4. `weave` → Establish bidirectional parent/dependent links.
 5. `discover` → Recommend `@spec-link` placements in code.
 6. `recon` → Confirm that discovered links are correct.

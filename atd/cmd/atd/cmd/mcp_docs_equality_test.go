@@ -42,11 +42,11 @@ var missingToolAtomsAllowlist = map[string]bool{}
 // applied to individual parameters: each entry would name a param an
 // EXISTING api_atd_serve_* atom documents in its "### Input Schema" JSON
 // block that the actually-registered tool schema does not declare at all.
-// As of test_atd_07_26.md §8.3 item 4d, the six tools originally found here
-// (atd_audit, atd_crawl, atd_dissect, atd_index, atd_stats, atd_test_links)
+// As of test_atd_07_26.md §8.3 item 4d, the tools originally found here
+// (atd_audit, atd_crawl, atd_index, atd_stats, atd_test_links)
 // have all been reconciled -- each param the atom documented that had a
 // real, wireable counterpart (docs/threshold on atd_audit; src/docs on
-// atd_crawl/atd_stats; docs on atd_test_links; llm on atd_dissect;
+// atd_crawl/atd_stats; docs on atd_test_links;
 // dir/db/mode on atd_index) is now actually read by its handler, and the
 // one param that had no backing implementation at all (atd_audit's
 // "code"/"atom" compliance mode -- there never was a runFullAudit signature

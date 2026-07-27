@@ -51,7 +51,7 @@ type TagsResponse struct {
 // Generate sends a generation request to an Ollama endpoint. Package var
 // (mirrors the ListModels seam below) so tests can swap in a deterministic
 // fake responder with no network — see pkg/testutil/fakeprovider, built for
-// WP-6 (test_atd_07_26.md §3.5/§6) to unlock audit/dissect/map/recon parser
+// WP-6 (test_atd_07_26.md §3.5/§6) to unlock audit/map/recon parser
 // tests without a live model.
 var Generate = generateHTTP
 

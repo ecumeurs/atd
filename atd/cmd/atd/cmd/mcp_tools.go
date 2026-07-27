@@ -250,7 +250,7 @@ NEVER rewrite an entire .atom.md file manually — always use this tool.`,
 	r.Register(mcp.Tool{
 		Name: "atd_roadmap",
 		Description: `Scan a source directory and produce a complexity map ranking files by density (lines, cyclomatic complexity, function count).
-Use during cold-start PLAN stage to prioritize which files to dissect first.`,
+Use during cold-start PLAN stage to prioritize which files to document first.`,
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -426,30 +426,6 @@ Use during VERIFY stage to confirm test coverage per atom, or before modifying a
 
 	// ── LLM-Backed Tools (require Ollama or IDE Agent fallback) ──────────
 
-	// @spec-link [[api_atd_serve_dissect]]
-	r.Register(mcp.Tool{
-		Name: "atd_dissect",
-		Description: `Dissect a source code or documentation file into proposed atomic boundaries (IDs, types, line ranges).
-Use during cold-start to break down undocumented files into atomic units, or when onboarding legacy code.
-The tool uses the LLM provider configured in .atd; if no provider is available, it returns a structured prompt for the IDE Agent to process.`,
-		InputSchema: map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"file": map[string]any{"type": "string", "description": "Path to the source or documentation file to dissect."},
-				"llm":  map[string]any{"type": "boolean", "description": "If true (default), route through the tiered Ollama provider. If false, return the raw prompt for IDE Agent passthrough."},
-			},
-			"required": []string{"file"},
-		},
-	}, func(args map[string]any) (string, error) {
-		a := newMCPArgs("atd_dissect", args)
-		file := a.String("file", "")
-		useLLM := a.Bool("llm", true)
-		if err := a.Err(); err != nil {
-			return "", err
-		}
-		return runDissect(file, useLLM)
-	})
-
 	// @spec-link [[api_atd_serve_index]]
 	r.Register(mcp.Tool{
 		Name: "atd_index",
@@ -608,13 +584,13 @@ Use to diagnose 'Connection Refused' or 'Model Not Found' errors, or to verify a
 		Name: "atd_config",
 		Description: `View or modify the .atd project configuration.
 Use 'list':true to see the full config. Use 'bloating_factor' to check the granularity tolerance for a specific atom type before creating atoms.
-Use 'task'+'model' to reassign which LLM model handles a specific task type (e.g. dissect, embed, audit_bloat).`,
+Use 'task'+'model' to reassign which LLM model handles a specific task type (e.g. embed, audit_code, audit_bloat).`,
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"list":            map[string]any{"type": "boolean", "description": "If true, return the full .atd configuration as JSON."},
 				"bloating_factor": map[string]any{"type": "string", "description": "Atom type to query for its bloating factor (e.g. 'RULE', 'USECASE'). Check this before creating atoms."},
-				"task":            map[string]any{"type": "string", "description": "Task name to reassign (requires 'model'). E.g. 'dissect', 'embed', 'audit_bloat'."},
+				"task":            map[string]any{"type": "string", "description": "Task name to reassign (requires 'model'). E.g. 'embed', 'audit_code', 'audit_bloat'."},
 				"model":           map[string]any{"type": "string", "description": "Model name to assign to the task (requires 'task')."},
 			},
 		},
