@@ -6,7 +6,6 @@
 # (a line disappears) when the underlying debt is actually fixed, and only
 # tightens deliberately via `make dogfood-update-baseline`
 # (ATD_DOGFOOD_UPDATE=1) — never hand-edit this file to hide a new failure.
-LINT	api_atd_serve_lint	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	api_webui_atd_router	Missing mandatory section: ## TECHNICAL INTERFACE
 LINT	api_webui_atom_code	Missing mandatory section: ## TECHNICAL INTERFACE
 LINT	api_webui_atom_detail	Missing mandatory section: ## TECHNICAL INTERFACE
@@ -27,12 +26,8 @@ LINT	mechanic_atd_continue	Traceability Gap: Found @spec-link in implementation 
 LINT	mechanic_atd_exploration_graph	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	mechanic_atd_fix	Missing mandatory section: ## EXPECTATION
 LINT	mechanic_atd_heatmap_calculation	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
-LINT	mechanic_atd_init	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
-LINT	mechanic_atd_lint	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	mechanic_atd_recon	Missing mandatory section: ## EXPECTATION
 LINT	mechanic_atd_reconcile	Missing mandatory section: ## EXPECTATION
-LINT	mechanic_atd_update	Missing mandatory section: ## EXPECTATION
-LINT	mechanic_atd_update	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	mechanic_atd_weave	Missing mandatory section: ## EXPECTATION
 LINT	mechanic_atd_weave	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	mechanic_test_atom	Missing mandatory section: ## TECHNICAL INTERFACE
@@ -60,6 +55,7 @@ LINT	mechanic_webui_connector_lines	Missing mandatory section: ## TECHNICAL INTE
 LINT	mechanic_webui_connector_lines	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	mechanic_webui_document_generation	Missing mandatory section: ## TECHNICAL INTERFACE
 LINT	mechanic_webui_document_generation	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
+LINT	mechanic_webui_explorer_workflow	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	mechanic_webui_gemini_chat_orchestration	Missing mandatory section: ## TECHNICAL INTERFACE
 LINT	mechanic_webui_gemini_chat_orchestration	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	mechanic_webui_gemini_model_list	Missing mandatory section: ## TECHNICAL INTERFACE
@@ -73,80 +69,9 @@ LINT	mechanic_webui_summary_aggregation	Missing mandatory section: ## TECHNICAL 
 LINT	mechanic_webui_summary_aggregation	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	mechanic_webui_tree	Missing mandatory section: ## TECHNICAL INTERFACE
 LINT	module_atd_cli	Missing mandatory section: ## EXPECTATION
-LINT	req_admin_experience	Unresolved dependent link: [[uc_admin_history_management]]
-LINT	req_admin_experience	Unresolved dependent link: [[uc_admin_login]]
-LINT	req_admin_experience	Unresolved dependent link: [[uc_admin_user_management]]
-LINT	req_admin_experience	Unresolved dependent link: [[us_auth_logout]]
-LINT	req_logging_traceability	Unresolved parent link: [[upsilonapi:api_request_id]]
-LINT	req_matchmaking	Missing mandatory section: ## EXPECTATION
-LINT	req_matchmaking	Unresolved dependent link: [[battleui:ui_waiting_room]]
-LINT	req_matchmaking	Unresolved dependent link: [[upsilonbattle:mech_matchmaking]]
-LINT	req_matchmaking_matchmaking_queue	Missing mandatory section: ## EXPECTATION
-LINT	req_matchmaking_pve_pvp_transition	Missing mandatory section: ## EXPECTATION
-LINT	req_matchmaking_transition_rules	Missing mandatory section: ## EXPECTATION
-LINT	req_security	Missing mandatory section: ## EXPECTATION
-LINT	req_security	Unresolved dependent link: [[uc_auth_logout]]
-LINT	req_security	Unresolved dependent link: [[upsilonapi:rule_admin_access_restriction]]
-LINT	req_security	Unresolved dependent link: [[upsilonapi:rule_gdpr_compliance]]
-LINT	req_security	Unresolved dependent link: [[upsilonapi:rule_password_policy]]
-LINT	req_security_authorization	Missing mandatory section: ## EXPECTATION
-LINT	req_security_public_access	Missing mandatory section: ## EXPECTATION
-LINT	req_security_token_exchange	Missing mandatory section: ## EXPECTATION
-LINT	req_security_token_ttl	Unresolved dependent link: [[upsilonbattle:mech_sanctum_token_renewal]]
-LINT	req_security_token_ttl	Unresolved dependent link: [[upsilonbattle:mechanic_mech_frontend_auth_bridge]]
-LINT	requirement_customer_action_reporting	Unresolved dependent link: [[battleui:ui_tactical_action_report]]
-LINT	requirement_customer_action_reporting	Unresolved parent link: [[battleui:req_player_experience]]
-LINT	requirement_customer_api_first	Unresolved dependent link: [[upsilonapi:api_help_endpoint]]
-LINT	requirement_customer_api_first	Unresolved dependent link: [[usecase_api_flow_game_turn]]
-LINT	requirement_customer_api_first	Unresolved dependent link: [[usecase_api_flow_matchmaking]]
-LINT	requirement_customer_api_first	Unresolved parent link: [[battleui:req_player_experience]]
-LINT	requirement_customer_player_profile	Missing mandatory section: ## EXPECTATION
-LINT	requirement_customer_user_account	Missing mandatory section: ## EXPECTATION
-LINT	requirement_customer_user_account	Unresolved dependent link: [[battleui:ui_modal_box]]
-LINT	requirement_customer_user_account	Unresolved dependent link: [[upsilonapi:api_auth_user]]
-LINT	requirement_customer_user_account	Unresolved dependent link: [[upsilonapi:rule_gdpr_compliance]]
-LINT	requirement_customer_user_account	Unresolved dependent link: [[upsilonapi:rule_password_policy]]
-LINT	requirement_customer_user_id_privacy	Missing mandatory section: ## EXPECTATION
-LINT	requirement_customer_user_id_privacy	Unresolved dependent link: [[upsilonapi:arch_api_id_masking_gateway]]
-LINT	requirement_customer_user_id_privacy	Unresolved dependent link: [[upsilonbattle:entity_player]]
-LINT	requirement_req_trpg_game_definition	Unresolved parent link: [[battleui:req_player_experience]]
 LINT	requirement_webui_conversational_control	Missing mandatory section: ## TECHNICAL INTERFACE
 LINT	requirement_webui_documentation_management	Missing mandatory section: ## TECHNICAL INTERFACE
 LINT	requirement_webui_token_transparency	Missing mandatory section: ## TECHNICAL INTERFACE
-LINT	rule_battle_readiness	Unresolved parent link: [[upsilonapi:api_ruler_methods]]
-LINT	rule_character_create_character	Missing mandatory section: ## EXPECTATION
-LINT	rule_character_create_character	Unresolved parent link: [[upsilonbattle:entity_character]]
-LINT	rule_credit_earning_damage	Missing mandatory section: ## EXPECTATION
-LINT	rule_credit_earning_damage	Unresolved parent link: [[upsilonapi:domain_credit_economy]]
-LINT	rule_credit_earning_status_effects	Missing mandatory section: ## EXPECTATION
-LINT	rule_credit_earning_status_effects	Unresolved parent link: [[upsilonapi:domain_credit_economy]]
-LINT	rule_credit_earning_support	Missing mandatory section: ## EXPECTATION
-LINT	rule_credit_earning_support	Unresolved parent link: [[upsilonapi:domain_credit_economy]]
-LINT	rule_forfeit_battle	Unresolved parent link: [[us_take_combat_turn]]
-LINT	rule_friendly_fire	Missing mandatory section: ## EXPECTATION
-LINT	rule_friendly_fire_match_type	Missing mandatory section: ## EXPECTATION
-LINT	rule_friendly_fire_team_validation	Missing mandatory section: ## EXPECTATION
-LINT	rule_leaderboard_cycle	Missing mandatory section: ## EXPECTATION
-LINT	rule_leaderboard_cycle	Unresolved parent link: [[us_leaderboard_view]]
-LINT	rule_leaderboard_score_calculation	Missing mandatory section: ## EXPECTATION
-LINT	rule_leaderboard_score_calculation	Unresolved parent link: [[us_leaderboard_view]]
-LINT	rule_matchmaking_single_queue	Unresolved parent link: [[uc_matchmaking]]
-LINT	rule_progression	Unresolved dependent link: [[battleui:ui_character_full_stat_panel]]
-LINT	rule_progression	Unresolved dependent link: [[rule_stat_taxonomy]]
-LINT	rule_progression	Unresolved dependent link: [[uc_progression_stat_allocation]]
-LINT	rule_progression	Unresolved parent link: [[upsilonbattle:entity_character]]
-LINT	rule_pve_winnability_balance	Unresolved parent link: [[battleui:req_ui_look_and_feel]]
-LINT	rule_pvp_stalemate_draw	Unresolved parent link: [[battleui:req_ui_look_and_feel]]
-LINT	rule_ruler_test_robustness	Unresolved parent link: [[upsilonapi:api_ruler_methods]]
-LINT	rule_skill_grading_system	Missing mandatory section: ## EXPECTATION
-LINT	rule_skill_grading_system	Unresolved dependent link: [[upsilonapi:api_skill_grading_computation]]
-LINT	rule_starting_credits_1000	Unresolved parent link: [[upsilonapi:domain_credit_economy]]
-LINT	rule_team_mechanics	Unresolved parent link: [[us_take_combat_turn]]
-LINT	rule_tracing_logging	Unresolved parent link: [[upsilonapi:api_request_id]]
-LINT	rule_tracing_logging	Unresolved parent link: [[upsilonapi:api_standard_envelope]]
-LINT	rule_turn_atomic_selection	Unresolved parent link: [[uc_combat_turn]]
-LINT	rule_turn_clock	Unresolved parent link: [[uc_combat_turn]]
-LINT	rule_turn_clock	Unresolved parent link: [[upsilonapi:domain_ruler_state]]
 LINT	rule_webui_context_history_management	Missing mandatory section: ## TECHNICAL INTERFACE
 LINT	service_atd_audit	Missing mandatory section: ## EXPECTATION
 LINT	service_atd_audit	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
@@ -155,28 +80,23 @@ LINT	service_atd_crawl	Missing mandatory section: ## EXPECTATION
 LINT	service_atd_crawl	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	service_atd_discover	Missing mandatory section: ## EXPECTATION
 LINT	service_atd_index	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
+LINT	service_atd_init	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
+LINT	service_atd_lint	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	service_atd_query	Missing mandatory section: ## EXPECTATION
 LINT	service_atd_query	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	service_atd_roadmap	Missing mandatory section: ## EXPECTATION
 LINT	service_atd_roadmap	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	service_atd_search	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
-LINT	service_atd_serve_check	Missing mandatory section: ## EXPECTATION
-LINT	service_atd_serve_config	Missing mandatory section: ## EXPECTATION
 LINT	service_atd_stats	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	service_atd_tiered_provider	Missing mandatory section: ## EXPECTATION
+LINT	service_atd_update	Missing mandatory section: ## EXPECTATION
+LINT	service_atd_update	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	service_atd_verify	Missing mandatory section: ## EXPECTATION
 LINT	service_vscode_atd_ui	Missing mandatory section: ## TECHNICAL INTERFACE
 LINT	service_vscode_linker_features	Missing mandatory section: ## TECHNICAL INTERFACE
 LINT	specification_atd_config	Missing mandatory section: ## EXPECTATION
 LINT	specification_atd_test_links	Missing mandatory section: ## EXPECTATION
-LINT	specification_vscode_atd_linker	Missing mandatory field: human_name
-LINT	specification_vscode_atd_linker	Missing mandatory section: ## EXPECTATION
-LINT	specification_vscode_atd_linker	Missing mandatory section: ## INTENT
-LINT	specification_vscode_atd_linker	Missing mandatory section: ## TECHNICAL INTERFACE
-LINT	specification_vscode_atd_linker	Missing mandatory section: ## THE RULE / LOGIC
-LINT	specification_vscode_atd_linker	Unresolved parent link: [[atd_philosophy]]
 LINT	ui_webui_document_viewer	Missing mandatory section: ## TECHNICAL INTERFACE
 LINT	ui_webui_explorer_treeview	Missing mandatory section: ## TECHNICAL INTERFACE
 LINT	ui_webui_search_overlay	Missing mandatory section: ## TECHNICAL INTERFACE
 LINT	ui_webui_waterfall_explorer	Missing mandatory section: ## TECHNICAL INTERFACE
-S6_EMPTY_INTENT	specification_vscode_atd_linker
