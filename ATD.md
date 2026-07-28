@@ -162,14 +162,32 @@ Atoms are grouped into **13 consolidated types** across three functional familie
 
 ### 1.4 Project Governance: CONTRACT & VISION
 
-`CONTRACT` and `VISION` are specialized, unique atoms that govern the evolution of the entire project.
+`CONTRACT` and `VISION` are specialized, unique atoms that govern the evolution of the entire project. Both are **read for governance, never linked as structural ancestry**: no atom may list `contract_atd`/`vision_atd` (or a project's equivalently-named pair) in its own `parents:`. They gate change from the side; they are not where any feature's lineage begins, and they are never "Root of Business layer" in the ancestry-chain sense — every ordinary atom still traces its `parents:` to a normal BUSINESS/ARCHITECTURE ancestor.
 
 1. **Uniqueness**: There must be exactly ONE `CONTRACT` atom and ONE `VISION` atom per project.
-2. **Gating Role**:
-    - **`CONTRACT`**: Represents the "hard" object of the project. It MUST be read whenever a `BUSINESS` layer atom is added, removed, or updated. It prevents the removal of atoms that are mandatory to the project's current stable setup.
-    - **`VISION`**: Represents the "philosophical" object of the project. It MUST be read whenever a `BUSINESS` layer atom is added or updated. It prevents adding atoms that are beyond the project's intended purview (scope creep protection).
-3. **Overrides**: While the user can override these gates, doing so REQUIRES that the `CONTRACT` and/or `VISION` atoms be updated to reflect the new state of the project.
-4. **Bootstrapping**: If either is missing, the Agent MUST propose a definition based on the existing documentation and code.
+2. **Roles**:
+    - **`VISION`**: What the project is *meant to become* — its scope and philosophy, with room for legitimate evolution. It MUST be read whenever a `BUSINESS` layer atom is added or updated. It prevents adding atoms that fall outside the project's intended purview (scope-creep protection).
+    - **`CONTRACT`**: What the project *currently guarantees* to anything outside it — a versioned, semver-style surface, analogous to a public API contract. It is not an enumeration of every `BUSINESS` atom; most atoms are internal detail the contract never tracks. It MUST be read whenever a change touches an atom the Contract Surface Grid below classifies as surface.
+3. **Contract Surface Grid** — whether a change to an atom requires touching `CONTRACT` is decided by reading the atom's existing fields, not by any new relationship:
+    - **Status gate**: only `STABLE` atoms are eligible. `DRAFT`/`REVIEW` atoms are pre-guarantee — changing or removing them never touches `CONTRACT`.
+    - **Layer gate**: only `BUSINESS`/`ARCHITECTURE` atoms are eligible. `IMPLEMENTATION` atoms (`MECHANIC`) are always internal and free to change as long as the guarantee above them still holds.
+    - **Family/Type default** (per the families in §1.3):
+
+      | Family | Types | Surface? |
+      |---|---|---|
+      | Requirements | `REQUIREMENT`, `USER_STORY` | Yes |
+      | Interface | `API`, `UI`, `SPECIFICATION` | Yes |
+      | Architectural | `SERVICE` | Yes |
+      | Architectural | `MODULE`, `ENTITY` | Conditional — needs a human/agent judgment call, not automatic |
+      | Logic | `RULE` at `BUSINESS` layer | Yes |
+      | Logic | `RULE` at `ARCHITECTURE` layer, `DOMAIN` | No |
+      | Governance | `CONTRACT`, `VISION` | Excluded (self) |
+4. **Change classification** for a surface atom:
+    - **Removed, or altered such that a prior guarantee no longer holds** → breaking → `CONTRACT`'s `version` MUST take a MAJOR bump in the same change, with explicit human confirmation.
+    - **Newly promoted to `STABLE`, entering the surface for the first time** → additive → `CONTRACT`'s `version` takes a MINOR bump in the same change.
+    - Anything the grid marks not-surface, or still `DRAFT`/`REVIEW` → `CONTRACT` is untouched.
+5. **Overrides**: a breaking or additive surface change landing without the corresponding `CONTRACT` bump is a governance violation — reject it, or bump `CONTRACT` in the same change. Same principle for `VISION`: a `BUSINESS` atom outside its stated scope requires `VISION` to be updated to match, never silently allowed through.
+6. **Bootstrapping**: If either is missing, the Agent MUST propose a definition based on the existing documentation and code — for `CONTRACT`, that means running the grid against whatever `STABLE` atoms already exist to produce its initial surface enumeration.
 
 ### 1.5 Document Hierarchy & Layers
 

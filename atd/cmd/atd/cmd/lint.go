@@ -26,6 +26,16 @@ var canonicalAtomTypes = map[string]bool{
 	"SERVICE": true, "DATA": true, "BUILD": true, "USAGE": true, "SPECIFICATION": true,
 }
 
+// bareAtomID strips a leading "project:" cross-project disambiguation prefix
+// (ATD.md workspace reference syntax) from a [[id]] reference, leaving the
+// bare atom id for comparison against a same-project governance-atom set.
+func bareAtomID(ref string) string {
+	if idx := strings.Index(ref, ":"); idx >= 0 {
+		return ref[idx+1:]
+	}
+	return ref
+}
+
 // @spec-link [[service_atd_lint]]
 var lintCmd = &cobra.Command{
 	Use:   "lint [dir]",
@@ -37,7 +47,7 @@ It verifies mandatory fields, enums (Layer, Priority), section non-emptiness, an
 		if len(args) > 0 {
 			dir = args[0]
 		}
-		
+
 		out, err := runLint(dir)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Lint Errors Found:")
@@ -75,9 +85,23 @@ func runLint(dir string) (string, error) {
 		return "", fmt.Errorf("failed to load explorer: %w", err)
 	}
 
+	// Governance atoms (CONTRACT/VISION, ATD.md §1.4) are read for governance,
+	// never linked as structural ancestry — no atom may declare one as a
+	// parents: target. Build the set of governance atom IDs before the main
+	// validation loop so each atom's Parents can be checked against it.
+	governanceAtomIDs := map[string]bool{}
+	for _, a := range atoms {
+		switch strings.ToUpper(strings.TrimSpace(a.Type)) {
+		case "CONTRACT", "VISION":
+			if a.ID != "" {
+				governanceAtomIDs[a.ID] = true
+			}
+		}
+	}
+
 	for _, a := range atoms {
 		var atomErrors []string
-		
+
 		// Mandatory Fields
 		if a.ID == "" {
 			atomErrors = append(atomErrors, "Missing mandatory field: id")
@@ -97,7 +121,7 @@ func runLint(dir string) (string, error) {
 				atomErrors = append(atomErrors, fmt.Sprintf("Invalid layer enum: %s", a.Layer))
 			}
 		}
-		
+
 		if a.Version == "" {
 			atomErrors = append(atomErrors, "Missing mandatory field: version")
 		}
@@ -135,6 +159,9 @@ func runLint(dir string) (string, error) {
 				} else {
 					atomErrors = append(atomErrors, fmt.Sprintf("Unresolved parent link: [[%s]]", p))
 				}
+			}
+			if governanceAtomIDs[bareAtomID(cleanP)] {
+				atomErrors = append(atomErrors, fmt.Sprintf("CONTRACT/VISION referenced as parent: [[%s]] -- governance atoms are read for governance, never linked as structural ancestry (ATD.md §1.4)", p))
 			}
 		}
 		for _, p := range a.Dependents {

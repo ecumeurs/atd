@@ -95,6 +95,111 @@ This is the intent.
 	}
 }
 
+func TestLintGovernanceAtomAsParent(t *testing.T) {
+	contractData := `---
+id: contract_test
+human_name: "Test Contract"
+type: CONTRACT
+layer: BUSINESS
+version: 1.0
+status: STABLE
+priority: CORE
+tags: []
+parents: []
+dependents: []
+---
+
+# Test Contract
+
+## INTENT
+intent
+
+## THE RULE / LOGIC
+logic
+
+## TECHNICAL INTERFACE (The Bridge)
+bridge
+
+## EXPECTATION
+expectation
+`
+	visionData := `---
+id: vision_test
+human_name: "Test Vision"
+type: VISION
+layer: BUSINESS
+version: 1.0
+status: STABLE
+priority: CORE
+tags: []
+parents: []
+dependents: []
+---
+
+# Test Vision
+
+## INTENT
+intent
+
+## THE RULE / LOGIC
+logic
+
+## TECHNICAL INTERFACE (The Bridge)
+bridge
+
+## EXPECTATION
+expectation
+`
+	ruleData := `---
+id: rule_bad_parent
+human_name: "Rule With Bad Parent"
+type: RULE
+layer: BUSINESS
+version: 1.0
+status: DRAFT
+priority: 3
+tags: []
+parents:
+  - [[contract_test]]
+dependents: []
+---
+
+# Rule With Bad Parent
+
+## INTENT
+intent
+
+## THE RULE / LOGIC
+logic
+
+## TECHNICAL INTERFACE (The Bridge)
+bridge
+
+## EXPECTATION
+expectation
+`
+	tmpDir := t.TempDir()
+	for name, data := range map[string]string{
+		"contract_test.atom.md":   contractData,
+		"vision_test.atom.md":     visionData,
+		"rule_bad_parent.atom.md": ruleData,
+	} {
+		if err := os.WriteFile(filepath.Join(tmpDir, name), []byte(data), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	out, err := runLint(tmpDir)
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+
+	expected := "CONTRACT/VISION referenced as parent: [[contract_test]]"
+	if !strings.Contains(out, expected) {
+		t.Errorf("Expected output to contain '%s', got: %s", expected, out)
+	}
+}
+
 func TestLintUnknownProject(t *testing.T) {
 	wsData := `{"workspace_name": "test_ws", "projects": [{"name": "proj1", "path": "."}]}`
 	tmpData := `---
