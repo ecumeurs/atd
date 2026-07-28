@@ -298,7 +298,24 @@ func Update(opts UpdateOptions) (string, error) {
 		renamed = true
 	}
 
-	logMsg := fmt.Sprintf("Updated %s", filepath.Base(targetPath))
+	// Resolve the id this write actually produced, independent of whether the
+	// caller passed --set id=...: an update to an existing atom that doesn't
+	// touch id must still report the id it's operating on, and a freshly
+	// created atom must never fall back to the "temp" placeholder id from the
+	// default template.
+	finalID := newID
+	if finalID == "" {
+		finalID = frontmatterValue(frontmatterLines, "id")
+	}
+	if finalID == "" || finalID == "temp" {
+		finalID = strings.TrimSuffix(filepath.Base(targetPath), ".atom.md")
+	}
+
+	action := "Updated"
+	if !fileExists {
+		action = "Created"
+	}
+	logMsg := fmt.Sprintf("%s atom id=%s (%s)", action, finalID, filepath.Base(targetPath))
 	if len(updates) > 0 { logMsg += fmt.Sprintf(" | set: %d keys", len(updates)) }
 	if intentText != "" || logicText != "" || interfaceText != "" || expectationText != "" {
 		logMsg += " | updated body sections"
