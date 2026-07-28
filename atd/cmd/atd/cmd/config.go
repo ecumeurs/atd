@@ -195,7 +195,7 @@ func runCheck(force bool) (string, error) {
 
 	// 2. Resolve Tasks
 	// Simplified categories
-	tasks := []string{"code_analysis", "text_analysis", "text_generation", "embedding"}
+	tasks := []string{"code_analysis", "text_analysis", "text_generation", "embed"}
 
 	for _, t := range tasks {
 		res := TaskResolution{

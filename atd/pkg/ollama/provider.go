@@ -158,7 +158,30 @@ func ResolveProviderWithConfig(taskType string, cfg *config.Config, force bool) 
 		}
 	}
 
-	// 4. Last resort: IDE passthrough
+	// 4. Nothing matched. If at least one provider actually answered its
+	// /api/tags call, the configured model name(s) simply don't exist on
+	// any provider we could reach -- almost certainly a typo or a model
+	// that was never pulled, not a transient outage. That failure mode is
+	// easy to mistake for "provider unreachable" once step 5 quietly
+	// glides into IDE fallback, so scream about it loudly here instead.
+	var reachedProviders []string
+	for _, pt := range providersToTry {
+		if !pt.offline {
+			reachedProviders = append(reachedProviders, fmt.Sprintf("%s(models=%v)", pt.provider.Name, pt.models))
+		}
+	}
+	if len(reachedProviders) > 0 {
+		var wanted []string
+		wanted = append(wanted, candidateModels...)
+		if llmConfig.FallbackModel != "" {
+			wanted = append(wanted, llmConfig.FallbackModel)
+		}
+		if len(wanted) > 0 {
+			fmt.Fprintf(os.Stderr, "[LLM WARNING] Task=%s: none of the configured model(s) %v exist on any reachable provider (%s) -- check for a typo in llm.models/fallback_model or a model that was never pulled\n", taskType, wanted, strings.Join(reachedProviders, ", "))
+		}
+	}
+
+	// 5. Last resort: IDE passthrough
 	for _, provider := range llmConfig.Providers {
 		if provider.Type == "passthrough" {
 			res := Resolution{IsIDE: true, Provider: provider.Name}

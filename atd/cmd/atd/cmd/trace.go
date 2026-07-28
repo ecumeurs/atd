@@ -96,7 +96,7 @@ func runTrace(targetID, docsDir, srcPath string, summary bool) (string, error) {
 
 		tracePrompt := prompt.TraceSummaryBuild(ctx)
 
-		resp, queryErr := ollama.Query("trace_summary", tracePrompt, prompt.TraceSummaryFormat())
+		resp, queryErr := ollama.Query("text_generation", tracePrompt, prompt.TraceSummaryFormat())
 		if queryErr != nil {
 			if errors.Is(queryErr, ollama.ErrIDEFallback) {
 				promptFile := "trace_summary_" + targetID

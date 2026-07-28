@@ -278,3 +278,53 @@ n/a
 		t.Errorf("expected a loud [ERROR] line naming the missing \"is_bloated\" key, got:\n%s", report.Text)
 	}
 }
+
+// TestRunFullAudit_VanishedFile pins the fix for a nil-pointer panic: a file
+// that matches the docsDir glob but is gone by the time os.Stat runs on it
+// (deleted between glob and stat, a dangling symlink, a permission race,
+// etc.) must degrade to a loud [ERROR] line and move on, never dereference
+// the nil *FileInfo os.Stat returns alongside its error.
+func TestRunFullAudit_VanishedFile(t *testing.T) {
+	fake := fakeprovider.InstallOllama(t)
+	fake.SetJSON(`{"is_bloated": false}`)
+
+	dir := t.TempDir()
+	writeFile(t, dir, "zzfix_present.atom.md", `---
+id: zzfix_present
+type: RULE
+status: DRAFT
+parents: []
+dependents: []
+layer: BUSINESS
+---
+
+## INTENT
+Present and valid.
+
+## THE RULE / LOGIC
+Present and valid.
+
+## EXPECTATION
+n/a
+`)
+
+	// A dangling symlink matches the "*.atom.md" glob (directory listing
+	// only) but os.Stat on it fails because the target doesn't exist --
+	// the same failure shape as a file deleted mid-audit.
+	danglingLink := filepath.Join(dir, "zzfix_vanished.atom.md")
+	if err := os.Symlink(filepath.Join(dir, "does_not_exist"), danglingLink); err != nil {
+		t.Fatalf("failed to create dangling symlink: %v", err)
+	}
+
+	report, err := RunFullAudit(dir, 0.85, false)
+	if err != nil {
+		t.Fatalf("RunFullAudit panicked or errored instead of skipping the vanished file: %v", err)
+	}
+
+	if !strings.Contains(report.Text, "Auditing: zzfix_vanished.atom.md ... [ERROR:") {
+		t.Errorf("expected a loud [ERROR] line for the vanished file, got:\n%s", report.Text)
+	}
+	if !strings.Contains(report.Text, "zzfix_present.atom.md") {
+		t.Errorf("expected the still-present atom to be audited normally alongside the vanished one, got:\n%s", report.Text)
+	}
+}

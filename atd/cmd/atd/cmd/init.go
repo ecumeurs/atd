@@ -214,7 +214,7 @@ func runInit(dir, docsPath, model string, force, upgrade bool) (string, error) {
 					"deepseek-r1:7b":    {Tasks: []string{"code_analysis", "text_analysis", "text_generation"}, Priority: 40},
 					"llama3.1:8b":       {Tasks: []string{"*"}, Priority: 20},
 					"llama3.2":          {Tasks: []string{"*"}, Priority: 10},
-					"nomic-embed-text":  {Tasks: []string{"embedding"}, Priority: 100},
+					"nomic-embed-text":  {Tasks: []string{"embed"}, Priority: 100},
 				},
 				FallbackModel: model,
 			},

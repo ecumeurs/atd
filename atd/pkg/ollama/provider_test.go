@@ -2,6 +2,9 @@ package ollama
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"strings"
 	"testing"
 	"atd-tools/config"
 )
@@ -78,6 +81,65 @@ func TestResolveProvider(t *testing.T) {
 	}
 	if !res.IsIDE || res.Provider != "ide" {
 		t.Errorf("Expected IDE fallback, got %s/%s", res.Provider, res.Model)
+	}
+}
+
+// TestResolveProviderScreamsOnNonLegitModel covers the case where a provider
+// is genuinely reachable but the requested task's configured model name(s)
+// don't exist in its catalog at all -- e.g. a typo in llm.models, or a
+// model that was configured but never pulled. That's a config error, not a
+// transient outage, and is easy to mistake for one once resolution quietly
+// glides into IDE fallback -- ResolveProviderWithConfig must log a loud
+// [LLM WARNING] distinguishing the two instead of failing silently.
+func TestResolveProviderScreamsOnNonLegitModel(t *testing.T) {
+	origListModels := ListModels
+	defer func() { ListModels = origListModels }()
+
+	savedConfig := config.Snapshot()
+	defer config.Restore(savedConfig)
+
+	ListModels = func(baseURL string, timeoutMs int) ([]string, error) {
+		// Provider is online, but its catalog never contains the
+		// configured model name.
+		return []string{"llama3.2:latest"}, nil
+	}
+
+	config.ActiveConfig.LLM = config.LLMConfig{
+		Providers: []config.LLMProvider{
+			{Name: "remote", BaseURL: "http://remote"},
+			{Name: "ide", Type: "passthrough"},
+		},
+		Models: map[string]config.ModelConfig{
+			"deepseek-r1:7b": {Tasks: []string{"text_analysis"}},
+		},
+		FallbackModel: "also-never-pulled",
+	}
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	origStderr := os.Stderr
+	os.Stderr = w
+	defer func() { os.Stderr = origStderr }()
+
+	res, resolveErr := ResolveProvider("text_analysis")
+
+	w.Close()
+	os.Stderr = origStderr
+	captured, _ := io.ReadAll(r)
+
+	if resolveErr != nil {
+		t.Errorf("Unexpected error: %v", resolveErr)
+	}
+	if !res.IsIDE {
+		t.Errorf("Expected IDE fallback when no reachable provider has the model, got %+v", res)
+	}
+	if !strings.Contains(string(captured), "[LLM WARNING]") {
+		t.Errorf("Expected a loud [LLM WARNING] about the missing model, got stderr: %s", captured)
+	}
+	if !strings.Contains(string(captured), "deepseek-r1:7b") || !strings.Contains(string(captured), "also-never-pulled") {
+		t.Errorf("Expected the warning to name the missing candidate and fallback models, got stderr: %s", captured)
 	}
 }
 

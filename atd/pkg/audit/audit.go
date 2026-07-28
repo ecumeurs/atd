@@ -87,7 +87,11 @@ func RunFullAudit(docsDir string, threshold float64, workspace bool) (*AuditRepo
 
 	for _, f := range files {
 		filename := filepath.Base(f)
-		info, _ := os.Stat(f)
+		info, statErr := os.Stat(f)
+		if statErr != nil {
+			output.WriteString(fmt.Sprintf("Auditing: %s ... [ERROR: %v]\n", filename, statErr))
+			continue
+		}
 		mtime := info.ModTime().Unix()
 
 		cached, err := store.GetAuditCache(filename)
