@@ -280,6 +280,17 @@ func Update(opts UpdateOptions) (string, error) {
 		}
 	}
 
+	// 3. Keep the H1 title in sync with human_name.
+	// The blank-file template seeds "# New Atom" as a placeholder; without this
+	// every atom created through Update kept that placeholder forever. The
+	// project convention (see BuildContent/BuildParentContent) is H1 == human_name.
+	newBody = syncTitle(newBody, syncTitleOptions{
+		isNewFile:    !fileExists,
+		oldHumanName: unquoteYAML(frontmatterValue(frontmatterLines, "human_name")),
+		newHumanName: unquoteYAML(updates["human_name"]),
+		fallbackID:   finalAtomID(newID, frontmatterLines, opts.FilePath),
+	})
+
 	finalOutput := strings.Join(append(newFrontmatter, newBody...), "\n")
 	targetPath := opts.FilePath
 
@@ -303,13 +314,7 @@ func Update(opts UpdateOptions) (string, error) {
 	// touch id must still report the id it's operating on, and a freshly
 	// created atom must never fall back to the "temp" placeholder id from the
 	// default template.
-	finalID := newID
-	if finalID == "" {
-		finalID = frontmatterValue(frontmatterLines, "id")
-	}
-	if finalID == "" || finalID == "temp" {
-		finalID = strings.TrimSuffix(filepath.Base(targetPath), ".atom.md")
-	}
+	finalID := finalAtomID(newID, frontmatterLines, targetPath)
 
 	action := "Updated"
 	if !fileExists {
@@ -510,4 +515,96 @@ func FormatYAMLList(key, val string) string {
 		result.WriteString(fmt.Sprintf("\n  - [[%s]]", item))
 	}
 	return result.String()
+}
+
+// syncTitleOptions carries the inputs syncTitle needs to decide whether — and
+// to what — the body's H1 should be rewritten.
+type syncTitleOptions struct {
+	isNewFile    bool
+	oldHumanName string
+	newHumanName string
+	fallbackID   string
+}
+
+// titlePlaceholder is the H1 seeded into a freshly created atom by the blank
+// template. It must never survive a write that knows the atom's real name.
+const titlePlaceholder = "New Atom"
+
+// syncTitle rewrites the body's first H1 so it matches the atom's human_name.
+//
+// It deliberately does NOT clobber a hand-written title that diverges from
+// human_name on an existing atom: the H1 is rewritten only when the file is
+// newly created, when it still holds the "New Atom" placeholder, or when this
+// update changes human_name and the current H1 still matched the old one.
+func syncTitle(body []string, opts syncTitleOptions) []string {
+	idx := -1
+	for i, line := range body {
+		if strings.HasPrefix(line, "# ") {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return body
+	}
+	current := strings.TrimSpace(strings.TrimPrefix(body[idx], "# "))
+
+	title := opts.newHumanName
+	if title == "" {
+		title = opts.oldHumanName
+	}
+	if title == "" {
+		title = humanizeID(opts.fallbackID)
+	}
+	if title == "" {
+		return body
+	}
+
+	renameTracksHumanName := opts.newHumanName != "" && opts.oldHumanName != "" &&
+		current == opts.oldHumanName
+	if !opts.isNewFile && current != titlePlaceholder && !renameTracksHumanName {
+		return body
+	}
+
+	body[idx] = "# " + title
+	return body
+}
+
+// humanizeID turns an atom id into a readable title ("mechanic_atd_weave" ->
+// "Mechanic Atd Weave"). Used only when no human_name is available at all.
+func humanizeID(id string) string {
+	fields := strings.FieldsFunc(id, func(r rune) bool { return r == '_' || r == '-' })
+	for i, f := range fields {
+		r := []rune(f)
+		r[0] = unicode.ToUpper(r[0])
+		fields[i] = string(r)
+	}
+	return strings.Join(fields, " ")
+}
+
+// unquoteYAML strips the surrounding quotes YAML scalar values may carry
+// (human_name is commonly written as `human_name: "MCP Tool: atd_trace"`).
+func unquoteYAML(v string) string {
+	v = strings.TrimSpace(v)
+	if len(v) >= 2 {
+		if (v[0] == '"' && v[len(v)-1] == '"') || (v[0] == '\'' && v[len(v)-1] == '\'') {
+			return v[1 : len(v)-1]
+		}
+	}
+	return v
+}
+
+// finalAtomID resolves the id a write actually produces, independent of
+// whether the caller passed --set id=...: it prefers the new id, falls back to
+// the id already on disk, and finally to the file's basename — never the
+// "temp" placeholder from the blank template.
+func finalAtomID(newID string, frontmatterLines []string, filePath string) string {
+	id := newID
+	if id == "" {
+		id = frontmatterValue(frontmatterLines, "id")
+	}
+	if id == "" || id == "temp" {
+		id = strings.TrimSuffix(filepath.Base(filePath), ".atom.md")
+	}
+	return id
 }
