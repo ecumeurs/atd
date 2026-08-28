@@ -11,7 +11,7 @@ dependents:
   - [[ui_webui_details_weave_button]]
 ---
 
-# New Atom
+# Force Weave via WebUI
 
 ## INTENT
 Allow users to manually trigger the ATD graph weaving process from the WebUI to ensure link consistency after manual edits.

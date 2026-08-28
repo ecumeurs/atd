@@ -12,7 +12,7 @@ human_name: WebUI Info Mechanic
 type: MECHANIC
 ---
 
-# New Atom
+# WebUI Info Mechanic
 
 ## INTENT
 Implement the /info endpoint by reading the global AppConfig and Atoms map length.

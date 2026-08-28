@@ -13,7 +13,7 @@ parents:
   - [[api_webui_atd_router]]
 ---
 
-# New Atom
+# WebUI Search API
 
 ## INTENT
 Allow frontend autocomplete and lookup queries.

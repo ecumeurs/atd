@@ -12,7 +12,7 @@ human_name: WebUI Detail Weave Button
 layer: ARCHITECTURE
 ---
 
-# New Atom
+# WebUI Detail Weave Button
 
 ## INTENT
 Provide a visual entry point for the force weave action in the ATD Detail side panel.

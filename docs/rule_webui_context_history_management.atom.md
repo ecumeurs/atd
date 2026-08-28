@@ -11,7 +11,7 @@ version: 1.0
 dependents: []
 ---
 
-# New Atom
+# Context History Management Logic
 
 ## INTENT
 Manage the selection and forwarding of conversation history to the Gemini API based on user settings.

@@ -12,7 +12,7 @@ version: 1.0
 human_name: WebUI Bulk Update Mechanic
 ---
 
-# New Atom
+# WebUI Bulk Update Mechanic
 
 ## INTENT
 Implement the fast bulk mutation via loop on the atd update CLI.

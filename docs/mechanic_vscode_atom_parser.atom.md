@@ -11,7 +11,7 @@ parents:
   - [[service_vscode_linker_features]]
 ---
 
-# New Atom
+# Lighweight Atom Parser
 
 ## INTENT
 Provide a lightweight parser for extracting ATD metadata (layer, status, intent) from .atom.md files.

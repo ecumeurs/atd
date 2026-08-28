@@ -12,7 +12,7 @@ parents:
 dependents: []
 ---
 
-# New Atom
+# WebUI Explorer Tree View
 
 ## INTENT
 Provide a hierarchical indented tree view of atoms organized by parent-child relationships for bulk selection and status management.

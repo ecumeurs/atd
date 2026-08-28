@@ -12,7 +12,7 @@ parents:
   - [[ui_webui_explorer_layout]]
 ---
 
-# New Atom
+# WebUI Search Overlay
 
 ## INTENT
 Provide a Ctrl+K command palette for fast atom lookup by name, ID, or content using server-side search.

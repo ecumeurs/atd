@@ -13,7 +13,7 @@ dependents:
   - [[mechanic_webui_atom_code]]
 ---
 
-# New Atom
+# WebUI Atom Code API
 
 ## INTENT
 Provide mapped source code blocks linked to a specific atom.

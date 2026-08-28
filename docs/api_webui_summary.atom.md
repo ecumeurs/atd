@@ -12,7 +12,7 @@ layer: ARCHITECTURE
 tags: webui,api,summary
 ---
 
-# New Atom
+# WebUI Summary API
 
 ## INTENT
 Provide a synthesized LLM summary of an atom and its dependencies.

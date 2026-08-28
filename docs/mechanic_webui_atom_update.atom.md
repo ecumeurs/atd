@@ -12,7 +12,7 @@ parents:
   - [[api_webui_atom_update]]
 ---
 
-# New Atom
+# WebUI Atom Update Mechanic
 
 ## INTENT
 Implement the mutate operations via the atd update CLI sub-tool.

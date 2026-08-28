@@ -13,7 +13,7 @@ parents:
 version: 1.0
 ---
 
-# New Atom
+# WebUI Tree API
 
 ## INTENT
 Provide a flat list of all loaded ATD atoms.

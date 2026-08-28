@@ -12,7 +12,7 @@ layer: IMPLEMENTATION
 priority: 3
 ---
 
-# New Atom
+# WebUI Search Handler Mechanic
 
 ## INTENT
 Implement search by simple iterative substring checking.

@@ -13,7 +13,7 @@ parents:
 version: 1.0
 ---
 
-# New Atom
+# WebUI Atom Update API
 
 ## INTENT
 Allow frontend clients to mutate atom fields and content.

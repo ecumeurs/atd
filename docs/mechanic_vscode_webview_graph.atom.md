@@ -11,7 +11,7 @@ layer: IMPLEMENTATION
 version: 1.0.0
 ---
 
-# New Atom
+# Vis.js Graph Webview
 
 ## INTENT
 Implement a Webview panel using Vis.js to visualize the local neighborhood graph of an atom.

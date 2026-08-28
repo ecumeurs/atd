@@ -12,7 +12,7 @@ tags: webui,gemini
 dependents: []
 ---
 
-# New Atom
+# WebUI Gemini Model List
 
 ## INTENT
 List available Gemini models from the API, filtering for generation-capable models and marking quota-exhausted ones.

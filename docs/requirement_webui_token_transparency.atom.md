@@ -11,7 +11,7 @@ type: REQUIREMENT
 layer: BUSINESS
 ---
 
-# New Atom
+# Token Usage Transparency
 
 ## INTENT
 Ensure full transparency regarding token consumption and cost for every LLM interaction.

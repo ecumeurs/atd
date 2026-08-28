@@ -12,7 +12,7 @@ version: 1.0
 dependents: []
 ---
 
-# New Atom
+# WebUI SVG Connector Lines
 
 ## INTENT
 Draw SVG Bézier connector lines between parent-child atom cards in the Waterfall of Intent layout to visualize cross-layer traceability. Currently deferred pending scroll-sync implementation.

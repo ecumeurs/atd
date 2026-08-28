@@ -11,7 +11,7 @@ human_name: WebUI Weave Handler Mechanic
 priority: 3
 ---
 
-# New Atom
+# WebUI Weave Handler Mechanic
 
 ## INTENT
 Define the backend handler for the weave action in the WebUI.

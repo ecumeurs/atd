@@ -12,7 +12,7 @@ priority: 3
 tags: webui,mechanic,code
 ---
 
-# New Atom
+# WebUI Atom Code Mechanic
 
 ## INTENT
 Implement the /atd/:id/code endpoint.

@@ -12,7 +12,7 @@ tags: webui,summary,ollama
 version: 1.0
 ---
 
-# New Atom
+# WebUI Summary Aggregation
 
 ## INTENT
 Generate context-aware summaries of ATD atoms by traversing the dependency graph and aggregating intent sections, optionally enhanced by local LLM.

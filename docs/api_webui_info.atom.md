@@ -13,7 +13,7 @@ type: API
 layer: ARCHITECTURE
 ---
 
-# New Atom
+# WebUI Info API
 
 ## INTENT
 Provide basic information about the loaded ATD project.
