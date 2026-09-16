@@ -77,6 +77,26 @@ docker exec -it ollama ollama pull nomic-embed-text
 
 **HTTP transport:** `atd serve --http --port 7474` then point your MCP client at `http://localhost:7474/mcp`.
 
+## Documentalist Evaluation
+
+The documentalist harness uses disposable fixtures to evaluate the installed OpenCode `documentalist` agent. From the repository root, run deterministic tests (no model invocation) with:
+
+```bash
+python3 -m unittest tests/documentalist/test_runner.py
+python3 -m py_compile tests/documentalist/runner.py tests/documentalist/test_runner.py
+```
+
+Live scenarios require Python 3, `make`, the installed `atd` and `opencode` CLIs, an installed `documentalist` agent, and configured model/provider access. They are opt-in because they consume provider resources and model results can be nondeterministic:
+
+```bash
+make -C atd documentalist-eval
+python3 tests/documentalist/runner.py --scenario <id> --live
+```
+
+Scenario IDs are `preflight`, `drift`, `missing-link`, and `tool-fallback`. Select the narrowest scenario. Add `--keep` to retain a successful disposable fixture; failed runs retain their fixture automatically under `/tmp/opencode/`, including `documentalist-result.json` and `documentalist-transcript.json`. Read the JSON result's `status`, `failures`, `changes`, `fixture`, and command exit status before diagnosing a result. The canonical `upsilon-hub` source is checked for mutation and must remain untouched; never push from an evaluation.
+
+`missing-link` currently fails because the harness catches the known file-scope placement defect in `atd update --spec-link`. Therefore `make -C atd documentalist-eval` is expected to return nonzero until that defect is fixed; this expected scenario failure is not a harness failure.
+
 ## Reference Project
 **`upsilonbattle`** serves as the primary reference project used to test and validate this skill. It demonstrates how ATD mechanics, API routes, and domain elements interact in a real-world scenario, acting as the testbed for the ATD toolchain's extraction, auditing, and generation capabilities.
 
@@ -216,4 +236,3 @@ This enables sharing common rules (e.g., authentication patterns, data schemas) 
 | [ATD Version Management Implementation](issues/ISS-009_20260304_atd_version_management.md) | 2026-03-04 | Open | Medium | The `version` attribute in ATD YAML frontmatter is currently ignored. The sys... |
 | [Link WebUI to Project Binaries](issues/ISS-007_20260304_webui_binary_link.md) | 2026-03-04 | Open | Medium | Integrate the WebUI with the project's heavy-duty binaries and scripts (e.g.,... |
 | [Audit Performance Optimization](issues/ISS-001_20260304_audit_performance.md) | 2026-03-04 | Open | Medium | The current auditing process is too slow. It requires access to a more perfor... |
-

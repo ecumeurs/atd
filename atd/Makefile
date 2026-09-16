@@ -18,7 +18,7 @@ CMD_MODULE := $(CURDIR)/cmd/atd
 MODULES    := $(ROOT) $(CMD_MODULE)
 REPO_ROOT  := $(abspath $(ROOT)/..)
 
-.PHONY: verify verify-race tripwire dogfood dogfood-quick dogfood-update-baseline coverage-floors
+.PHONY: verify verify-race tripwire dogfood dogfood-quick dogfood-update-baseline coverage-floors documentalist-eval
 
 verify:
 	@set -e; \
@@ -88,6 +88,11 @@ coverage-floors:
 			echo "FAIL $$pkg coverage $$pct% < floor $$floor%"; fail=1; \
 		fi; \
 	done; exit $$fail
+
+# Model-backed persona evaluation is deliberately opt-in: it can consume a
+# provider, is slower than unit tests, and never belongs in the green gate.
+documentalist-eval:
+	@DOCUMENTALIST_LIVE=1 python3 $(REPO_ROOT)/tests/documentalist/runner.py --all --live
 
 # Conscious ratchet-down (or, when reviewed, ratchet-tighten): regenerates
 # testdata/dogfood_baseline.txt to mirror current reality for both
