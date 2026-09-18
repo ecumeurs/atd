@@ -26,14 +26,14 @@ var canonicalAtomTypes = map[string]bool{
 	"SERVICE": true, "DATA": true, "BUILD": true, "USAGE": true, "SPECIFICATION": true,
 }
 
-// bareAtomID strips a leading "project:" cross-project disambiguation prefix
-// (ATD.md workspace reference syntax) from a [[id]] reference, leaving the
-// bare atom id for comparison against a same-project governance-atom set.
-func bareAtomID(ref string) string {
-	if idx := strings.Index(ref, ":"); idx >= 0 {
-		return ref[idx+1:]
+// formatRefs renders atom references back in their [[id]] wiki-link form for
+// error messages, matching how they read in the source frontmatter.
+func formatRefs(refs []string) string {
+	out := make([]string, 0, len(refs))
+	for _, r := range refs {
+		out = append(out, "[["+strings.TrimSpace(r)+"]]")
 	}
-	return ref
+	return strings.Join(out, ", ")
 }
 
 // @spec-link [[service_atd_lint]]
@@ -86,16 +86,15 @@ func runLint(dir string) (string, error) {
 	}
 
 	// Governance atoms (CONTRACT/VISION, ATD.md §1.4) are read for governance,
-	// never linked as structural ancestry — no atom may declare one as a
-	// parents: target. Build the set of governance atom IDs before the main
-	// validation loop so each atom's Parents can be checked against it.
+	// never linked as structural ancestry — they sit outside the ancestry graph
+	// entirely: no atom may name one in its parents:/dependents:, and a
+	// governance atom declares neither of its own. Build the set of governance
+	// atom IDs before the main validation loop so every atom's link fields can
+	// be checked against it.
 	governanceAtomIDs := map[string]bool{}
 	for _, a := range atoms {
-		switch strings.ToUpper(strings.TrimSpace(a.Type)) {
-		case "CONTRACT", "VISION":
-			if a.ID != "" {
-				governanceAtomIDs[a.ID] = true
-			}
+		if atom.IsGovernanceType(a.Type) && a.ID != "" {
+			governanceAtomIDs[a.ID] = true
 		}
 	}
 
@@ -150,6 +149,20 @@ func runLint(dir string) (string, error) {
 			atomErrors = append(atomErrors, "Missing mandatory section: ## EXPECTATION")
 		}
 
+		// Graph isolation of governance atoms (§1.4): CONTRACT/VISION gate change
+		// from the side, so they are neither an ancestor nor a descendant of any
+		// atom. Their own parents:/dependents: must be empty. (The dependents:
+		// side is weave-derived, so a non-empty one here always mirrors a
+		// parents: violation flagged on the offending atom below.)
+		if atom.IsGovernanceType(a.Type) {
+			if len(a.Parents) > 0 {
+				atomErrors = append(atomErrors, fmt.Sprintf("CONTRACT/VISION declares parents: %s -- governance atoms sit outside the ancestry graph and must declare none (ATD.md §1.4)", formatRefs(a.Parents)))
+			}
+			if len(a.Dependents) > 0 {
+				atomErrors = append(atomErrors, fmt.Sprintf("CONTRACT/VISION declares dependents: %s -- governance atoms sit outside the ancestry graph and must declare none (ATD.md §1.4)", formatRefs(a.Dependents)))
+			}
+		}
+
 		// Links
 		for _, p := range a.Parents {
 			cleanP := strings.TrimSpace(p)
@@ -160,7 +173,7 @@ func runLint(dir string) (string, error) {
 					atomErrors = append(atomErrors, fmt.Sprintf("Unresolved parent link: [[%s]]", p))
 				}
 			}
-			if governanceAtomIDs[bareAtomID(cleanP)] {
+			if governanceAtomIDs[atom.BareAtomID(cleanP)] {
 				atomErrors = append(atomErrors, fmt.Sprintf("CONTRACT/VISION referenced as parent: [[%s]] -- governance atoms are read for governance, never linked as structural ancestry (ATD.md §1.4)", p))
 			}
 		}
@@ -172,6 +185,9 @@ func runLint(dir string) (string, error) {
 				} else {
 					atomErrors = append(atomErrors, fmt.Sprintf("Unresolved dependent link: [[%s]]", p))
 				}
+			}
+			if governanceAtomIDs[atom.BareAtomID(cleanP)] {
+				atomErrors = append(atomErrors, fmt.Sprintf("CONTRACT/VISION referenced as dependent: [[%s]] -- governance atoms are read for governance, never linked as structural ancestry (ATD.md §1.4)", p))
 			}
 		}
 

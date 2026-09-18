@@ -46,7 +46,7 @@ mcp__atd__atd_search(query="your feature description in natural language")
 
 ## Step 2 — Verify Parent Atom Exists (The "No Parent, No Code" Rule)
 
-Every atom except CONTRACT and VISION MUST have a parent BUSINESS or ARCHITECTURE atom.
+Every non-governance atom must have a parent. The sole non-governance exception is an explicitly human-approved operational-root: a parentless `MODULE` at `ARCHITECTURE`, created as `DRAFT`, tagged `operational-root`, for a named external technical consumer's stable interface/compatibility obligation. `CONTRACT` and `VISION` remain parentless, graph-isolated governance atoms, not lineage roots.
 
 1. Identify the appropriate layer for your new atom:
    - **BUSINESS**: Requirements, user stories, business rules, domain context
@@ -63,12 +63,18 @@ Every atom except CONTRACT and VISION MUST have a parent BUSINESS or ARCHITECTUR
 
 4. For IMPLEMENTATION-layer atoms:
    - The parent MUST be ARCHITECTURE
-   - **STOP** if you cannot trace a BUSINESS ancestor
+    - **STOP** if you cannot trace a BUSINESS or approved operational-root ancestor
 
 5. If no suitable parent exists:
    - **STOP and propose the missing upstream atom to the user**
    - Ask for explicit confirmation before proceeding
-   - Example: "To create this API atom, I first need a BUSINESS-layer parent. Shall I create `req_user_authentication` as a REQUIREMENT atom?"
+    - Only propose an operational root when a named external technical consumer/system requires a stable interface or compatibility contract; otherwise propose a normal BUSINESS/ARCHITECTURE parent.
+
+6. For a proposed operational root:
+    - Require explicit human approval before creation; do not infer it from an operational preference.
+    - Use `type: MODULE`, `layer: ARCHITECTURE`, `status: DRAFT`, `tags: [operational-root]`, and no parent.
+    - In the normal sections state the consumer/system, owned interface, acceptance criteria, verification method, and owner.
+    - Never use it for generic quality preferences, individual log statements, CI steps, dashboards, implementation notes, or tool choices without an external compatibility contract.
 
 ---
 
@@ -122,6 +128,8 @@ Use the canonical types from ATD.md:
 **Special Types (layer-independent):**
 - `CONTRACT` — Unique; project-wide mandatory rules
 - `VISION` — Unique; project-wide scope/philosophy
+
+`MODULE` is the only type that may be an operational root under the strict Step 2 conditions; this is a tag-governed lineage exception, not a new atom type.
 
 ---
 
@@ -227,7 +235,7 @@ mcp__atd__atd_update(
 
 **Critical Rules:**
 - Always start with `status=DRAFT`
-- Always set at least one parent (except CONTRACT/VISION)
+- Always set at least one parent, except an explicitly approved operational-root `MODULE`; `CONTRACT`/`VISION` remain parentless but graph-isolated governance atoms.
 - ID should be `layer_type_name` format (e.g., `req_user_auth`, `api_player_join`)
 
 ---
@@ -263,7 +271,7 @@ Tell the user:
 4. The next steps (e.g., "Ready for implementation" or "Needs review before promoting to REVIEW")
 
 Example:
-> Created atom `req_user_authentication` at `docs/req_user_authentication.atom.md` (REQUIREMENT, BUSINESS layer, parent: `contract_atd`). Intent: "Users must authenticate with username and password before accessing protected resources." Status: DRAFT, ready for implementation planning.
+> Created atom `api_user_authentication` at `docs/api_user_authentication.atom.md` (API, ARCHITECTURE layer, parent: `req_user_authentication`). Intent: "The authentication API exposes the approved user-login contract." Status: DRAFT, ready for implementation planning.
 
 ---
 
@@ -271,14 +279,14 @@ Example:
 
 ```
 [ ] Searched for overlapping atoms (grep + semantic)
-[ ] Verified parent atom exists (BUSINESS/ARCHITECTURE)
+[ ] Verified lineage reaches BUSINESS or an approved operational-root MODULE
 [ ] Read CONTRACT/VISION if BUSINESS-layer atom
 [ ] Chose canonical type and layer
 [ ] Checked bloating factor config
 [ ] Verified "no and" in INTENT rule
 [ ] Authored four H2 sections (INTENT, LOGIC, TECHNICAL INTERFACE, EXPECTATION)
 [ ] Created via atd_update (never hand-wrote file)
-[ ] Set status=DRAFT and parent(s)
+[ ] Set status=DRAFT and parent(s), or obtained approval for the sole operational-root exception
 [ ] Ran atd_weave to build graph
 [ ] Ran atd_audit for collisions
 [ ] Ran atd_check on touched files
@@ -301,7 +309,7 @@ Example:
 **If parent atom verification fails:**
 - Propose the missing parent atom to the user
 - Offer to create the parent first (this skill) before proceeding with the child
-- Never create orphan atoms (atoms without BUSINESS ancestry)
+- Never create an orphan atom: it must trace to BUSINESS or an approved operational-root `MODULE`.
 
 ---
 
@@ -317,7 +325,7 @@ Example:
 
 ✅ **DO:**
 - Search before creating (avoid duplicates)
-- Verify ancestry traces to BUSINESS layer
+- Verify ancestry traces to BUSINESS or an approved operational-root MODULE
 - Read CONTRACT/VISION for BUSINESS-layer atoms
 - Use `atd_update` for all atom creation
 - Start with status=DRAFT

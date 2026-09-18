@@ -146,8 +146,8 @@ Atoms are grouped into **13 consolidated types** across three functional familie
 
 | Type | Family | Typical Layer | Bloat Factor | Granularity | `@spec-link` Placement |
 |---|---|---|---|---|---|
-| `CONTRACT` | Governance | BUSINESS | 0.1 | **Unique**; project-wide mandatory rules | Root of Business layer |
-| `VISION` | Governance | BUSINESS | 0.1 | **Unique**; project-wide scope/philosophy | Root of Business layer |
+| `CONTRACT` | Governance | BUSINESS | 0.1 | **Unique**; project-wide mandatory rules | Governance only; no graph links |
+| `VISION` | Governance | BUSINESS | 0.1 | **Unique**; project-wide scope/philosophy | Governance only; no graph links |
 | `REQUIREMENT` | Requirements | BUSINESS | 0.3 | High-level external contract or constraint | Integration test suites |
 | `USER_STORY` | Requirements | BUSINESS | 0.1 | User-facing workflow (synonym: `USECASE`, `WORKFLOW`) | Bloat-check relaxed |
 | `RULE` | Logic | BUSINESS / ARCHITECTURE | 0.8 | Single business constraint or boolean check | At the validation point |
@@ -162,7 +162,7 @@ Atoms are grouped into **13 consolidated types** across three functional familie
 
 ### 1.4 Project Governance: CONTRACT & VISION
 
-`CONTRACT` and `VISION` are specialized, unique atoms that govern the evolution of the entire project. Both are **read for governance, never linked as structural ancestry**: no atom may list `contract_atd`/`vision_atd` (or a project's equivalently-named pair) in its own `parents:`. They gate change from the side; they are not where any feature's lineage begins, and they are never "Root of Business layer" in the ancestry-chain sense — every ordinary atom still traces its `parents:` to a normal BUSINESS/ARCHITECTURE ancestor.
+`CONTRACT` and `VISION` are specialized, unique atoms that govern the evolution of the entire project. Both are **read for governance, never linked as structural ancestry**: no atom may list `contract_atd`/`vision_atd` (or a project's equivalently-named pair) in its own `parents:`. They gate change from the side; they are not trace origins and must remain graph-isolated.
 
 1. **Uniqueness**: There must be exactly ONE `CONTRACT` atom and ONE `VISION` atom per project.
 2. **Roles**:
@@ -189,7 +189,15 @@ Atoms are grouped into **13 consolidated types** across three functional familie
 5. **Overrides**: a breaking or additive surface change landing without the corresponding `CONTRACT` bump is a governance violation — reject it, or bump `CONTRACT` in the same change. Same principle for `VISION`: a `BUSINESS` atom outside its stated scope requires `VISION` to be updated to match, never silently allowed through.
 6. **Bootstrapping**: If either is missing, the Agent MUST propose a definition based on the existing documentation and code — for `CONTRACT`, that means running the grid against whatever `STABLE` atoms already exist to produce its initial surface enumeration.
 
-### 1.5 Document Hierarchy & Layers
+### 1.5 Operational-Root Exception
+
+There are exactly two valid trace origins: a `BUSINESS` atom or an approved operational-root `MODULE`. An operational root is the sole non-governance parentless exception: it MUST be `type: MODULE`, `layer: ARCHITECTURE`, and `tags: [operational-root]`; it MUST be created as `DRAFT` with explicit human approval.
+
+Use it only for a stable interface or compatibility obligation to a named external technical consumer or operational system. Do not use it for generic quality preferences, individual log statements, CI steps, dashboards, implementation notes, or tool choices without an external compatibility contract. Its normal sections MUST name the consumer/system, owned interface, acceptance criteria, and verification/owner. Descendants use normal parent rules and may be `API`, `SERVICE`, `SPECIFICATION`, `ENTITY`, `RULE`, or `MECHANIC`; their lineage must ultimately reach the operational root.
+
+Example OpenTelemetry lineage: `module_telemetry_export` -> `spec_otel_signal_contract` -> `rule_otel_context_propagation` / `service_otel_exporter`. Document endpoint, protocol, and authentication ownership; resource attributes; signal names, units, and cardinality; trace-context propagation; sampling and redaction; and integration-test or collector-compatibility verification. Verification may use contract, integration, schema, or configuration tests; end-to-end tests are not required.
+
+### 1.6 Document Hierarchy & Layers
 
 Atoms are organized into three **layers** that reflect the documentation's relationship to change and human oversight. This hierarchy is the backbone of ATD's traceability model.
 
@@ -211,7 +219,7 @@ Atoms that capture **what the business wants and why**. These include requiremen
 
 - **Volatility:** Low. Once `STABLE`, these atoms are near-immutable. Alterations require high precautions and heavy human involvement (stakeholder sign-off, formal change requests).
 - **Typical types:** `REQUIREMENT`, `USER_STORY`, `RULE` (business constraints), `DOMAIN`.
-- **Traceability role:** The **origin** of the traceability chain. Every `ARCHITECTURE` and `IMPLEMENTATION` atom should trace back to a `BUSINESS` atom.
+- **Traceability role:** One valid origin of the traceability chain. Every descendant must trace to a `BUSINESS` atom or approved operational-root `MODULE`.
 
 #### ARCHITECTURE Layer
 
@@ -227,9 +235,9 @@ Atoms that capture **how the code works in practice**. These include mechanics, 
 
 - **Volatility:** High. Expected to change frequently during development. Subject to the doc-code co-evolution principle (§1.1, point 3).
 - **Typical types:** `MECHANIC`, `DATA`, `BUILD`, `USAGE` (dev guides), `RULE` (technical constraints).
-- **Traceability role:** The **leaf nodes** — linked directly to source code via `@spec-link` and to tests via `@test-link`. Must have at least one ancestor in the BUSINESS layer (enforced by the pre-commit hook via `parents:` field).
+- **Traceability role:** The **leaf nodes** — linked directly to source code via `@spec-link` and to tests via `@test-link`. Must have a `BUSINESS` or approved operational-root `MODULE` ancestor (enforced by the pre-commit hook via `parents:` field).
 
-### 1.5 Relationships & Graph Model
+### 1.7 Relationships & Graph Model
 
 ATD builds a **bidirectional dependency graph** between atoms and between atoms and source code.
 
@@ -852,9 +860,9 @@ To maintain graph integrity, all agents MUST follow these "hard behavioral trigg
 ### 3.1 The "No Parent, No Code" Rule
 If the user asks to implement a feature or mechanic:
 1. **Search**: You MUST first execute `atd_search` to find relevant atoms.
-2. **Verify Ancestry**: Check if a parent `BUSINESS` or `ARCHITECTURE` atom exists for this feature.
-3. **STOP**: If no such parent exists, **STOP**. Do not write code. Do not write the `IMPLEMENTATION` atom.
-4. **Interview**: You must first propose the missing `BUSINESS`/`ARCHITECTURE` atoms to the user and ask for their approval to create them.
+2. **Verify Ancestry**: Check that the feature traces to a `BUSINESS` atom or an approved operational-root `MODULE`.
+3. **STOP**: If neither exists, **STOP**. Do not write code or an `IMPLEMENTATION` atom. The sole non-governance parentless exception is an approved `MODULE` created as `DRAFT` and tagged `operational-root` for a named external compatibility obligation.
+4. **Interview**: Propose the missing `BUSINESS`/`ARCHITECTURE` atom, or strictly-qualified operational root, and ask for approval before creation.
 
 ### 3.2 Governance Check
 Before adding or modifying any `BUSINESS` layer atom, you MUST read the project's `CONTRACT` and `VISION` atoms.

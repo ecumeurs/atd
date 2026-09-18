@@ -299,8 +299,10 @@ Example:
 - If you hit this guard, explain it to the user and ask for explicit direction
 
 **Ancestry Rules:**
-- Every IMPLEMENTATION atom must have a BUSINESS ancestor
-- `atd_trace`'s `has_customer_origin` flag is the canonical check
+- Every IMPLEMENTATION atom must have a BUSINESS or approved operational-root `MODULE` ancestor.
+- The only non-governance parentless exception is an explicitly human-approved `MODULE` created as `DRAFT` and tagged `operational-root` for a named external technical consumer's stable interface/compatibility obligation; `CONTRACT` and `VISION` remain parentless and graph-isolated.
+- Do not use operational-root for generic quality preferences, individual log statements, CI steps, dashboards, implementation notes, or tool choices without an external compatibility contract.
+- `atd_trace` ancestry and the root's `type`, `status`, and `tags` are the canonical check.
 - Treat this as a hard blocker if false (the ruleset does, and so should you)
 
 **Type/Layer Canonicalization:**

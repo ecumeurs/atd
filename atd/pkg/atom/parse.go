@@ -19,6 +19,32 @@ func stripQuotes(s string) string {
 	return s
 }
 
+// IsGovernanceType reports whether an atom's type field designates it a
+// governance atom (CONTRACT/VISION, ATD.md §1.4). Governance atoms sit
+// outside the ancestry graph: they declare no parents/dependents of their
+// own and no atom may name one in either link field. `atd lint` reports a
+// violation, `atd weave` strips it — both consult this one predicate.
+// @spec-link [[rule_atd_governance_graph_isolation]]
+func IsGovernanceType(t string) bool {
+	switch strings.ToUpper(strings.TrimSpace(t)) {
+	case "CONTRACT", "VISION":
+		return true
+	}
+	return false
+}
+
+// BareAtomID strips a leading "project:" cross-project disambiguation prefix
+// and any surrounding [[…]] brackets from a reference, leaving the bare atom
+// id for comparison against a same-project id set.
+// @spec-link [[rule_atd_governance_graph_isolation]]
+func BareAtomID(ref string) string {
+	r := strings.TrimSpace(strings.Trim(strings.TrimSpace(ref), "[]"))
+	if idx := strings.Index(r, ":"); idx >= 0 {
+		return r[idx+1:]
+	}
+	return r
+}
+
 // AtomData holds parsed atom metadata and content sections.
 // @spec-link [[rule_atd_atom_overrides]]
 type AtomData struct {

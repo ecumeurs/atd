@@ -81,7 +81,6 @@ LINT	service_atd_crawl	Traceability Gap: Found @spec-link in implementation but 
 LINT	service_atd_discover	Missing mandatory section: ## EXPECTATION
 LINT	service_atd_index	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	service_atd_init	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
-LINT	service_atd_lint	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	service_atd_query	Missing mandatory section: ## EXPECTATION
 LINT	service_atd_query	Traceability Gap: Found @spec-link in implementation but 0 @test-link (Missing Proof)
 LINT	service_atd_roadmap	Missing mandatory section: ## EXPECTATION
