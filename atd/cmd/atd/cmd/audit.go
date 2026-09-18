@@ -19,6 +19,8 @@ Phase 2 (Collision Detection): Uses embeddings to find semantic overlaps between
 		threshold, _ := cmd.Flags().GetFloat64("threshold")
 		docsDir, _ := cmd.Flags().GetString("docs")
 		workspace, _ := cmd.Flags().GetBool("workspace")
+		atomPath, _ := cmd.Flags().GetString("atom")
+		codePath, _ := cmd.Flags().GetString("code")
 
 		if docsDir == "" {
 			docsDir = config.DocsDir()
@@ -31,7 +33,18 @@ Phase 2 (Collision Detection): Uses embeddings to find semantic overlaps between
 			}
 		}
 
-		report, err := audit.RunFullAudit(docsDir, threshold, workspace)
+		var report *audit.AuditReport
+		var err error
+		if atomPath != "" {
+			// Narrower single-atom compliance check: scope to exactly this
+			// atom file instead of sweeping every atom under --docs.
+			if codePath != "" {
+				fmt.Printf("Note: --code %q is not yet wired to a code-vs-atom compliance comparison; scoping audit to --atom only.\n", codePath)
+			}
+			report, err = audit.RunScopedAudit(atomPath, threshold)
+		} else {
+			report, err = audit.RunFullAudit(docsDir, threshold, workspace)
+		}
 		if err != nil {
 			return err
 		}

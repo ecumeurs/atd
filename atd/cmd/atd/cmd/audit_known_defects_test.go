@@ -1,6 +1,6 @@
 package cmd
 
-// KNOWN DEFECT pin for issue C (failures/20260917_atd_audit_never_returns_docs_and_atom_code_scopes.md,
+// FIXED regression test for issue C (failures/20260917_atd_audit_never_returns_docs_and_atom_code_scopes.md,
 // failures/20260917_atd_audit_docs_exits_zero_with_no_report.md,
 // failures/20260916_atd_audit_workspace_no_return.md): three field reports
 // described `atd audit` appearing to hang or return nothing across
@@ -13,19 +13,24 @@ package cmd
 // clean pass ("No critical semantic collisions detected." / "=== AUDIT
 // COMPLETE ==="). So there is no reproducible "silently empty on success"
 // bug in the library, and cmd/atd/cmd/audit.go's RunE unconditionally prints
-// whatever RunFullAudit returns.
+// whatever it gets back.
 //
-// Reading cmd/atd/cmd/audit.go turns up the actual, concrete, deterministic
-// defect that explains the "even the narrowest possible scope never
-// returned" observation: the CLI registers --atom and --code flags
-// documented as "Atom path for compliance check" / "Snippet path for
-// compliance check" (a narrower, single-atom-vs-single-file mode, distinct
-// from the full docsDir sweep), but auditCmd's RunE never reads either flag
-// — it unconditionally calls audit.RunFullAudit(docsDir, threshold,
-// workspace), which globs and scores every *.atom.md file in docsDir. A
-// caller asking for a "narrow" compliance check silently gets the exact same
-// full-directory sweep as a plain `atd audit --docs <dir>` call, with no
-// indication their --atom/--code flags did anything at all.
+// The actual, concrete, deterministic defect that explained "even the
+// narrowest possible scope never returned promptly" was: the CLI registered
+// --atom and --code flags documented as "Atom path for compliance check" /
+// "Snippet path for compliance check" (a narrower, single-atom-vs-single-file
+// mode, distinct from the full docsDir sweep), but auditCmd's RunE never
+// read either flag — it unconditionally called audit.RunFullAudit(docsDir,
+// threshold, workspace), which globs and scores every *.atom.md file in
+// docsDir. A caller asking for a "narrow" compliance check silently got the
+// exact same full-directory sweep as a plain `atd audit --docs <dir>` call.
+//
+// FIXED: auditCmd's RunE now reads --atom, and when it is set, calls the new
+// audit.RunScopedAudit(atomPath, threshold) instead of RunFullAudit — that
+// scopes the bloat/collision analysis to exactly the one named atom file
+// rather than globbing docsDir. (--code is not yet wired to a real
+// atom-vs-code compliance comparison because pkg/audit has no such
+// capability today; RunE prints a note rather than silently dropping it.)
 
 import (
 	"os"
@@ -46,14 +51,13 @@ func writeAuditKnownDefectFixture(t *testing.T, dir, filename, id string) {
 	}
 }
 
-// TestAuditCmd_AtomCodeFlagsAreIgnored_KnownDefect pins the dead-flag defect
-// above: with --atom pointed at exactly one atom and --code at an unrelated
-// path (a single-atom, single-file compliance check per the flags' own
-// descriptions), the CLI must have made exactly 2 Generate calls (intent +
-// logic judge for that one atom) if --atom/--code actually scoped the audit.
-// Today it makes 4 — the full 2-atom docsDir sweep — because the flags are
-// never consulted.
-func TestAuditCmd_AtomCodeFlagsAreIgnored_KnownDefect(t *testing.T) {
+// TestAuditCmd_AtomFlagScopesAudit_Fixed pins the fix for the dead-flag
+// defect described above: with --atom pointed at exactly one atom and
+// --code at an unrelated path (a single-atom, single-file compliance check
+// per the flags' own descriptions), the CLI must make exactly 2 Generate
+// calls (intent + logic judge for that one atom) — not 4, the full 2-atom
+// docsDir sweep it used to make while --atom/--code were silently ignored.
+func TestAuditCmd_AtomFlagScopesAudit_Fixed(t *testing.T) {
 	fake := fakeprovider.InstallOllama(t)
 	fake.SetJSON(`{"is_bloated": false}`)
 
@@ -89,7 +93,7 @@ func TestAuditCmd_AtomCodeFlagsAreIgnored_KnownDefect(t *testing.T) {
 	}
 
 	calls := fake.Calls()
-	if len(calls) != 4 {
-		t.Errorf("KNOWN DEFECT expectation changed: got %d Generate call(s) with --atom/--code set to a single atom/file, want 4 (the full 2-atom docsDir sweep this defect currently produces regardless of --atom/--code) — --atom/--code may have started actually scoping the audit; if intentional, relax this pin to assert 2 calls instead", len(calls))
+	if len(calls) != 2 {
+		t.Errorf("got %d Generate call(s) with --atom set to a single atom, want 2 (intent + logic judge for that one atom only) — --atom must scope the audit to exactly that file, not sweep the whole --docs directory", len(calls))
 	}
 }

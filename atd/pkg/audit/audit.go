@@ -45,14 +45,6 @@ type atomAuditMeta struct {
 }
 
 func RunFullAudit(docsDir string, threshold float64, workspace bool) (*AuditReport, error) {
-	var output strings.Builder
-	dbPath := filepath.Join(docsDir, ".atd_audit.db")
-	store, err := atdstore.NewStore(dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open store: %v", err)
-	}
-	defer store.Close()
-
 	var files []string
 	if workspace && config.ActiveConfig.Workspace != nil {
 		for _, p := range config.ActiveConfig.Workspace.Projects {
@@ -74,6 +66,39 @@ func RunFullAudit(docsDir string, threshold float64, workspace bool) (*AuditRepo
 	} else {
 		files, _ = filepath.Glob(filepath.Join(docsDir, "*.atom.md"))
 	}
+
+	return runAudit(files, docsDir, threshold)
+}
+
+// RunScopedAudit runs the same bloat-detection and collision-detection
+// passes as RunFullAudit but scoped to exactly one atom file, instead of
+// globbing every "*.atom.md" file under a docs directory. It backs the CLI's
+// narrower `--atom` compliance-check mode (see cmd/atd/cmd/audit.go):
+// pointing `--atom` at a single file must never fall back to a full
+// directory sweep.
+//
+// pkg/audit has no atom-vs-code compliance comparison capability today (no
+// prompt or scoring path takes a code snippet as input), so a `--code`
+// argument for a true single-atom-vs-single-file comparison is intentionally
+// not accepted here yet -- only atom-level scoping is provided.
+func RunScopedAudit(atomPath string, threshold float64) (*AuditReport, error) {
+	if _, err := os.Stat(atomPath); err != nil {
+		return nil, fmt.Errorf("atom path not found: %v", err)
+	}
+	return runAudit([]string{atomPath}, filepath.Dir(atomPath), threshold)
+}
+
+// runAudit performs the shared bloat-detection (Phase 1) and
+// collision-detection (Phase 2) analysis over an explicit file list. dbDir
+// selects where the audit cache (.atd_audit.db) is stored.
+func runAudit(files []string, dbDir string, threshold float64) (*AuditReport, error) {
+	var output strings.Builder
+	dbPath := filepath.Join(dbDir, ".atd_audit.db")
+	store, err := atdstore.NewStore(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open store: %v", err)
+	}
+	defer store.Close()
 
 	if len(files) == 0 {
 		return nil, fmt.Errorf("no atoms found")
