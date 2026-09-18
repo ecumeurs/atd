@@ -30,6 +30,12 @@ type SearchResult struct {
 	ChunkText  string  `json:"chunk_text"`
 	Similarity float64 `json:"similarity"`
 	Project    string  `json:"project"` // NEW: Which project this belongs to
+	// Stale is true when the indexed chunk no longer reflects the live file:
+	// the backing file at FilePath is missing, or its current mtime differs
+	// from the mtime recorded when the chunk was indexed. Callers should
+	// treat a Stale result as historical ("here's what used to be here")
+	// rather than as current code/doc content.
+	Stale bool `json:"stale"`
 }
 
 type SearchOptions struct {
@@ -175,6 +181,21 @@ func GrepSearchWithConfig(keyword, root, projectName string, cfg *config.Config)
 	return results, err
 }
 
+// isStaleEntry reports whether an indexed chunk no longer matches the live
+// state of the file it was indexed from: the file is gone, or its current
+// mtime doesn't match the mtime recorded at index time (indexer.Index sets
+// entry.Mtime to info.ModTime().Unix() — see pkg/indexer/index.go). Either
+// case means the chunk's content may no longer exist in the working tree at
+// all, so results must not be presented as indistinguishable from a fresh
+// hit (see failures/20260901_atd_search_stale_index_returns_deleted_code.md).
+func isStaleEntry(entry store.IndexEntry) bool {
+	info, err := os.Stat(entry.AtomPath)
+	if err != nil {
+		return true
+	}
+	return info.ModTime().Unix() != entry.Mtime
+}
+
 func SemanticSearch(query, dbPath string, limit int, scope, projectName string) ([]SearchResult, error) {
 	if _, err := os.Stat(dbPath); err != nil {
 		if os.IsNotExist(err) {
@@ -221,7 +242,13 @@ func SemanticSearch(query, dbPath string, limit int, scope, projectName string) 
 		}
 
 		sim := cosine.Similarity(queryEmb, entry.Embedding)
-		results = append(results, SearchResult{entry.AtomPath, entry.Content, sim, projectName})
+		results = append(results, SearchResult{
+			FilePath:   entry.AtomPath,
+			ChunkText:  entry.Content,
+			Similarity: sim,
+			Project:    projectName,
+			Stale:      isStaleEntry(entry),
+		})
 	}
 
 	sort.Slice(results, func(i, j int) bool {
