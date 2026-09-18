@@ -143,8 +143,14 @@ func (e *Explorer) LoadWorkspace(force bool) error {
 			codePaths = []string{"."}
 		}
 
+		docsDir := p.DocsPath
+		if docsDir == "" {
+			docsDir = "docs/"
+		}
+
 		projExplorer := NewExplorer(absProjPath, "")
 		projExplorer.Graph = e.Graph
+		ignore := newGitignoreMatcher(absProjPath)
 
 		for _, cp := range codePaths {
 			absCP := cp
@@ -156,7 +162,13 @@ func (e *Explorer) LoadWorkspace(force bool) error {
 				if err != nil || info.IsDir() {
 					return nil
 				}
-				rel, _ := filepath.Rel(absProjPath, path)
+				rel, err := filepath.Rel(absProjPath, path)
+				if err != nil {
+					return nil
+				}
+				if shouldSkipDiscoveredPath(rel, docsDir, ignore) {
+					return nil
+				}
 				projExplorer.loadFileLinks(rel)
 				return nil
 			})
@@ -262,6 +274,8 @@ func (e *Explorer) extractLinks(relPath string, contentStr string) {
 func (e *Explorer) ListFiles() ([]string, error) {
 	var files []string
 
+	ignore := newGitignoreMatcher(e.ProjectRoot)
+
 	err := filepath.Walk(e.ProjectRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
@@ -272,12 +286,10 @@ func (e *Explorer) ListFiles() ([]string, error) {
 			return nil
 		}
 
-		if strings.HasPrefix(rel, ".") ||
-			strings.Contains(rel, "/.") ||
-			strings.Contains(rel, "vendor/") ||
-			strings.Contains(rel, "node_modules/") ||
-			strings.Contains(rel, "dist/") ||
-			strings.Contains(rel, "build/") {
+		// Docs are intentionally NOT excluded here: .atom.md files live
+		// under the docs directory and Load() relies on ListFiles() to
+		// surface them for atom parsing.
+		if shouldSkipDiscoveredPath(rel, "", ignore) {
 			return nil
 		}
 

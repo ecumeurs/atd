@@ -23,19 +23,19 @@ const (
 )
 
 type Config struct {
-	DocsDir          string
-	CodePaths        []string
-	SupportedExtensions map[string]bool
-	DiscoveryMethod   DiscoveryMethod
-	OrphanExcludedTypes map[string]bool
-	HierarchicalOrphanCheck bool
-	BusinessLayerException bool
-	GitignorePatterns []string
-	MaxDepth         int
+	DocsDir                 string          `json:"docs_dir,omitempty"`
+	CodePaths               []string        `json:"code_paths,omitempty"`
+	SupportedExtensions     map[string]bool `json:"supported_extensions,omitempty"`
+	DiscoveryMethod         DiscoveryMethod `json:"discovery_method,omitempty"`
+	OrphanExcludedTypes     map[string]bool `json:"orphan_excluded_types,omitempty"`
+	HierarchicalOrphanCheck bool            `json:"hierarchical_orphan_check,omitempty"`
+	BusinessLayerException  bool            `json:"business_layer_exception,omitempty"`
+	GitignorePatterns       []string        `json:"gitignore_patterns,omitempty"`
+	MaxDepth                int             `json:"max_depth,omitempty"`
 
 	// Legacy fields for backward compatibility
 	DocsPath                string               `json:"docs_path,omitempty"`
-	DiffSimilarityThreshold  float64              `json:"diff_similarity_threshold"`
+	DiffSimilarityThreshold float64              `json:"diff_similarity_threshold"`
 	BloatingFactor          BloatingFactorConfig `json:"bloating_factor"`
 	Model                   string               `json:"model"` // kept for backward compat
 	Logging                 LoggingConfig        `json:"logging"`
@@ -53,9 +53,66 @@ type Config struct {
 	// "cwd" for a `go test` binary is the package source directory — see
 	// test_atd_07_26.md §2.1 (incident I-1) and §3.6 (P-1).
 	loadedFromFallback bool
-	DocsDirOverride string
-	Workspace     *WorkspaceConfig `json:"-"`
-	ActiveProject string           `json:"-"`
+	DocsDirOverride    string           `json:"docs_dir_override,omitempty"`
+	Workspace          *WorkspaceConfig `json:"-"`
+	ActiveProject      string           `json:"-"`
+}
+
+// configAlias has the same fields as Config (including the json tags above)
+// but none of Config's methods, so it can be used as an UnmarshalJSON target
+// without recursing back into Config.UnmarshalJSON.
+type configAlias Config
+
+// legacyPascalCaseAliases maps the historical, untagged Go field names this
+// struct used to expose to the snake_case tag each now carries. Older .atd
+// files — including every one `atd config model set-task-model`'s
+// write-back path (runConfigUpdate) has ever produced, since it round-trips
+// json.MarshalIndent(ActiveConfig, ...) verbatim — used these PascalCase
+// keys because the fields had no json tag at all, so encoding/json fell
+// back to matching the literal Go field name. That silently dropped any
+// snake_case key a human wrote by hand for the same field (see
+// atd_known_defects_backlog memory). UnmarshalJSON below accepts both
+// casings so existing PascalCase files keep loading and hand-written
+// snake_case files stop being silently ignored.
+var legacyPascalCaseAliases = map[string]string{
+	"DocsDir":                 "docs_dir",
+	"CodePaths":               "code_paths",
+	"SupportedExtensions":     "supported_extensions",
+	"DiscoveryMethod":         "discovery_method",
+	"OrphanExcludedTypes":     "orphan_excluded_types",
+	"HierarchicalOrphanCheck": "hierarchical_orphan_check",
+	"BusinessLayerException":  "business_layer_exception",
+	"GitignorePatterns":       "gitignore_patterns",
+	"MaxDepth":                "max_depth",
+	"DocsDirOverride":         "docs_dir_override",
+}
+
+// UnmarshalJSON accepts both the legacy PascalCase keys and the canonical
+// snake_case keys for the fields in legacyPascalCaseAliases. If both are
+// present for a given field, the snake_case key wins.
+func (c *Config) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	for pascal, snake := range legacyPascalCaseAliases {
+		v, ok := raw[pascal]
+		if !ok {
+			continue
+		}
+		if _, hasSnake := raw[snake]; !hasSnake {
+			raw[snake] = v
+		}
+		delete(raw, pascal)
+	}
+
+	normalized, err := json.Marshal(raw)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(normalized, (*configAlias)(c))
 }
 
 type ProjectConfig struct {
@@ -67,20 +124,20 @@ type ProjectConfig struct {
 }
 
 type WorkspaceConfig struct {
-	WorkspaceName string                   `json:"workspace_name"`
-	WorkspaceRoot string                   `json:"workspace_root"`
-	Projects      []ProjectConfig          `json:"projects"`
-	SharedLibs    map[string]string        `json:"shared_libraries,omitempty"`
+	WorkspaceName  string                 `json:"workspace_name"`
+	WorkspaceRoot  string                 `json:"workspace_root"`
+	Projects       []ProjectConfig        `json:"projects"`
+	SharedLibs     map[string]string      `json:"shared_libraries,omitempty"`
 	CommonSettings map[string]interface{} `json:"common_settings,omitempty"`
-	
+
 	// Internal tracking
 	LoadedFrom string `json:"-"`
 }
 
 // Legacy types for backward compatibility
 type BloatingFactorConfig struct {
-	Default        float64            `json:"default"`
-	TypeOverrides   map[string]float64 `json:"type_overrides"`
+	Default       float64            `json:"default"`
+	TypeOverrides map[string]float64 `json:"type_overrides"`
 }
 
 type LoggingConfig struct {
@@ -103,8 +160,8 @@ type LLMConfig struct {
 	Providers     []LLMProvider          `json:"providers"`
 	Models        map[string]ModelConfig `json:"models"`
 	FallbackModel string                 `json:"fallback_model"`
-	HealthTTLs   int                    `json:"health_ttl_ms,omitempty"`
-	ModelTTLs    int                    `json:"model_ttl_ms,omitempty"`
+	HealthTTLs    int                    `json:"health_ttl_ms,omitempty"`
+	ModelTTLs     int                    `json:"model_ttl_ms,omitempty"`
 }
 
 type VerifyConfig struct {
@@ -238,10 +295,10 @@ func LoadFromDirLegacy(dir string) error {
 			TypeOverrides: make(map[string]float64),
 		},
 		SupportedExtensions: map[string]bool{
-			".go":  true, ".py": true, ".ts": true, ".js": true,
-			".rs":  true, ".java": true, ".c": true, ".cpp": true,
-			".h":   true, ".hpp": true, ".cs": true, ".php": true,
-			".rb":  true, ".swift": true, ".kt": true, ".scala": true, ".vue": true,
+			".go": true, ".py": true, ".ts": true, ".js": true,
+			".rs": true, ".java": true, ".c": true, ".cpp": true,
+			".h": true, ".hpp": true, ".cs": true, ".php": true,
+			".rb": true, ".swift": true, ".kt": true, ".scala": true, ".vue": true,
 		},
 		LLM: LLMConfig{
 			HealthTTLs: 300000, // 5 minutes
@@ -252,10 +309,10 @@ func LoadFromDirLegacy(dir string) error {
 			"MODULE":        true,
 			"SPECIFICATION": true,
 			"USECASE":       true,
-			"USER_STORY":   true,
+			"USER_STORY":    true,
 		},
 		HierarchicalOrphanCheck: true,
-		BusinessLayerException: true,
+		BusinessLayerException:  true,
 		GitignorePatterns: []string{
 			"node_modules/",
 			".git/",
