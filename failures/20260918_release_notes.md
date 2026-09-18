@@ -31,6 +31,16 @@ Reports removed as fully processed by this batch:
 - `20260917_atd_update_double_prefixes_id_that_already_starts_with_type_abbreviation.md`
 - `20260917_atd_update_expectation_no_ops_when_section_header_missing.md`
 
+Also fixed this batch, as a follow-up:
+- `atd init`'s installed pre-commit hook's orphan check now compares
+  against HEAD instead of blocking any commit that merely touches a file
+  containing a pre-existing orphaned atom: newly-added orphans and
+  last-parent removals still block, a pre-existing orphan untouched by the
+  commit's `parents:` now only warns. (a43f553)
+
+Reports removed as fully processed:
+- `20260916_orphaned_architecture_atom_blocks_commit.md`
+
 Still open (not touched by this batch, left in `failures/`):
 - `20260916_atd_audit_workspace_no_return.md` — separate gap: `atd audit`
   has no bounded per-request LLM timeout or explicit backend-unreachable
@@ -40,7 +50,3 @@ Still open (not touched by this batch, left in `failures/`):
   from a broken run.
 - `20260917_atd_congruence_empty_verdict_and_no_workspace_resolution.md` —
   deferred pending a policy decision, out of scope for this round.
-- `20260916_orphaned_architecture_atom_blocks_commit.md` — in progress: the
-  `atd init`-installed pre-commit hook's orphan check is commit-scoped and
-  ambushes unrelated commits that merely touch a pre-existing orphaned
-  atom; assigned to a follow-up agent this batch.
