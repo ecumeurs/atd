@@ -31,18 +31,48 @@ FAIL=0
 
 echo "🔍 Running ATD Structural Integrity Check..."
 
+# Does HEAD exist yet? (false on a brand-new repo's very first commit)
+HEAD_EXISTS=1
+if ! git rev-parse --verify HEAD >/dev/null 2>&1; then
+  HEAD_EXISTS=0
+fi
+
 for file in $STAGED_ATOMS; do
   LAYER=$(grep -E "^layer:" "$file" | awk '{print $2}' | tr -d '\r')
   PARENTS_COUNT=$(awk '/^parents:/ {flag=1; next} /^[^ -]/ {flag=0} flag && /-[[:space:]]+\[\[.*\]\]/ {print}' "$file" | wc -l)
 
   if [[ "$LAYER" == "IMPLEMENTATION" || "$LAYER" == "ARCHITECTURE" ]]; then
     if [ "$PARENTS_COUNT" -eq 0 ]; then
-      echo "❌ ERROR: Orphaned Atom Detected -> $file"
-      echo "   Reason: This is an $LAYER atom but has no parents defined."
-      echo "   Fix 1 : Add a parent business/design requirement -> parents: [[req_your_parent]]"
-      echo "   Fix 2 : Use the escape hatch -> parents: [[req_tech_debt_backlog]]"
-      echo ""
-      FAIL=1
+      # Only block the commit if THIS commit introduces or worsens the orphan
+      # condition. A pre-existing orphan (already zero parents at HEAD, and
+      # not newly added by this commit) is not this commit's problem -- warn
+      # but don't fail, so debt stays visible without ambushing whoever next
+      # happens to touch the file for an unrelated reason.
+      IS_NEW=1
+      if [ "$HEAD_EXISTS" -eq 1 ] && git cat-file -e "HEAD:$file" 2>/dev/null; then
+        IS_NEW=0
+      fi
+
+      if [ "$IS_NEW" -eq 1 ]; then
+        echo "❌ ERROR: Orphaned Atom Detected -> $file"
+        echo "   Reason: This is a newly added $LAYER atom but has no parents defined."
+        echo "   Fix 1 : Add a parent business/design requirement -> parents: [[req_your_parent]]"
+        echo "   Fix 2 : Use the escape hatch -> parents: [[req_tech_debt_backlog]]"
+        echo ""
+        FAIL=1
+      else
+        HEAD_PARENTS_COUNT=$(git show "HEAD:$file" 2>/dev/null | awk '/^parents:/ {flag=1; next} /^[^ -]/ {flag=0} flag && /-[[:space:]]+\[\[.*\]\]/ {print}' | wc -l)
+        if [ "$HEAD_PARENTS_COUNT" -eq 0 ]; then
+          echo "⚠️  pre-existing orphan, not blocking: $file"
+        else
+          echo "❌ ERROR: Orphaned Atom Detected -> $file"
+          echo "   Reason: This is an $LAYER atom whose last parent was just removed."
+          echo "   Fix 1 : Add a parent business/design requirement -> parents: [[req_your_parent]]"
+          echo "   Fix 2 : Use the escape hatch -> parents: [[req_tech_debt_backlog]]"
+          echo ""
+          FAIL=1
+        fi
+      fi
     fi
   fi
 done
