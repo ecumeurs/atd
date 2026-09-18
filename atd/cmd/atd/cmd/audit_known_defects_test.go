@@ -31,6 +31,31 @@ package cmd
 // rather than globbing docsDir. (--code is not yet wired to a real
 // atom-vs-code compliance comparison because pkg/audit has no such
 // capability today; RunE prints a note rather than silently dropping it.)
+//
+// ADDENDUM (2026-09-18): the "mostly self-inflicted concurrent-process
+// contention, not a proven defect" verdict above turned out to be
+// incomplete. pkg/ollama's generateHTTP/embedHTTP called http.Post with no
+// deadline at all — a genuinely unbounded wait, not just contention — so a
+// slow or stalled Ollama backend really could hang `atd audit` forever.
+// Fixed by adding config.LLMConfig.GenerateTimeoutMs (.atd key
+// "llm.generate_timeout_ms", default 120s, config.DefaultGenerateTimeoutMs)
+// and threading it into a bounded http.Client in both functions; a timeout
+// now surfaces as a clear "timed out after Nms ... see llm.generate_timeout_ms
+// in .atd" error instead of hanging (see pkg/ollama/client_timeout_test.go).
+// Separately, pkg/audit.RunFullAudit's bloat-check and embed error paths
+// used to fall through silently (leaving bloatResult at its "PASS" default,
+// or leaving collision detection to just skip an atom) on any query/embed
+// error — including this timeout — which is how a hang could also present
+// as a quiet, misleadingly clean pass rather than a loud failure. Fixed to
+// log an explicit [ERROR] line per failed atom and emit a guaranteed
+// "Summary: N atom(s) scanned, ..." line on every run (see
+// pkg/audit/audit_test.go's TestRunFullAudit_QueryErrorIsLoudNotSilentPass
+// and TestRunFullAudit_GuaranteedSummaryLine_* tests). `atd init` / `atd
+// init --upgrade` now also write llm.generate_timeout_ms into the nearest
+// .atd at its default value so the bound is visible, not an invisible
+// Go-side-only default (see init_generate_timeout_backfill_test.go).
+// Together these close out failures/20260916_atd_audit_workspace_no_return.md
+// and failures/20260917_atd_audit_docs_exits_zero_with_no_report.md for real.
 
 import (
 	"os"

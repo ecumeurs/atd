@@ -109,6 +109,7 @@ func runAudit(files []string, dbDir string, threshold float64) (*AuditReport, er
 
 	auditMetas := make(map[string]atomAuditMeta)
 	var ids []string
+	var bloatedCount, collisionCount, queryErrorCount, embedErrorCount int
 
 	for _, f := range files {
 		filename := filepath.Base(f)
@@ -202,14 +203,53 @@ func runAudit(files []string, dbDir string, threshold float64) (*AuditReport, er
 				if bI.IsBloated || bL.IsBloated {
 					bloatResult = "BLOATED"
 				}
+			} else {
+				// A generic (non-IDE-fallback) error from either query --
+				// timeout, connection refused, malformed backend response,
+				// etc. Falling through here would leave bloatResult at its
+				// pre-set "PASS" default with zero trace in the report,
+				// making a broken run indistinguishable from a genuinely
+				// clean one (failures/20260917_atd_audit_docs_exits_zero_with_no_report.md).
+				bloatResult = "ERROR"
+				queryErrorCount++
+				var errMsg strings.Builder
+				if errI != nil {
+					errMsg.WriteString(fmt.Sprintf("intent query: %v", errI))
+				}
+				if errL != nil {
+					if errMsg.Len() > 0 {
+						errMsg.WriteString("; ")
+					}
+					errMsg.WriteString(fmt.Sprintf("logic query: %v", errL))
+				}
+				output.WriteString(fmt.Sprintf("  [ERROR] LLM bloat check failed for %s: %s\n", data.ID, errMsg.String()))
 			}
 		}
+		if bloatResult == "BLOATED" {
+			bloatedCount++
+		}
 
-		pEmbed, _ := ollama.ResolveProvider("embed")
+		pEmbed, embResolveErr := ollama.ResolveProvider("embed")
 		var emb []float32
-		if !pEmbed.IsIDE {
-			content, _ := os.ReadFile(f)
-			emb, _ = ollama.QueryEmbed(string(content))
+		if embResolveErr == nil && !pEmbed.IsIDE {
+			content, readErr := os.ReadFile(f)
+			if readErr != nil {
+				output.WriteString(fmt.Sprintf("  [ERROR] Failed to read %s for embedding: %v\n", filename, readErr))
+				embedErrorCount++
+			} else {
+				var embErr error
+				emb, embErr = ollama.QueryEmbed(string(content))
+				if embErr != nil {
+					// Silently discarding this (as `_`) meant an atom could
+					// drop out of collision detection with zero visibility
+					// into why -- surface it loudly instead.
+					output.WriteString(fmt.Sprintf("  [ERROR] Embedding failed for %s: %v (excluded from collision detection)\n", data.ID, embErr))
+					embedErrorCount++
+				}
+			}
+		} else if embResolveErr != nil {
+			output.WriteString(fmt.Sprintf("  [ERROR] Failed to resolve embed provider for %s: %v (excluded from collision detection)\n", data.ID, embResolveErr))
+			embedErrorCount++
 		}
 
 		meta := atomAuditMeta{
@@ -284,6 +324,7 @@ func runAudit(files []string, dbDir string, threshold float64) (*AuditReport, er
 
 			if !isRelated && sharedParent == "" {
 				collisionsFound = true
+				collisionCount++
 				output.WriteString(fmt.Sprintf("\n[COLLISION] %s <--> %s (Similarity: %.2f)\n", f1, f2, sim))
 				output.WriteString(fmt.Sprintf("  Result: [MISSING ABSTRACTION] Atoms share %d%% logic but lack shared parent.\n", int(sim*100)))
 			}
@@ -293,6 +334,14 @@ func runAudit(files []string, dbDir string, threshold float64) (*AuditReport, er
 	if !collisionsFound {
 		output.WriteString("\nNo critical semantic collisions detected.\n")
 	}
+
+	// Guaranteed final line: every run, success or not, must state what
+	// happened so a clean 0-findings pass is never indistinguishable from a
+	// silently-broken one (failures/20260917_atd_audit_docs_exits_zero_with_no_report.md,
+	// failures/20260916_atd_audit_workspace_no_return.md).
+	totalErrors := queryErrorCount + embedErrorCount
+	output.WriteString(fmt.Sprintf("\nSummary: %d atom(s) scanned, %d bloated, %d collision(s), %d LLM error(s) (%d bloat-check, %d embedding).\n",
+		len(ids), bloatedCount, collisionCount, totalErrors, queryErrorCount, embedErrorCount))
 
 	output.WriteString("\n=== AUDIT COMPLETE ===\n")
 	return &AuditReport{Text: output.String()}, nil

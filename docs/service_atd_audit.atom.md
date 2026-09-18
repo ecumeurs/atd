@@ -30,7 +30,10 @@ Computes Nomic embeddings for all atoms and builds a pairwise cosine similarity 
 
 Code-level compliance is handled by the [[service_atd_verify]] tool.
 
+A bloat-check or embed call that errors (including an LLM request timing out per [[service_atd_tiered_provider]]'s `llm.generate_timeout_ms`) is never silently treated as a pass or silently dropped from collision detection — it is logged as an explicit `[ERROR]` line naming the atom and cause. Every run, clean or not, ends with a guaranteed `Summary: N atom(s) scanned, M bloated, K collision(s), E LLM error(s)` line, so a run can never exit having produced no readable signal.
+
 ## TECHNICAL INTERFACE (The Bridge)
 - **Command:** `atd audit [--code <snippet> --atom <path>] [--threshold <float>]`
 - **LLM Tasks:** `audit_bloat`, `embed`, `audit_code`
+- **Function:** `pkg/audit.RunFullAudit` / `RunScopedAudit`
 - **Code Tag:** `@spec-link [[service_atd_audit]]`

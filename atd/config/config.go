@@ -157,11 +157,28 @@ type ModelConfig struct {
 }
 
 type LLMConfig struct {
-	Providers     []LLMProvider          `json:"providers"`
-	Models        map[string]ModelConfig `json:"models"`
-	FallbackModel string                 `json:"fallback_model"`
-	HealthTTLs    int                    `json:"health_ttl_ms,omitempty"`
-	ModelTTLs     int                    `json:"model_ttl_ms,omitempty"`
+	Providers         []LLMProvider          `json:"providers"`
+	Models            map[string]ModelConfig `json:"models"`
+	FallbackModel     string                 `json:"fallback_model"`
+	HealthTTLs        int                    `json:"health_ttl_ms,omitempty"`
+	ModelTTLs         int                    `json:"model_ttl_ms,omitempty"`
+	GenerateTimeoutMs int                    `json:"generate_timeout_ms,omitempty"`
+}
+
+// DefaultGenerateTimeoutMs bounds a single ollama.Generate/ollama.Embed HTTP
+// call when llm.generate_timeout_ms is unset. Distinct from each provider's
+// health-check TimeoutMs (used only for the fast /api/tags probe) -- a real
+// generate/embed call needs much more headroom than a health check.
+const DefaultGenerateTimeoutMs = 120000
+
+// GetGenerateTimeoutMs returns the configured bound for a single
+// ollama.Generate/ollama.Embed HTTP call, falling back to
+// DefaultGenerateTimeoutMs when unset or invalid.
+func GetGenerateTimeoutMs() int {
+	if ActiveConfig.LLM.GenerateTimeoutMs <= 0 {
+		return DefaultGenerateTimeoutMs
+	}
+	return ActiveConfig.LLM.GenerateTimeoutMs
 }
 
 type VerifyConfig struct {
@@ -301,8 +318,9 @@ func LoadFromDirLegacy(dir string) error {
 			".rb": true, ".swift": true, ".kt": true, ".scala": true, ".vue": true,
 		},
 		LLM: LLMConfig{
-			HealthTTLs: 300000, // 5 minutes
-			ModelTTLs:  300000, // 5 minutes
+			HealthTTLs:        300000, // 5 minutes
+			ModelTTLs:         300000, // 5 minutes
+			GenerateTimeoutMs: DefaultGenerateTimeoutMs,
 		},
 		DiscoveryMethod: DiscoveryMethodWalk,
 		OrphanExcludedTypes: map[string]bool{

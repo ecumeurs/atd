@@ -41,12 +41,33 @@ Also fixed this batch, as a follow-up:
 Reports removed as fully processed:
 - `20260916_orphaned_architecture_atom_blocks_commit.md`
 
+## 2026-09-18 — Second batch: `atd audit` unbounded-hang + silent-pass fixes
+
+Fixed this batch and removed from `failures/` as fully processed:
+- `pkg/ollama`'s `generateHTTP`/`embedHTTP` called `http.Post` with no
+  deadline at all, so a slow or stalled Ollama backend could block `atd
+  audit` (and anything else on the LLM path) forever. Fixed by adding a
+  configurable `llm.generate_timeout_ms` (`.atd`, default 120000ms —
+  distinct from each provider's existing health-check `timeout_ms`) and
+  threading it into a bounded `http.Client`; a timeout now surfaces as a
+  clear `"timed out after Nms ... see llm.generate_timeout_ms in .atd"`
+  error instead of hanging. `atd init` / `atd init --upgrade` write this key
+  into the nearest `.atd` at its default value so the bound is visible, not
+  an invisible Go-side-only default.
+- `pkg/audit.RunFullAudit`'s bloat-check and embed error paths used to fall
+  through silently on any query/embed error (leaving `bloatResult` at its
+  `"PASS"` default, or just skipping an atom in collision detection),
+  which is how a hang or backend failure could also present as a quiet,
+  misleadingly clean pass rather than a loud failure. Fixed to log an
+  explicit `[ERROR]` line per failed atom and emit a guaranteed
+  `"Summary: N atom(s) scanned, M bloated, K collision(s), E LLM error(s)"`
+  line on every run, clean or not — so a 0-finding pass and a broken run
+  are no longer indistinguishable.
+
+Reports removed as fully processed by this batch:
+- `20260916_atd_audit_workspace_no_return.md`
+- `20260917_atd_audit_docs_exits_zero_with_no_report.md`
+
 Still open (not touched by this batch, left in `failures/`):
-- `20260916_atd_audit_workspace_no_return.md` — separate gap: `atd audit`
-  has no bounded per-request LLM timeout or explicit backend-unreachable
-  error.
-- `20260917_atd_audit_docs_exits_zero_with_no_report.md` — separate gap: a
-  clean 0-findings `atd audit` run prints no summary line, indistinguishable
-  from a broken run.
 - `20260917_atd_congruence_empty_verdict_and_no_workspace_resolution.md` —
   deferred pending a policy decision, out of scope for this round.

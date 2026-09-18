@@ -205,7 +205,7 @@ func Query(taskType, prompt string, format interface{}) (*GenerateResponse, erro
 	if res.IsIDE {
 		return nil, ErrIDEFallback
 	}
-	return Generate(res.BaseURL, res.Model, prompt, format, nil)
+	return Generate(res.BaseURL, res.Model, prompt, format, nil, config.GetGenerateTimeoutMs())
 }
 
 // QueryEmbed resolves a provider for "embed" task, then calls Embed.
@@ -218,7 +218,7 @@ func QueryEmbed(text string) ([]float32, error) {
 	if res.IsIDE {
 		return nil, fmt.Errorf("embedding requires Ollama with nomic-embed-text — no IDE fallback available")
 	}
-	return Embed(res.BaseURL, res.Model, text)
+	return Embed(res.BaseURL, res.Model, text, config.GetGenerateTimeoutMs())
 }
 
 var ErrIDEFallback = fmt.Errorf("IDE_FALLBACK")

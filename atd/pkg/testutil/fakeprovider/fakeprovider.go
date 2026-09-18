@@ -173,7 +173,7 @@ func InstallOllama(t testing.TB) *Ollama {
 		return []string{"fake-model", "fake-embed"}, nil
 	}
 
-	ollama.Generate = func(baseURL, model, prompt string, format interface{}, opts *ollama.Options) (*ollama.GenerateResponse, error) {
+	ollama.Generate = func(baseURL, model, prompt string, format interface{}, opts *ollama.Options, timeoutMs int) (*ollama.GenerateResponse, error) {
 		f.mu.Lock()
 		f.calls = append(f.calls, GenerateCall{Prompt: prompt, Format: format})
 		fn := f.generateFunc
@@ -185,7 +185,7 @@ func InstallOllama(t testing.TB) *Ollama {
 		return fn(prompt, format)
 	}
 
-	ollama.Embed = func(baseURL, model, text string) ([]float32, error) {
+	ollama.Embed = func(baseURL, model, text string, timeoutMs int) ([]float32, error) {
 		f.mu.Lock()
 		fn := f.embedFunc
 		f.mu.Unlock()
