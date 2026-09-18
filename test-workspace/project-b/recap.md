@@ -61,7 +61,7 @@ func Lib() {}
 
 #### NATIVE TEST EXECUTION
 ```
-go: cannot find main module, but found .git/config in /home/bastien/work/skill
+go: cannot find main module, but found .git/config in /home/bastien/work/atd
 	to create a module there, run:
 	cd ../.. && go mod init
 
@@ -93,7 +93,7 @@ func Lib() {}
 
 #### NATIVE TEST EXECUTION
 ```
-go: cannot find main module, but found .git/config in /home/bastien/work/skill
+go: cannot find main module, but found .git/config in /home/bastien/work/atd
 	to create a module there, run:
 	cd ../.. && go mod init
 

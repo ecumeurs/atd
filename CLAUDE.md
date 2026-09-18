@@ -39,7 +39,7 @@ Every layer validates the one below it:
 ### Project Configuration
 - **Docs Path**: `docs/`
 - **Code Paths**: `upsilonapi/`, `upsilonbattle/`, `battleui/`, `upsiloncli/`
-- **ATD Tools**: Located at `/home/bastien/work/skill/` (accessed via MCP)
+- **ATD Tools**: Located at `/home/bastien/work/atd/` (accessed via MCP)
 
 ### Type System
 

@@ -61,6 +61,6 @@ This seems to be a regression from previous stable states (possibly related to r
 
 ## References
 
-- [ISS-064: Search Regression (Older)](file:///home/bastien/work/skill/issues/ISS-064_20260403_webui_search_regression_and_perf.md)
-- [ISS-061: Doc Gen Bugs (Older)](file:///home/bastien/work/skill/issues/ISS-061_20260402_webui_document_generation_bugs.md)
-- [scripts/pkg/webui/static/js/search.js](file:///home/bastien/work/skill/scripts/pkg/webui/static/js/search.js)
+- [ISS-064: Search Regression (Older)](file:///home/bastien/work/atd/issues/ISS-064_20260403_webui_search_regression_and_perf.md)
+- [ISS-061: Doc Gen Bugs (Older)](file:///home/bastien/work/atd/issues/ISS-061_20260402_webui_document_generation_bugs.md)
+- [scripts/pkg/webui/static/js/search.js](file:///home/bastien/work/atd/scripts/pkg/webui/static/js/search.js)

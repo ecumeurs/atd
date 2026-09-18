@@ -55,6 +55,6 @@ The ATD linter is designed to ensure that all `.atom.md` files contain mandatory
 
 ## References
 
-- [parse.go](file:///home/bastien/work/skill/scripts/pkg/atom/parse.go)
-- [lint.go](file:///home/bastien/work/skill/scripts/cmd/atd/cmd/lint.go)
+- [parse.go](file:///home/bastien/work/atd/scripts/pkg/atom/parse.go)
+- [lint.go](file:///home/bastien/work/atd/scripts/cmd/atd/cmd/lint.go)
 - [Implementation Plan](file:///home/bastien/.gemini/antigravity/brain/ba71aad7-ea04-442b-b082-bd6aa329d02c/implementation_plan.md)

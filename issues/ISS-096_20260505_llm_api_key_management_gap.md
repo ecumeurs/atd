@@ -55,6 +55,6 @@ The WebUI was recently updated to support OpenAI-compatible providers. To avoid 
 
 ## References
 
-- [config.go](file:///home/bastien/work/skill/atd/config/config.go)
-- [openai.go](file:///home/bastien/work/skill/atd/pkg/chat/openai.go)
-- [handlers_llm.go](file:///home/bastien/work/skill/atd/pkg/webui/handlers_llm.go)
+- [config.go](file:///home/bastien/work/atd/atd/config/config.go)
+- [openai.go](file:///home/bastien/work/atd/atd/pkg/chat/openai.go)
+- [handlers_llm.go](file:///home/bastien/work/atd/atd/pkg/webui/handlers_llm.go)

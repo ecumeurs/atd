@@ -69,5 +69,5 @@ This requires new UI in `webui/static/js/details.js` and a new modal component.
 
 ## References
 
-- [details.js](file:///home/bastien/work/skill/scripts/pkg/webui/static/js/details.js)
-- [README.md](file:///home/bastien/work/skill/scripts/pkg/webui/README.md)
+- [details.js](file:///home/bastien/work/atd/scripts/pkg/webui/static/js/details.js)
+- [README.md](file:///home/bastien/work/atd/scripts/pkg/webui/README.md)

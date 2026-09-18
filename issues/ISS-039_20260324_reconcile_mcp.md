@@ -53,5 +53,5 @@ The Reconciler sub-mode is described in the skill documentation as a way to matc
 
 ## References
 
-- [ATD.md §3.2.8](file:///home/bastien/work/skill/ATD.md)
-- [atd_reconcile.atom.md](file:///home/bastien/work/skill/docs/atd_reconcile.atom.md)
+- [ATD.md §3.2.8](file:///home/bastien/work/atd/ATD.md)
+- [atd_reconcile.atom.md](file:///home/bastien/work/atd/docs/atd_reconcile.atom.md)
