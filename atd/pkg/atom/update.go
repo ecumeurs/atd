@@ -138,7 +138,7 @@ func Update(opts UpdateOptions) (string, error) {
 
 	if newID != "" && atomType != "" {
 		prefix := strings.ToLower(atomType) + "_"
-		if !strings.HasPrefix(newID, prefix) {
+		if !strings.HasPrefix(newID, prefix) && !hasAbbreviatedTypePrefix(newID, atomType) {
 			parts := strings.FieldsFunc(newID, func(r rune) bool {
 				return !unicode.IsLetter(r) && !unicode.IsNumber(r)
 			})
@@ -239,6 +239,14 @@ func Update(opts UpdateOptions) (string, error) {
 	// 2. Process Body Sections
 	var newBody []string
 	currentSection := 0 // SecNone equivalent
+	// sectionFound tracks, per section id (1..4), whether a matching "## ..."
+	// header was actually present in the file and rewritten with the supplied
+	// text. Used below to append a fallback header for any supplied text whose
+	// section is missing from the file entirely, and to gate the "updated body
+	// sections" success message on real work rather than just "was a flag
+	// passed" (see
+	// failures/20260917_atd_update_expectation_no_ops_when_section_header_missing.md).
+	var sectionFound [5]bool
 
 	isTargetHeader := func(line string) int {
 		if strings.HasPrefix(line, "## INTENT") { return 1 }
@@ -254,10 +262,10 @@ func Update(opts UpdateOptions) (string, error) {
 			currentSection = sec
 			newBody = append(newBody, line)
 			switch sec {
-			case 1: if intentText != "" { newBody = append(newBody, strings.TrimSpace(intentText), "") }
-			case 2: if logicText != "" { newBody = append(newBody, strings.TrimSpace(logicText), "") }
-			case 3: if interfaceText != "" { newBody = append(newBody, strings.TrimSpace(interfaceText), "") }
-			case 4: if expectationText != "" { newBody = append(newBody, strings.TrimSpace(expectationText), "") }
+			case 1: if intentText != "" { newBody = append(newBody, strings.TrimSpace(intentText), ""); sectionFound[1] = true }
+			case 2: if logicText != "" { newBody = append(newBody, strings.TrimSpace(logicText), ""); sectionFound[2] = true }
+			case 3: if interfaceText != "" { newBody = append(newBody, strings.TrimSpace(interfaceText), ""); sectionFound[3] = true }
+			case 4: if expectationText != "" { newBody = append(newBody, strings.TrimSpace(expectationText), ""); sectionFound[4] = true }
 			}
 			continue
 		} else if strings.HasPrefix(line, "## ") {
@@ -279,6 +287,30 @@ func Update(opts UpdateOptions) (string, error) {
 			newBody = append(newBody, line)
 		}
 	}
+
+	// Fallback: a section whose text was supplied but had no matching header
+	// anywhere in the file gets a brand-new "## HEADER" appended with the
+	// text, instead of silently no-opping.
+	sectionHeaders := map[int]string{
+		1: "## INTENT",
+		2: "## THE RULE / LOGIC",
+		3: "## TECHNICAL INTERFACE",
+		4: "## EXPECTATION",
+	}
+	appendMissingSection := func(sec int, text string) {
+		if text == "" || sectionFound[sec] {
+			return
+		}
+		if len(newBody) > 0 && newBody[len(newBody)-1] != "" {
+			newBody = append(newBody, "")
+		}
+		newBody = append(newBody, sectionHeaders[sec], strings.TrimSpace(text), "")
+		sectionFound[sec] = true
+	}
+	appendMissingSection(1, intentText)
+	appendMissingSection(2, logicText)
+	appendMissingSection(3, interfaceText)
+	appendMissingSection(4, expectationText)
 
 	// 3. Keep the H1 title in sync with human_name.
 	// The blank-file template seeds "# New Atom" as a placeholder; without this
@@ -322,7 +354,7 @@ func Update(opts UpdateOptions) (string, error) {
 	}
 	logMsg := fmt.Sprintf("%s atom id=%s (%s)", action, finalID, filepath.Base(targetPath))
 	if len(updates) > 0 { logMsg += fmt.Sprintf(" | set: %d keys", len(updates)) }
-	if intentText != "" || logicText != "" || interfaceText != "" || expectationText != "" {
+	if sectionFound[1] || sectionFound[2] || sectionFound[3] || sectionFound[4] {
 		logMsg += " | updated body sections"
 	}
 	if renamed { logMsg += fmt.Sprintf(" | renamed from %s", filepath.Base(opts.FilePath)) }
@@ -363,6 +395,23 @@ func ApplySpecLink(id, file string) error {
 		return fmt.Errorf("failed to write %s: %v", file, err)
 	}
 	return nil
+}
+
+// hasAbbreviatedTypePrefix reports whether id's leading snake_case segment
+// looks like an intentional (if abbreviated) type prefix for atomType — e.g.
+// "mech" for MECHANIC, "req" for REQUIREMENT, "uc"/"us" for USER_STORY. This
+// is a loose, case-insensitive check: the segment must be non-empty and the
+// full lowercased type name must start with it. When true, Update must leave
+// the id as given rather than prepending the full type prefix on top of it,
+// which would otherwise double-prefix ids like "mech_economy_purge" into
+// "mechanic_mech_economy_purge" (see
+// failures/20260917_atd_update_double_prefixes_id_that_already_starts_with_type_abbreviation.md).
+func hasAbbreviatedTypePrefix(id, atomType string) bool {
+	segment, _, found := strings.Cut(id, "_")
+	if !found || segment == "" {
+		return false
+	}
+	return strings.HasPrefix(strings.ToLower(atomType), strings.ToLower(segment))
 }
 
 // frontmatterValue returns the trimmed value for a given top-level frontmatter
