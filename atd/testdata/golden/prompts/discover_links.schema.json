@@ -1,18 +1,17 @@
 {
+  "type": "object",
   "properties": {
-    "rationale": {
-      "type": "string"
-    },
     "recommendations": {
+      "type": "array",
       "items": {
         "type": "string"
-      },
-      "type": "array"
+      }
+    },
+    "rationale": {
+      "type": "string"
     }
   },
   "required": [
-    "recommendations",
-    "rationale"
-  ],
-  "type": "object"
+    "recommendations"
+  ]
 }
