@@ -74,9 +74,8 @@ Still open (not touched by this batch, left in `failures/`):
 
 ## 2026-09-18 — Third batch: `atd congruence` bare-verdict + `--workspace`
 
-Fixed this batch and removed from `failures/` as fully processed (changes
-staged/unstaged, not yet committed -- see the commit created from this work
-for the final hashes):
+Fixed this batch and removed from `failures/` as fully processed (commit
+9346922, branch `fix/atom-update-h1-title`):
 - `atd congruence` no longer accepts a bare, title-only `audit_report` as a
   complete result when `is_congruent` is `false`. `pkg/prompt.CongruenceFormat`
   now declares a structured `findings` array (`atom_id` / `section` /
