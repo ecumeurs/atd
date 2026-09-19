@@ -9,8 +9,20 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
+
+// mu guards every read and write of ActiveConfig below. ActiveConfig is a
+// package-level global that tests reload/restore concurrently under
+// t.Parallel() (see pkg/testutil's configMu, which serializes the
+// load-then-invoke critical section for its own Sandbox/Run helpers) and
+// that production code paths (webui, MCP tools, CLI commands) can also
+// touch from more than one goroutine. Every exported function that reads or
+// writes ActiveConfig takes this lock for the duration of that access; nothing
+// below calls another locking function while already holding mu, to avoid
+// self-deadlock on the non-reentrant RWMutex.
+var mu sync.RWMutex
 
 var ActiveConfig Config
 
@@ -175,6 +187,8 @@ const DefaultGenerateTimeoutMs = 120000
 // ollama.Generate/ollama.Embed HTTP call, falling back to
 // DefaultGenerateTimeoutMs when unset or invalid.
 func GetGenerateTimeoutMs() int {
+	mu.RLock()
+	defer mu.RUnlock()
 	if ActiveConfig.LLM.GenerateTimeoutMs <= 0 {
 		return DefaultGenerateTimeoutMs
 	}
@@ -238,6 +252,8 @@ func findATDConfigFile() string {
 }
 
 func GetCodePaths() []string {
+	mu.RLock()
+	defer mu.RUnlock()
 	if len(ActiveConfig.CodePaths) == 0 {
 		// Default to current directory
 		cwd, _ := os.Getwd()
@@ -251,6 +267,8 @@ func DocsDir() string {
 }
 
 func GetDiscoveryMethod() DiscoveryMethod {
+	mu.RLock()
+	defer mu.RUnlock()
 	if ActiveConfig.DiscoveryMethod == "" {
 		return DiscoveryMethodWalk
 	}
@@ -258,6 +276,8 @@ func GetDiscoveryMethod() DiscoveryMethod {
 }
 
 func GetOrphanExcludedTypes() map[string]bool {
+	mu.RLock()
+	defer mu.RUnlock()
 	if ActiveConfig.OrphanExcludedTypes == nil {
 		return map[string]bool{
 			"MODULE":      true,
@@ -272,14 +292,20 @@ func GetOrphanExcludedTypes() map[string]bool {
 }
 
 func SetHierarchicalOrphanCheck(enabled bool) {
+	mu.Lock()
+	defer mu.Unlock()
 	ActiveConfig.HierarchicalOrphanCheck = enabled
 }
 
 func SetBusinessLayerException(enabled bool) {
+	mu.Lock()
+	defer mu.Unlock()
 	ActiveConfig.BusinessLayerException = enabled
 }
 
 func GetGitignorePatterns() []string {
+	mu.RLock()
+	defer mu.RUnlock()
 	return ActiveConfig.GitignorePatterns
 }
 
@@ -287,6 +313,8 @@ func SetMaxDepth(depth int) error {
 	if depth < 1 || depth > 50 {
 		return fmt.Errorf("max_depth must be between 1 and 50")
 	}
+	mu.Lock()
+	defer mu.Unlock()
 	ActiveConfig.MaxDepth = depth
 	return nil
 }
@@ -304,6 +332,9 @@ func LoadLegacy() error {
 
 // LoadFromDirLegacy looks for .atd starting from dir and up to root.
 func LoadFromDirLegacy(dir string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
 	// Defaults
 	ActiveConfig = Config{
 		DiffSimilarityThreshold: 0.85,
@@ -424,6 +455,9 @@ func LoadFromDirLegacy(dir string) error {
 
 // SetProject overrides the active project and reloads its config if needed.
 func SetProject(name string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
 	if ActiveConfig.Workspace == nil {
 		return fmt.Errorf("no workspace active")
 	}
@@ -489,14 +523,18 @@ func LoadWorkspaceConfig(startDir string) (*WorkspaceConfig, error) {
 
 // Log writes a concise trace to the configured log_path.
 func Log(toolName string, message string) {
-	if ActiveConfig.Logging.LogPath == "" {
+	mu.RLock()
+	logPath := ActiveConfig.Logging.LogPath
+	loadedFromDir := ActiveConfig.loadedFromDir
+	mu.RUnlock()
+
+	if logPath == "" {
 		return
 	}
 
 	// Resolve actual log path relative to where .atd was found, if not absolute
-	logPath := ActiveConfig.Logging.LogPath
-	if !filepath.IsAbs(logPath) && ActiveConfig.loadedFromDir != "" {
-		logPath = filepath.Join(ActiveConfig.loadedFromDir, logPath)
+	if !filepath.IsAbs(logPath) && loadedFromDir != "" {
+		logPath = filepath.Join(loadedFromDir, logPath)
 	} else if !filepath.IsAbs(logPath) {
 		cwd, _ := os.Getwd()
 		logPath = filepath.Join(cwd, logPath)
@@ -529,6 +567,8 @@ func Log(toolName string, message string) {
 
 // GetBloatingStrictness returns either the type override or default
 func GetBloatingStrictness(atomType string) float64 {
+	mu.RLock()
+	defer mu.RUnlock()
 	if val, ok := ActiveConfig.BloatingFactor.TypeOverrides[atomType]; ok {
 		return val
 	}
@@ -555,6 +595,8 @@ func GetVerifyDefaults(ext string) (string, string) {
 }
 
 func ProjectRoot() string {
+	mu.RLock()
+	defer mu.RUnlock()
 	return ActiveConfig.loadedFromDir
 }
 
@@ -564,6 +606,8 @@ func ProjectRoot() string {
 // fix, bulk edits) should refuse or loudly warn when this is true — see
 // test_atd_07_26.md §3.6 (P-1).
 func LoadedFromFallback() bool {
+	mu.RLock()
+	defer mu.RUnlock()
 	return ActiveConfig.loadedFromFallback
 }
 
@@ -578,11 +622,15 @@ func LoadedFromFallback() bool {
 //	saved := config.Snapshot()
 //	t.Cleanup(func() { config.Restore(saved) })
 func Snapshot() Config {
+	mu.RLock()
+	defer mu.RUnlock()
 	return ActiveConfig
 }
 
 // Restore sets ActiveConfig back to a value previously captured by Snapshot.
 func Restore(snap Config) {
+	mu.Lock()
+	defer mu.Unlock()
 	ActiveConfig = snap
 }
 
@@ -613,6 +661,8 @@ func IndexDBPath(docsDir string) string {
 }
 
 func DocsDirLegacy() string {
+	mu.RLock()
+	defer mu.RUnlock()
 	p := ActiveConfig.DocsDir
 	if p == "" {
 		p = ActiveConfig.DocsPath // Fall back to legacy field
@@ -634,6 +684,8 @@ func SrcDir() string {
 	if len(paths) > 0 {
 		return paths[0]
 	}
+	mu.RLock()
+	defer mu.RUnlock()
 	return ActiveConfig.loadedFromDir
 }
 
@@ -646,6 +698,9 @@ func ModelForTask(taskType string) []string {
 		priority int
 	}
 	var candidates []candidate
+
+	mu.RLock()
+	defer mu.RUnlock()
 
 	for modelName, mc := range ActiveConfig.LLM.Models {
 		for _, t := range mc.Tasks {

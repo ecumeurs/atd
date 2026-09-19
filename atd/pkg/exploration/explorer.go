@@ -17,13 +17,34 @@ var (
 )
 
 func NewExplorer(root, docsDir string) *Explorer {
-	return NewExplorerWithConfig(root, docsDir, &config.ActiveConfig)
+	// config.Snapshot() takes config.ActiveConfig's lock and returns a value
+	// copy, unlike &config.ActiveConfig which aliases the live, mutable
+	// global. See the comment in NewExplorerWithConfig for why a copy is
+	// required here regardless of what the caller passes in.
+	snap := config.Snapshot()
+	return NewExplorerWithConfig(root, docsDir, &snap)
 }
 
 func NewExplorerWithConfig(root, docsDir string, cfg *config.Config) *Explorer {
 	if cfg == nil {
-		cfg = &config.ActiveConfig
+		snap := config.Snapshot()
+		cfg = &snap
 	}
+	// Take our own copy rather than keeping cfg's pointer. An Explorer
+	// routinely outlives the call that constructed it -- WalkUp/WalkDown
+	// (via configuredMaxDepth) read through e.Config well after construction
+	// returns. If e.Config still aliased a mutable Config (the live global,
+	// or a pointer some other caller keeps mutating), any later
+	// config.Restore/Load from another goroutine (e.g. a t.Parallel() test's
+	// cleanup) would race with that read even though the copy here executes
+	// under whatever lock the caller holds. A shallow copy is enough: no
+	// Explorer code writes through e.Config, and the fields it does read
+	// (MaxDepth, BusinessLayerException, HierarchicalOrphanCheck,
+	// SupportedExtensions) are never mutated in place -- config.Restore/Load
+	// always swap in a whole new Config value rather than editing the old
+	// one, so the copied map headers stay valid.
+	cfgCopy := *cfg
+	cfg = &cfgCopy
 
 	if root == "" {
 		root = config.ProjectRoot()

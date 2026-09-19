@@ -50,7 +50,8 @@ type SearchOptions struct {
 }
 
 func Search(opts SearchOptions) ([]SearchResult, error) {
-	return SearchWithConfig(opts, &config.ActiveConfig)
+	snap := config.Snapshot()
+	return SearchWithConfig(opts, &snap)
 }
 
 func SearchWithConfig(opts SearchOptions, cfg *config.Config) ([]SearchResult, error) {
@@ -83,7 +84,8 @@ func SearchWithConfig(opts SearchOptions, cfg *config.Config) ([]SearchResult, e
 }
 
 func WorkspaceSearch(opts SearchOptions) ([]SearchResult, error) {
-	return WorkspaceSearchWithConfig(opts, &config.ActiveConfig)
+	snap := config.Snapshot()
+	return WorkspaceSearchWithConfig(opts, &snap)
 }
 
 func WorkspaceSearchWithConfig(opts SearchOptions, cfg *config.Config) ([]SearchResult, error) {
@@ -149,7 +151,8 @@ func WorkspaceSearchWithConfig(opts SearchOptions, cfg *config.Config) ([]Search
 }
 
 func GrepSearch(keyword, root, projectName string) ([]SearchResult, error) {
-	return GrepSearchWithConfig(keyword, root, projectName, &config.ActiveConfig)
+	snap := config.Snapshot()
+	return GrepSearchWithConfig(keyword, root, projectName, &snap)
 }
 
 func GrepSearchWithConfig(keyword, root, projectName string, cfg *config.Config) ([]SearchResult, error) {
