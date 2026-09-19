@@ -36,6 +36,14 @@ func init() {
 	traceCmd.Flags().String("docs", "", "Override docs directory")
 	traceCmd.Flags().String("src", "", "Override source directory (defaults to project root)")
 	traceCmd.Flags().Bool("summary", false, "Generate a narrative contextual summary via LLM")
+	// TODO(workspace): registered to match audit/crawl/stats/weave/congruence
+	// (failures/20260917_atd_congruence_empty_verdict_and_no_workspace_resolution.md
+	// Problem 2), but runTrace's RunE does not yet read it -- exploration.NewExplorer
+	// already auto-detects an enclosing workspace via config.ProjectRoot(), so a bare
+	// (unqualified) id resolves today; wiring an explicit "project:atom_id" qualified
+	// lookup through runTrace the way congruence.go's resolveCongruenceTarget does is
+	// left as follow-up work, not attempted here.
+	traceCmd.Flags().Bool("workspace", false, "Reserved: resolve a workspace-qualified target id (not yet wired into RunE)")
 }
 
 func runTrace(targetID, docsDir, srcPath string, summary bool) (string, error) {

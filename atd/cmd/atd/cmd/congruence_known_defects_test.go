@@ -1,14 +1,26 @@
 package cmd
 
-// KNOWN DEFECT pins for failures/20260917_atd_congruence_empty_verdict_and_no_workspace_resolution.md.
+// KNOWN DEFECT pins (now partly FIXED) for
+// failures/20260917_atd_congruence_empty_verdict_and_no_workspace_resolution.md.
 //
 // The report claimed two problems: (1) `atd congruence` accepts a bare,
 // title-only "audit_report" as a complete result even when is_congruent is
 // false, giving the caller nothing to act on, and (2) both a bare-verdict
 // run and a target-not-found run "exited 0 despite failing." Investigation
-// against the current source (congruence.go) confirms (1) but not (2): see
-// TestCongruenceRun_TargetNotFound_ReturnsError below for why the exit-0
-// claim does not reproduce from this file as written today.
+// against the then-current source (congruence.go) confirmed (1) but not (2):
+// see TestCongruenceRun_TargetNotFound_ReturnsError below for why the exit-0
+// claim did not reproduce from this file as written at the time.
+//
+// FIXED (1): congruence.go's RunE now parses resp.Response and rejects
+// (non-nil error) an is_congruent:false response whose findings array is
+// missing or empty, per the schema pkg/prompt/congruence.go's
+// CongruenceFormat() now declares (pkg/prompt/congruence_findings_test.go)
+// and the RunE-level contract cmd/atd/cmd/congruence_findings_test.go pins.
+// TestCongruenceLLM_KnownDefect_BareVerdictAccepted below -- which pinned
+// the old accept-a-bare-verdict behavior -- is flipped to
+// TestCongruenceLLM_BareVerdictRejected_Fixed, asserting the new rejection,
+// per this file's own original instruction to flip rather than delete once
+// validation landed.
 
 import (
 	"os"
@@ -51,19 +63,16 @@ func congruenceSandboxDocs(t *testing.T, targetID string) (docsDir string) {
 // captureStdout is defined in reconcile_llm_test.go (same package) and
 // reused here rather than duplicated.
 
-// TestCongruenceLLM_KnownDefect_BareVerdictAccepted pins the report's core
-// finding: congruence.go's RunE (congruence.go:126-149) never parses or
-// validates resp.Response at all — it does `fmt.Println(resp.Response)` and
-// returns nil unconditionally. A title-only "audit_report" string with
-// is_congruent: false — no findings, no named contradicting atom, no
-// section reference — is therefore accepted as a complete, successful
-// result exactly as readily as a real findings body would be.
-//
-// KNOWN DEFECT: if this test starts failing because RunE now returns a
-// non-nil error (or prints a warning) for a congruent-false response with an
-// empty/title-only audit_report, that means validation was added — flip
-// this pin to a positive assertion instead of relaxing it blindly.
-func TestCongruenceLLM_KnownDefect_BareVerdictAccepted(t *testing.T) {
+// TestCongruenceLLM_BareVerdictRejected_Fixed replaces
+// TestCongruenceLLM_KnownDefect_BareVerdictAccepted now that RunE validates
+// resp.Response: a title-only "audit_report" string with is_congruent:
+// false and no "findings" key at all -- no named contradicting atom, no
+// section reference -- must now be REJECTED (non-nil error), not printed
+// and accepted as a complete result. See the FIXED note in this file's
+// header and cmd/atd/cmd/congruence_findings_test.go's
+// TestCongruenceRun_RejectsIncongruentWithoutFindings, which pins the same
+// contract with additional cases.
+func TestCongruenceLLM_BareVerdictRejected_Fixed(t *testing.T) {
 	docsDir := congruenceSandboxDocs(t, "req_bare_verdict_target")
 	fake := fakeprovider.InstallOllama(t)
 	fake.SetJSON(`{"audit_report": "System Congruence Verification", "is_congruent": false}`)
@@ -75,18 +84,12 @@ func TestCongruenceLLM_KnownDefect_BareVerdictAccepted(t *testing.T) {
 		congruenceCmd.Flags().Set("docs", "")
 	})
 
-	stdout, runErr := captureStdout(t, func() error {
+	_, runErr := captureStdout(t, func() error {
 		return congruenceCmd.RunE(congruenceCmd, []string{})
 	})
 
-	if runErr != nil {
-		t.Fatalf("KNOWN DEFECT expectation changed: RunE now rejects a bare title-only audit_report (err: %v) — validation must have been added; flip this pin to assert the error instead", runErr)
-	}
-	if !strings.Contains(stdout, `"is_congruent": false`) {
-		t.Fatalf("expected the bare verdict JSON to be printed verbatim to stdout, got: %q", stdout)
-	}
-	if strings.Contains(stdout, "INTENT") || strings.Contains(stdout, "LOGIC") || strings.Contains(stdout, "contradict") {
-		t.Fatalf("KNOWN DEFECT expectation changed: output now contains findings detail beyond the bare title (got: %q) — RunE must be validating/enriching the response now; flip this pin", stdout)
+	if runErr == nil {
+		t.Fatal("expected RunE to reject a bare title-only audit_report with no findings (is_congruent: false), got nil error")
 	}
 }
 

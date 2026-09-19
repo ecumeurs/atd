@@ -278,8 +278,24 @@ func (s *SB) Run(fn func() (string, error)) Result {
 	configMu.Lock()
 	defer configMu.Unlock()
 
+	// config.LoadFromDir below replaces config.ActiveConfig wholesale from
+	// whatever the sandbox's own .atd declares -- sandbox fixtures normally
+	// have no "llm" section of their own, so a fresh load silently wipes out
+	// LLM provider config a test installed beforehand (e.g.
+	// fakeprovider.InstallOllama, which points config.ActiveConfig.LLM at a
+	// fake provider so ollama.Query never makes a real network call). Without
+	// this, every such call would fall through provider resolution into IDE
+	// fallback instead of reaching the fake. Preserve the pre-Run LLM config
+	// only when the freshly loaded one is empty, so a fixture that legitimately
+	// declares its own "llm" section still wins.
+	prevLLM := config.ActiveConfig.LLM
+
 	if err := config.LoadFromDir(s.Root); err != nil {
 		return Result{Err: fmt.Errorf("testutil: config.LoadFromDir(%s): %w", s.Root, err)}
+	}
+
+	if len(config.ActiveConfig.LLM.Providers) == 0 && len(prevLLM.Providers) > 0 {
+		config.ActiveConfig.LLM = prevLLM
 	}
 
 	out, err := fn()

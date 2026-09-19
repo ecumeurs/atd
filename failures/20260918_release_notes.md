@@ -71,3 +71,28 @@ Reports removed as fully processed by this batch:
 Still open (not touched by this batch, left in `failures/`):
 - `20260917_atd_congruence_empty_verdict_and_no_workspace_resolution.md` —
   deferred pending a policy decision, out of scope for this round.
+
+## 2026-09-18 — Third batch: `atd congruence` bare-verdict + `--workspace`
+
+Fixed this batch and removed from `failures/` as fully processed (changes
+staged/unstaged, not yet committed -- see the commit created from this work
+for the final hashes):
+- `atd congruence` no longer accepts a bare, title-only `audit_report` as a
+  complete result when `is_congruent` is `false`. `pkg/prompt.CongruenceFormat`
+  now declares a structured `findings` array (`atom_id` / `section` /
+  `contradiction` per entry) and `CongruenceBuild`'s instruction requires it
+  to be non-empty whenever `is_congruent` is `false`; `congruence.go`'s
+  `RunE` parses the LLM response and rejects (non-nil error) any
+  `is_congruent: false` verdict whose `findings` array is missing or empty,
+  instead of printing it and returning `nil`.
+- `atd congruence` gained a `--workspace` flag: a `project:atom_id`
+  `--target` now resolves against that project's own docs directory (via
+  `config.ActiveConfig.Workspace`), matching the existing `--workspace`
+  pattern on `audit`/`crawl`/`stats`/`weave`. `atd trace` also gained the
+  `--workspace` flag for consistency, but it is registered only -- `RunE`
+  does not yet wire it into a qualified-id lookup (a bare id already
+  resolves via `exploration.NewExplorer`'s own workspace auto-detection);
+  this is left as explicit follow-up work, not attempted in this batch.
+
+Reports removed as fully processed by this batch:
+- `20260917_atd_congruence_empty_verdict_and_no_workspace_resolution.md`
