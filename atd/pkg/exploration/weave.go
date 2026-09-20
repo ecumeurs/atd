@@ -71,14 +71,31 @@ func (e *Explorer) weaveSingleProject() (string, error) {
 	}
 
 	edited := 0
+	var preserved []string
+	finalDeps := make(map[string][]string, len(e.Graph.Atoms))
 	for id, a := range e.Graph.Atoms {
 		if a.FilePath == "" {
 			continue
 		}
 		// Look up dependents by raw id only — we are explicitly NOT prefixing
 		// in single-project mode.
-		deps := parentToDependents[id]
+		deps := append([]string(nil), parentToDependents[id]...)
+
+		// A pre-existing dependents: entry naming another project
+		// ("proj:atom_id") is outside what single-project mode can verify —
+		// it never resolves any parent ref beyond this project's own graph
+		// (see the "legacy path" doc comment above). Recomputing from scratch
+		// would silently drop it, so it's carried over verbatim instead of
+		// being treated as dead weight, and named in the result text.
+		for _, d := range a.Dependents {
+			if strings.Contains(d, ":") {
+				deps = append(deps, d)
+				preserved = append(preserved, fmt.Sprintf("%s dependents: [[%s]] -- cross-project reference outside single-project weave's scope, left untouched", id, d))
+			}
+		}
+		deps = dedupeStrings(deps)
 		sort.Strings(deps)
+		finalDeps[id] = deps
 
 		// Pass nil (leave parents untouched) unless this atom actually holds a
 		// forbidden link — otherwise every atom's parents: would be re-sorted
@@ -100,13 +117,29 @@ func (e *Explorer) weaveSingleProject() (string, error) {
 
 	// Refresh in-memory graph dependents.
 	for id, a := range e.Graph.Atoms {
-		a.Dependents = parentToDependents[id]
+		a.Dependents = finalDeps[id]
 	}
 
 	result := fmt.Sprintf("Link Weaving Complete. Updated %d files.", edited)
 	result += formatStrippedGovernanceLinks(stripped)
+	result += formatPreservedDependentsLinks(preserved)
 	config.Log("atd-weave", result)
 	return result, nil
+}
+
+// dedupeStrings returns refs with duplicate entries removed, preserving the
+// first occurrence's order (callers sort afterward).
+func dedupeStrings(refs []string) []string {
+	seen := make(map[string]bool, len(refs))
+	out := make([]string, 0, len(refs))
+	for _, r := range refs {
+		if seen[r] {
+			continue
+		}
+		seen[r] = true
+		out = append(out, r)
+	}
+	return out
 }
 
 // stripGovernanceParents returns the atom's parents: with every forbidden
@@ -146,6 +179,24 @@ func formatStrippedGovernanceLinks(stripped []string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "\nRemoved %d forbidden governance link(s) (ATD.md §1.4):", len(stripped))
 	for _, s := range stripped {
+		fmt.Fprintf(&b, "\n  - %s", s)
+	}
+	return b.String()
+}
+
+// formatPreservedDependentsLinks renders the notes for dependents: entries
+// weave carried over verbatim instead of recomputing, because it could not
+// verify them this run. Weave rebuilds dependents: from resolvable edges only;
+// without this, anything it failed to re-derive would be dropped silently, so
+// each kept-but-unverified entry is named instead.
+func formatPreservedDependentsLinks(preserved []string) string {
+	if len(preserved) == 0 {
+		return ""
+	}
+	sort.Strings(preserved)
+	var b strings.Builder
+	fmt.Fprintf(&b, "\nKept %d dependents link(s) weave could not verify this run (left in place, not re-derived):", len(preserved))
+	for _, s := range preserved {
 		fmt.Fprintf(&b, "\n  - %s", s)
 	}
 	return b.String()
@@ -209,6 +260,7 @@ func (e *Explorer) weaveWorkspace() (string, error) {
 	// 2. Rewrite each atom file: canonicalize parents, refresh dependents.
 	edited := 0
 	var stripped []string
+	var preserved []string
 	for canonical, ctx := range atomsByCanonical {
 		a := ctx.Parsed
 		loc := ctx.Loc
@@ -254,6 +306,29 @@ func (e *Explorer) weaveWorkspace() (string, error) {
 			}
 		}
 
+		// A pre-existing dependents: entry that this run's resolver can't
+		// resolve is NOT proof the edge is dead -- it may just mean the
+		// declaring project isn't in scope this run, or the reference is
+		// otherwise unverifiable right now. Recomputing from scratch would
+		// silently drop it (the original tool-bug shape), so any such entry
+		// is carried over verbatim and named in the result text instead.
+		if selfGovernance {
+			// A governance atom is graph-isolated (ATD.md §1.4): it never
+			// legitimately holds dependents, so nothing here is worth
+			// preserving -- an entry on it would itself be the bug, not a
+			// resolve failure.
+		} else {
+			for _, d := range a.Dependents {
+				if _, err := projResolver.Resolve(d); err == nil {
+					continue // resolvable: the recomputed list above is authoritative for it
+				}
+				newDeps = append(newDeps, fmt.Sprintf("[[%s]]", d))
+				preserved = append(preserved, fmt.Sprintf("%s:%s dependents: [[%s]] -- could not verify this run, left in place", loc.Project, ctx.AtomID, d))
+			}
+			newDeps = dedupeStrings(newDeps)
+			sort.Strings(newDeps)
+		}
+
 		changed, err := rewriteAtomLinks(loc.Path, newParents, newDeps, loc.Project)
 		if err != nil {
 			return "", err
@@ -265,6 +340,7 @@ func (e *Explorer) weaveWorkspace() (string, error) {
 
 	result := fmt.Sprintf("Workspace Link Weaving Complete. Updated %d files.", edited)
 	result += formatStrippedGovernanceLinks(stripped)
+	result += formatPreservedDependentsLinks(preserved)
 	config.Log("atd-weave", result)
 	return result, nil
 }
