@@ -13,7 +13,7 @@ type: SERVICE
 layer: ARCHITECTURE
 ---
 
-# New Atom
+# VS Code ATD UI Components
 
 ## INTENT
 Orchestrate ATD-specific UI components including the Sidebar Explorer and the Webview Graph.

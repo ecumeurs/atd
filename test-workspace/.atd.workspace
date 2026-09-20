@@ -1,6 +1,6 @@
 {
   "workspace_name": "test-workspace",
-  "workspace_root": "/home/bastien/work/skill/test-workspace",
+  "workspace_root": "/home/bastien/work/atd/test-workspace",
   "projects": [
     {
       "name": "project-a",

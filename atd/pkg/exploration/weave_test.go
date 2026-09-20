@@ -191,6 +191,180 @@ func TestWeaveSingleProject_PropagatesNewParentIntoDependents(t *testing.T) {
 	}
 }
 
+// TestWeaveSingleProject_StripsGovernanceLinks pins weave's repair half of the
+// governance graph-isolation rule (ATD.md §1.4, the rule `atd lint` reports on):
+// a CONTRACT/VISION named as someone's parent is dropped from that parents:
+// block, a governance atom's own parents: are emptied, and neither side is left
+// with a dependents: entry for the removed edge. Every removal is named in the
+// result text — weave rewrites files in place, so nothing is dropped silently.
+// @test-link [[rule_atd_governance_graph_isolation]]
+func TestWeaveSingleProject_StripsGovernanceLinks(t *testing.T) {
+	t.Parallel()
+	sb := testutil.Sandbox(t, "fixture_project")
+
+	mk := func(name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(sb.DocsDir, name), []byte(body), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// contract_zzgov itself points UP at an ordinary atom (forbidden), and
+	// rule_zzgov points at the contract (also forbidden).
+	mk("contract_zzgov.atom.md", "---\nid: contract_zzgov\nhuman_name: \"zzgov Contract\"\ntype: CONTRACT\nstatus: STABLE\nlayer: BUSINESS\nparents:\n  - [[api_zzfix_beta]]\ndependents: []\n---\n\n# zzgov Contract\n")
+	mk("rule_zzgov.atom.md", "---\nid: rule_zzgov\nhuman_name: \"zzgov Rule\"\ntype: RULE\nstatus: DRAFT\nlayer: BUSINESS\nparents:\n  - [[contract_zzgov]]\n  - [[api_zzfix_beta]]\ndependents: []\n---\n\n# zzgov Rule\n")
+
+	explorer := loadExplorerFromSandbox(t, sb)
+	res := sb.Run(explorer.weaveSingleProject)
+	if res.Err != nil {
+		t.Fatalf("weaveSingleProject: %v", res.Err)
+	}
+
+	read := func(name string) string {
+		t.Helper()
+		b, err := os.ReadFile(filepath.Join(sb.DocsDir, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+
+	contract := read("contract_zzgov.atom.md")
+	if !strings.Contains(contract, "parents: []") {
+		t.Errorf("governance atom's own parents: were not emptied:\n%s", contract)
+	}
+	if !strings.Contains(contract, "dependents: []") {
+		t.Errorf("governance atom gained dependents from the stripped edge:\n%s", contract)
+	}
+
+	rule := read("rule_zzgov.atom.md")
+	if strings.Contains(rule, "contract_zzgov") {
+		t.Errorf("parent ref to the governance atom was not stripped:\n%s", rule)
+	}
+	// The legitimate parent must survive the surgery untouched.
+	if !strings.Contains(rule, "  - [[api_zzfix_beta]]") {
+		t.Errorf("non-governance parent was lost during the strip:\n%s", rule)
+	}
+
+	// api_zzfix_beta keeps rule_zzgov (a real edge) but must NOT list the
+	// contract, whose forbidden parents: entry was dropped.
+	beta := read("api_zzfix_beta.atom.md")
+	if !strings.Contains(beta, "  - [[rule_zzgov]]") {
+		t.Errorf("legitimate dependent missing from api_zzfix_beta:\n%s", beta)
+	}
+	if strings.Contains(beta, "contract_zzgov") {
+		t.Errorf("api_zzfix_beta gained a dependents entry for the governance atom:\n%s", beta)
+	}
+
+	for _, want := range []string{
+		"Removed 2 forbidden governance link(s)",
+		"contract_zzgov (CONTRACT) parents: [[api_zzfix_beta]]",
+		"rule_zzgov parents: [[contract_zzgov]]",
+	} {
+		if !strings.Contains(res.Output, want) {
+			t.Errorf("weave output missing %q, got:\n%s", want, res.Output)
+		}
+	}
+}
+
+// TestWeaveSingleProject_LeavesCleanParentsUntouched guards the conservative
+// half of the strip: when no forbidden link exists, weave must not touch any
+// parents: block at all (it passes nil through to rewriteAtomLinks), so an
+// already-consistent corpus does not churn its parent ordering on every run.
+// @test-link [[rule_atd_governance_graph_isolation]]
+func TestWeaveSingleProject_LeavesCleanParentsUntouched(t *testing.T) {
+	t.Parallel()
+	sb := testutil.Sandbox(t, "fixture_project")
+
+	contract := "---\nid: contract_zzclean\nhuman_name: \"zzclean Contract\"\ntype: CONTRACT\nstatus: STABLE\nlayer: BUSINESS\nparents: []\ndependents: []\n---\n\n# zzclean Contract\n"
+	if err := os.WriteFile(filepath.Join(sb.DocsDir, "contract_zzclean.atom.md"), []byte(contract), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	explorer := loadExplorerFromSandbox(t, sb)
+	res := sb.Run(explorer.weaveSingleProject)
+	if res.Err != nil {
+		t.Fatalf("weaveSingleProject: %v", res.Err)
+	}
+	if !strings.Contains(res.Output, "Updated 0 files") {
+		t.Errorf("a governance-clean corpus must weave as a no-op, got: %q", res.Output)
+	}
+	if strings.Contains(res.Output, "Removed") {
+		t.Errorf("nothing should have been stripped, got: %q", res.Output)
+	}
+}
+
+// TestWeaveWorkspace_StripsCrossProjectGovernanceParent pins the same rule on
+// the workspace path: a governance atom is graph-isolated across project
+// boundaries too, so a bare cross-project parent ref naming one is dropped
+// rather than canonicalized into [[project:id]] form.
+// @test-link [[rule_atd_governance_graph_isolation]]
+func TestWeaveWorkspace_StripsCrossProjectGovernanceParent(t *testing.T) {
+	testutil.SnapshotConfigLocked(t)
+	root := t.TempDir()
+
+	mkAtom := func(rel, id, atomType, parentsBlock string) {
+		p := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
+			t.Fatal(err)
+		}
+		content := fmt.Sprintf("---\nid: %s\nhuman_name: %q\ntype: %s\n%sdependents: []\n---\n\n# %s\n", id, id, atomType, parentsBlock, id)
+		if err := os.WriteFile(p, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mkAtom("zzgov_a/docs/vision_zzgov.atom.md", "vision_zzgov", "VISION", "parents: []\n")
+	mkAtom("zzgov_a/docs/req_zzgov.atom.md", "req_zzgov", "REQUIREMENT", "parents: []\n")
+	mkAtom("zzgov_b/docs/child_zzgov.atom.md", "child_zzgov", "RULE", "parents:\n  - [[vision_zzgov]]\n  - [[req_zzgov]]\n")
+
+	wsJSON := `{
+		"workspace_name": "zzgov-ws",
+		"projects": [
+			{"name": "zzgov_a", "path": "./zzgov_a"},
+			{"name": "zzgov_b", "path": "./zzgov_b"}
+		]
+	}`
+	if err := os.WriteFile(filepath.Join(root, ".atd.workspace"), []byte(wsJSON), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	ws, err := workspace.LoadWorkspace(root)
+	if err != nil {
+		t.Fatalf("LoadWorkspace: %v", err)
+	}
+	idx, err := ws.BuildIndex()
+	if err != nil {
+		t.Fatalf("BuildIndex: %v", err)
+	}
+
+	e := &Explorer{ProjectRoot: root, Workspace: ws, Index: idx}
+	out, err := e.Weave()
+	if err != nil {
+		t.Fatalf("Weave: %v", err)
+	}
+	if !strings.Contains(out, "zzgov_b:child_zzgov parents: [[vision_zzgov]]") {
+		t.Errorf("expected the stripped cross-project governance parent to be reported, got:\n%s", out)
+	}
+
+	child, err := os.ReadFile(filepath.Join(root, "zzgov_b/docs/child_zzgov.atom.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(child), "vision_zzgov") {
+		t.Errorf("cross-project governance parent was canonicalized instead of stripped:\n%s", child)
+	}
+	if !strings.Contains(string(child), "  - [[zzgov_a:req_zzgov]]") {
+		t.Errorf("legitimate cross-project parent was lost or left uncanonicalized:\n%s", child)
+	}
+
+	vision, err := os.ReadFile(filepath.Join(root, "zzgov_a/docs/vision_zzgov.atom.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(vision), "dependents: []") {
+		t.Errorf("governance atom gained a dependents entry for the stripped edge:\n%s", vision)
+	}
+}
+
 // TestWeaveWorkspace_CanonicalizesCrossProjectRefs drives the
 // workspace-aware path with a pre-attached temp workspace (never cwd
 // discovery -- see the file doc comment): a child atom in project zzweave_b

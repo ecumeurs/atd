@@ -10,7 +10,7 @@ type: MECHANIC
 parents: []
 ---
 
-# New Atom
+# Test Atom
 
 ## INTENT
 This is a test atom to verify backend integration.

@@ -8,9 +8,9 @@
 ### 1. Fixed Document Generation (Configuration)
 
 Updated `.atd` config files in 3 locations:
-- `/home/bastien/work/skill/.atd`
-- `/home/bastien/work/skill/atd_management_skill/.atd`
-- `/home/bastien/work/skill/upsilon-hub/.atd`
+- `/home/bastien/work/atd/.atd`
+- `/home/bastien/work/atd/atd_management_skill/.atd`
+- `/home/bastien/work/atd/upsilon-hub/.atd`
 
 **Changes**:
 - Increased timeouts: remote (2s→10s), local (500ms→5s)

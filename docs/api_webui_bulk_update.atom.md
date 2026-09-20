@@ -13,7 +13,7 @@ priority: 3
 version: 1.0
 ---
 
-# New Atom
+# WebUI Bulk Update API
 
 ## INTENT
 Allow frontend clients to apply a status update to many atoms simultaneously.

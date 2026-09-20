@@ -11,7 +11,7 @@ human_name: "ATD Config Loader"
 layer: IMPLEMENTATION
 ---
 
-# New Atom
+# ATD Config Loader
 
 ## INTENT
 Manage loading and filesystem watching of the .atd configuration file.

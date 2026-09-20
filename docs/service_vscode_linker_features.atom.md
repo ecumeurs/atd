@@ -16,7 +16,7 @@ dependents:
   - [[mechanic_vscode_link_provider]]
 ---
 
-# New Atom
+# VS Code Linker Language Features
 
 ## INTENT
 Orchestrate VS Code language features (links, definitions, hovers, codelenses) for ATD integration.

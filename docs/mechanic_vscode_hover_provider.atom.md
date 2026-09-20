@@ -11,7 +11,7 @@ parents:
   - [[service_vscode_linker_features]]
 ---
 
-# New Atom
+# Spec-link Hover Provider
 
 ## INTENT
 Implement a HoverProvider that shows atom details when hovering over @spec-link tags in source code.

@@ -50,7 +50,8 @@ func CrawlDocsWithTag(dir string, graph *DependencyGraph, projectName string) er
 }
 
 func CrawlWorkspaceDocs(graph *DependencyGraph) error {
-	return CrawlWorkspaceDocsWithConfig(graph, &config.ActiveConfig)
+	snap := config.Snapshot()
+	return CrawlWorkspaceDocsWithConfig(graph, &snap)
 }
 
 func CrawlWorkspaceDocsWithConfig(graph *DependencyGraph, cfg *config.Config) error {

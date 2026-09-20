@@ -189,3 +189,38 @@ func TestLoadWorkspace_AggregatesProjectSpecLinks(t *testing.T) {
 		t.Errorf("expected exactly 1 SpecLink for zz_ws_atom aggregated from project-a's code paths, got %+v", explorer.SpecLinks)
 	}
 }
+
+// TestLoadWorkspace_NilCodePathsExcludesDocsAndGitignored covers the gap
+// found alongside the config-casing defect: when a workspace project has no
+// CodePaths configured, LoadWorkspace falls back to walking "." with no
+// filtering at all, so both the docs directory and gitignored files were
+// scanned as if they were code. A stray @spec-link sitting in a doc file or
+// a gitignored directory must not be recorded as an implementation link.
+func TestLoadWorkspace_NilCodePathsExcludesDocsAndGitignored(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+
+	writeTestFile(t, root, "project-a/docs/zz_excl_atom.atom.md", "---\nid: zz_excl_atom\nhuman_name: \"Excl Atom\"\n---\n")
+	writeTestFile(t, root, "project-a/docs/notes.go", "package p\n\n// @spec-link [[zz_excl_atom]]\nfunc Noop() {}\n")
+	writeTestFile(t, root, "project-a/generated/gen.go", "package p\n\n// @spec-link [[zz_excl_atom]]\nfunc G() {}\n")
+	writeTestFile(t, root, "project-a/.gitignore", "generated/\n")
+	writeTestFile(t, root, "project-a/src/impl.go", "package p\n\n// @spec-link [[zz_excl_atom]]\nfunc F() {}\n")
+	writeTestFile(t, root, ".atd.workspace", `{
+		"workspace_name": "loadws-excl-test",
+		"projects": [{"name": "project-a", "path": "./project-a"}]
+	}`)
+
+	projA := filepath.Join(root, "project-a")
+	explorer := NewExplorerWithConfig(projA, filepath.Join(projA, "docs"), &config.Config{})
+	if explorer.Workspace == nil {
+		t.Fatal("expected a workspace to be detected above project-a")
+	}
+
+	if err := explorer.LoadWorkspace(false); err != nil {
+		t.Fatalf("LoadWorkspace: %v", err)
+	}
+
+	if len(explorer.SpecLinks) != 1 || explorer.SpecLinks[0].FilePath != "src/impl.go" {
+		t.Errorf("expected exactly 1 SpecLink from src/impl.go (docs/ and gitignored generated/ must be excluded from the nil-CodePaths fallback walk), got %+v", explorer.SpecLinks)
+	}
+}

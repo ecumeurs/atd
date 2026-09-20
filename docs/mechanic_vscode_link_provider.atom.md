@@ -11,7 +11,7 @@ parents:
   - [[service_vscode_linker_features]]
 ---
 
-# New Atom
+# Link and Definition Resolver
 
 ## INTENT
 Implement DocumentLinkProvider and DefinitionProvider to resolve [[ID]] tokens to atom files.

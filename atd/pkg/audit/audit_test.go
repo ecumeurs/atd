@@ -10,6 +10,7 @@ package audit
 // pkg/mcp, pkg/chat).
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -326,5 +327,134 @@ n/a
 	}
 	if !strings.Contains(report.Text, "zzfix_present.atom.md") {
 		t.Errorf("expected the still-present atom to be audited normally alongside the vanished one, got:\n%s", report.Text)
+	}
+}
+
+// TestRunFullAudit_QueryErrorIsLoudNotSilentPass regression-tests
+// failures/20260917_atd_audit_docs_exits_zero_with_no_report.md: a generic
+// (non-IDE-fallback) LLM error from the bloat-check query -- a timeout,
+// connection refused, whatever -- used to fall through the if/else-if chain
+// with no final else, leaving the atom at its pre-set "PASS" default and
+// zero trace in the report. It must now classify as ERROR with a loud
+// [ERROR] line instead.
+func TestRunFullAudit_QueryErrorIsLoudNotSilentPass(t *testing.T) {
+	fake := fakeprovider.InstallOllama(t)
+	fake.SetError(fmt.Errorf("connection refused"))
+
+	dir := t.TempDir()
+	writeFile(t, dir, "zzfix_queryerr.atom.md", `---
+id: zzfix_queryerr
+type: RULE
+status: DRAFT
+parents: []
+dependents: []
+layer: BUSINESS
+---
+
+## INTENT
+Some intent.
+
+## THE RULE / LOGIC
+Some logic.
+
+## EXPECTATION
+n/a
+`)
+
+	report, err := RunFullAudit(dir, 0.85, false)
+	if err != nil {
+		t.Fatalf("RunFullAudit: %v", err)
+	}
+
+	if strings.Contains(report.Text, "Auditing: zzfix_queryerr.atom.md ... [PASS]") {
+		t.Errorf("a generic LLM query error must never silently classify as PASS:\n%s", report.Text)
+	}
+	if !strings.Contains(report.Text, "Auditing: zzfix_queryerr.atom.md ... [ERROR]") {
+		t.Errorf("expected the atom to be classified ERROR, got:\n%s", report.Text)
+	}
+	if !strings.Contains(report.Text, "[ERROR] LLM bloat check failed for zzfix_queryerr") {
+		t.Errorf("expected a loud [ERROR] line naming the failed atom, got:\n%s", report.Text)
+	}
+	if !strings.Contains(report.Text, "connection refused") {
+		t.Errorf("expected the underlying error to be surfaced, got:\n%s", report.Text)
+	}
+}
+
+// TestRunFullAudit_GuaranteedSummaryLine_CleanPass regression-tests
+// failures/20260916_atd_audit_workspace_no_return.md and
+// failures/20260917_atd_audit_docs_exits_zero_with_no_report.md: a clean run
+// must always end with a "Summary:" line stating counts, so a genuinely
+// clean 0-findings pass is never indistinguishable from a silently broken
+// one that produced no report at all.
+func TestRunFullAudit_GuaranteedSummaryLine_CleanPass(t *testing.T) {
+	fake := fakeprovider.InstallOllama(t)
+	fake.SetJSON(`{"is_bloated": false}`)
+	fake.SetEmbedVector([]float32{0.1, 0.2, 0.3})
+
+	dir := t.TempDir()
+	writeFile(t, dir, "zzfix_clean1.atom.md", `---
+id: zzfix_clean1
+type: RULE
+status: DRAFT
+parents: []
+dependents: []
+layer: BUSINESS
+---
+
+## INTENT
+Clean intent one.
+
+## THE RULE / LOGIC
+Clean logic one.
+
+## EXPECTATION
+n/a
+`)
+
+	report, err := RunFullAudit(dir, 0.85, false)
+	if err != nil {
+		t.Fatalf("RunFullAudit: %v", err)
+	}
+
+	if !strings.Contains(report.Text, "Summary: 1 atom(s) scanned, 0 bloated, 0 collision(s), 0 LLM error(s)") {
+		t.Errorf("expected a guaranteed clean-pass summary line, got:\n%s", report.Text)
+	}
+}
+
+// TestRunFullAudit_GuaranteedSummaryLine_CountsErrors pins the same
+// guaranteed summary line, but with a failing bloat-check query: the summary
+// must report a non-zero error count rather than silently reading like a
+// clean pass.
+func TestRunFullAudit_GuaranteedSummaryLine_CountsErrors(t *testing.T) {
+	fake := fakeprovider.InstallOllama(t)
+	fake.SetError(fmt.Errorf("connection refused"))
+
+	dir := t.TempDir()
+	writeFile(t, dir, "zzfix_erratom.atom.md", `---
+id: zzfix_erratom
+type: RULE
+status: DRAFT
+parents: []
+dependents: []
+layer: BUSINESS
+---
+
+## INTENT
+Some intent.
+
+## THE RULE / LOGIC
+Some logic.
+
+## EXPECTATION
+n/a
+`)
+
+	report, err := RunFullAudit(dir, 0.85, false)
+	if err != nil {
+		t.Fatalf("RunFullAudit: %v", err)
+	}
+
+	if !strings.Contains(report.Text, "Summary: 1 atom(s) scanned, 0 bloated, 0 collision(s), 2 LLM error(s) (1 bloat-check, 1 embedding)") {
+		t.Errorf("expected the summary line to count both the bloat-check and embedding errors, got:\n%s", report.Text)
 	}
 }

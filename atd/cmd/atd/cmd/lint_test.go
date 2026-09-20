@@ -200,6 +200,147 @@ expectation
 	}
 }
 
+// governanceAtomSource renders a CONTRACT/VISION atom with caller-supplied
+// parents:/dependents: blocks, so the isolation rule (ATD.md §1.4) can be
+// exercised from both link fields.
+func governanceAtomSource(id, atomType, parents, dependents string) string {
+	return `---
+id: ` + id + `
+human_name: "` + id + `"
+type: ` + atomType + `
+layer: BUSINESS
+version: 1.0
+status: STABLE
+priority: CORE
+tags: []
+parents: ` + parents + `
+dependents: ` + dependents + `
+---
+
+# ` + id + `
+
+## INTENT
+intent
+
+## THE RULE / LOGIC
+logic
+
+## TECHNICAL INTERFACE (The Bridge)
+bridge
+
+## EXPECTATION
+expectation
+`
+}
+
+// ordinaryAtomSource renders a non-governance BUSINESS atom with caller-supplied
+// link blocks, used as the resolvable target of a governance atom's links.
+func ordinaryAtomSource(id, parents, dependents string) string {
+	return `---
+id: ` + id + `
+human_name: "` + id + `"
+type: RULE
+layer: BUSINESS
+version: 1.0
+status: DRAFT
+priority: 3
+tags: []
+parents: ` + parents + `
+dependents: ` + dependents + `
+---
+
+# ` + id + `
+
+## INTENT
+intent
+
+## THE RULE / LOGIC
+logic
+
+## TECHNICAL INTERFACE (The Bridge)
+bridge
+
+## EXPECTATION
+expectation
+`
+}
+
+func writeAtoms(t *testing.T, files map[string]string) string {
+	t.Helper()
+	tmpDir := t.TempDir()
+	for name, data := range files {
+		if err := os.WriteFile(filepath.Join(tmpDir, name), []byte(data), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return tmpDir
+}
+
+// @test-link [[service_atd_lint]]
+func TestLintGovernanceAtomDeclaresNoLinks(t *testing.T) {
+	cases := []struct {
+		name     string
+		files    map[string]string
+		expected []string
+	}{
+		{
+			name: "contract with parents",
+			files: map[string]string{
+				"contract_test.atom.md": governanceAtomSource("contract_test", "CONTRACT", "\n  - [[rule_ordinary]]", "[]"),
+				"vision_test.atom.md":   governanceAtomSource("vision_test", "VISION", "[]", "[]"),
+				"rule_ordinary.atom.md": ordinaryAtomSource("rule_ordinary", "[]", "[]"),
+			},
+			expected: []string{"CONTRACT/VISION declares parents: [[rule_ordinary]]"},
+		},
+		{
+			name: "vision with dependents",
+			files: map[string]string{
+				"contract_test.atom.md": governanceAtomSource("contract_test", "CONTRACT", "[]", "[]"),
+				"vision_test.atom.md":   governanceAtomSource("vision_test", "VISION", "[]", "\n  - [[rule_ordinary]]"),
+				"rule_ordinary.atom.md": ordinaryAtomSource("rule_ordinary", "[]", "[]"),
+			},
+			expected: []string{"CONTRACT/VISION declares dependents: [[rule_ordinary]]"},
+		},
+		{
+			name: "ordinary atom names governance as dependent",
+			files: map[string]string{
+				"contract_test.atom.md": governanceAtomSource("contract_test", "CONTRACT", "[]", "[]"),
+				"vision_test.atom.md":   governanceAtomSource("vision_test", "VISION", "[]", "[]"),
+				"rule_ordinary.atom.md": ordinaryAtomSource("rule_ordinary", "[]", "\n  - [[vision_test]]"),
+			},
+			expected: []string{"CONTRACT/VISION referenced as dependent: [[vision_test]]"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := runLint(writeAtoms(t, tc.files))
+			if err == nil {
+				t.Fatalf("Expected error, got nil (output: %s)", out)
+			}
+			for _, expected := range tc.expected {
+				if !strings.Contains(out, expected) {
+					t.Errorf("Expected output to contain '%s', got: %s", expected, out)
+				}
+			}
+		})
+	}
+}
+
+// @test-link [[service_atd_lint]]
+func TestLintGovernanceAtomsWithEmptyLinksPass(t *testing.T) {
+	dir := writeAtoms(t, map[string]string{
+		"contract_test.atom.md": governanceAtomSource("contract_test", "CONTRACT", "[]", "[]"),
+		"vision_test.atom.md":   governanceAtomSource("vision_test", "VISION", "[]", "[]"),
+		"rule_ordinary.atom.md": ordinaryAtomSource("rule_ordinary", "[]", "[]"),
+	})
+
+	out, err := runLint(dir)
+	if err != nil {
+		t.Fatalf("Expected nil err, got %v: %s", err, out)
+	}
+}
+
 func TestLintUnknownProject(t *testing.T) {
 	wsData := `{"workspace_name": "test_ws", "projects": [{"name": "proj1", "path": "."}]}`
 	tmpData := `---

@@ -13,7 +13,7 @@ type: API
 tags: webui,api,detail
 ---
 
-# New Atom
+# WebUI Atom Detail API
 
 ## INTENT
 Provide detailed data for a specific ATD atom.

@@ -11,7 +11,7 @@ version: 1.0.0
 dependents: []
 ---
 
-# New Atom
+# Health CodeLens Provider
 
 ## INTENT
 Implement a CodeLensProvider that displays live health metrics at the top of .atom.md files using atd trace.

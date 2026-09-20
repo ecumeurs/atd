@@ -11,7 +11,7 @@ parents:
 dependents: []
 ---
 
-# New Atom
+# Sidebar Graph Explorer
 
 ## INTENT
 Implement a TreeDataProvider for the VS Code sidebar to explore atom parent/dependent relationships.

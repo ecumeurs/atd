@@ -14,6 +14,7 @@ dependents:
   - [[domain_atd_type_logic]]
   - [[domain_atd_type_ops_req]]
   - [[domain_atd_usage_protocol]]
+  - [[rule_atd_governance_graph_isolation]]
   - [[rule_atd_naming_convention]]
   - [[rule_webui_health_classification]]
 layer: BUSINESS

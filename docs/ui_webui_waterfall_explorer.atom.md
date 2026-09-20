@@ -13,7 +13,7 @@ dependents:
 layer: ARCHITECTURE
 ---
 
-# New Atom
+# WebUI Waterfall of Intent Explorer
 
 ## INTENT
 Provide a three-column lane visualization showing atoms flowing from Customer through Architecture to Implementation, revealing architectural intent and traceability.

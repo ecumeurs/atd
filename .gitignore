@@ -20,3 +20,4 @@ webui/webui_bin
 atd/cmd/atd/cmd/pipeline_output/
 # Agent worktree infrastructure
 .claude/
+.opencode/skills/

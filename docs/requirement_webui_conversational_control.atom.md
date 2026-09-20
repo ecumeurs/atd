@@ -11,7 +11,7 @@ version: 1.0
 dependents: []
 ---
 
-# New Atom
+# Conversational History Control
 
 ## INTENT
 Allow users to toggle between context-aware 'Chat' and context-less 'Single-shot' modes.

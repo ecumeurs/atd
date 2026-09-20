@@ -138,7 +138,7 @@ func Update(opts UpdateOptions) (string, error) {
 
 	if newID != "" && atomType != "" {
 		prefix := strings.ToLower(atomType) + "_"
-		if !strings.HasPrefix(newID, prefix) {
+		if !strings.HasPrefix(newID, prefix) && !hasAbbreviatedTypePrefix(newID, atomType) {
 			parts := strings.FieldsFunc(newID, func(r rune) bool {
 				return !unicode.IsLetter(r) && !unicode.IsNumber(r)
 			})
@@ -239,6 +239,14 @@ func Update(opts UpdateOptions) (string, error) {
 	// 2. Process Body Sections
 	var newBody []string
 	currentSection := 0 // SecNone equivalent
+	// sectionFound tracks, per section id (1..4), whether a matching "## ..."
+	// header was actually present in the file and rewritten with the supplied
+	// text. Used below to append a fallback header for any supplied text whose
+	// section is missing from the file entirely, and to gate the "updated body
+	// sections" success message on real work rather than just "was a flag
+	// passed" (see
+	// failures/20260917_atd_update_expectation_no_ops_when_section_header_missing.md).
+	var sectionFound [5]bool
 
 	isTargetHeader := func(line string) int {
 		if strings.HasPrefix(line, "## INTENT") { return 1 }
@@ -254,10 +262,10 @@ func Update(opts UpdateOptions) (string, error) {
 			currentSection = sec
 			newBody = append(newBody, line)
 			switch sec {
-			case 1: if intentText != "" { newBody = append(newBody, strings.TrimSpace(intentText), "") }
-			case 2: if logicText != "" { newBody = append(newBody, strings.TrimSpace(logicText), "") }
-			case 3: if interfaceText != "" { newBody = append(newBody, strings.TrimSpace(interfaceText), "") }
-			case 4: if expectationText != "" { newBody = append(newBody, strings.TrimSpace(expectationText), "") }
+			case 1: if intentText != "" { newBody = append(newBody, strings.TrimSpace(intentText), ""); sectionFound[1] = true }
+			case 2: if logicText != "" { newBody = append(newBody, strings.TrimSpace(logicText), ""); sectionFound[2] = true }
+			case 3: if interfaceText != "" { newBody = append(newBody, strings.TrimSpace(interfaceText), ""); sectionFound[3] = true }
+			case 4: if expectationText != "" { newBody = append(newBody, strings.TrimSpace(expectationText), ""); sectionFound[4] = true }
 			}
 			continue
 		} else if strings.HasPrefix(line, "## ") {
@@ -279,6 +287,41 @@ func Update(opts UpdateOptions) (string, error) {
 			newBody = append(newBody, line)
 		}
 	}
+
+	// Fallback: a section whose text was supplied but had no matching header
+	// anywhere in the file gets a brand-new "## HEADER" appended with the
+	// text, instead of silently no-opping.
+	sectionHeaders := map[int]string{
+		1: "## INTENT",
+		2: "## THE RULE / LOGIC",
+		3: "## TECHNICAL INTERFACE",
+		4: "## EXPECTATION",
+	}
+	appendMissingSection := func(sec int, text string) {
+		if text == "" || sectionFound[sec] {
+			return
+		}
+		if len(newBody) > 0 && newBody[len(newBody)-1] != "" {
+			newBody = append(newBody, "")
+		}
+		newBody = append(newBody, sectionHeaders[sec], strings.TrimSpace(text), "")
+		sectionFound[sec] = true
+	}
+	appendMissingSection(1, intentText)
+	appendMissingSection(2, logicText)
+	appendMissingSection(3, interfaceText)
+	appendMissingSection(4, expectationText)
+
+	// 3. Keep the H1 title in sync with human_name.
+	// The blank-file template seeds "# New Atom" as a placeholder; without this
+	// every atom created through Update kept that placeholder forever. The
+	// project convention (see BuildContent/BuildParentContent) is H1 == human_name.
+	newBody = syncTitle(newBody, syncTitleOptions{
+		isNewFile:    !fileExists,
+		oldHumanName: unquoteYAML(frontmatterValue(frontmatterLines, "human_name")),
+		newHumanName: unquoteYAML(updates["human_name"]),
+		fallbackID:   finalAtomID(newID, frontmatterLines, opts.FilePath),
+	})
 
 	finalOutput := strings.Join(append(newFrontmatter, newBody...), "\n")
 	targetPath := opts.FilePath
@@ -303,13 +346,7 @@ func Update(opts UpdateOptions) (string, error) {
 	// touch id must still report the id it's operating on, and a freshly
 	// created atom must never fall back to the "temp" placeholder id from the
 	// default template.
-	finalID := newID
-	if finalID == "" {
-		finalID = frontmatterValue(frontmatterLines, "id")
-	}
-	if finalID == "" || finalID == "temp" {
-		finalID = strings.TrimSuffix(filepath.Base(targetPath), ".atom.md")
-	}
+	finalID := finalAtomID(newID, frontmatterLines, targetPath)
 
 	action := "Updated"
 	if !fileExists {
@@ -317,7 +354,7 @@ func Update(opts UpdateOptions) (string, error) {
 	}
 	logMsg := fmt.Sprintf("%s atom id=%s (%s)", action, finalID, filepath.Base(targetPath))
 	if len(updates) > 0 { logMsg += fmt.Sprintf(" | set: %d keys", len(updates)) }
-	if intentText != "" || logicText != "" || interfaceText != "" || expectationText != "" {
+	if sectionFound[1] || sectionFound[2] || sectionFound[3] || sectionFound[4] {
 		logMsg += " | updated body sections"
 	}
 	if renamed { logMsg += fmt.Sprintf(" | renamed from %s", filepath.Base(opts.FilePath)) }
@@ -358,6 +395,23 @@ func ApplySpecLink(id, file string) error {
 		return fmt.Errorf("failed to write %s: %v", file, err)
 	}
 	return nil
+}
+
+// hasAbbreviatedTypePrefix reports whether id's leading snake_case segment
+// looks like an intentional (if abbreviated) type prefix for atomType — e.g.
+// "mech" for MECHANIC, "req" for REQUIREMENT, "uc"/"us" for USER_STORY. This
+// is a loose, case-insensitive check: the segment must be non-empty and the
+// full lowercased type name must start with it. When true, Update must leave
+// the id as given rather than prepending the full type prefix on top of it,
+// which would otherwise double-prefix ids like "mech_economy_purge" into
+// "mechanic_mech_economy_purge" (see
+// failures/20260917_atd_update_double_prefixes_id_that_already_starts_with_type_abbreviation.md).
+func hasAbbreviatedTypePrefix(id, atomType string) bool {
+	segment, _, found := strings.Cut(id, "_")
+	if !found || segment == "" {
+		return false
+	}
+	return strings.HasPrefix(strings.ToLower(atomType), strings.ToLower(segment))
 }
 
 // frontmatterValue returns the trimmed value for a given top-level frontmatter
@@ -510,4 +564,96 @@ func FormatYAMLList(key, val string) string {
 		result.WriteString(fmt.Sprintf("\n  - [[%s]]", item))
 	}
 	return result.String()
+}
+
+// syncTitleOptions carries the inputs syncTitle needs to decide whether — and
+// to what — the body's H1 should be rewritten.
+type syncTitleOptions struct {
+	isNewFile    bool
+	oldHumanName string
+	newHumanName string
+	fallbackID   string
+}
+
+// titlePlaceholder is the H1 seeded into a freshly created atom by the blank
+// template. It must never survive a write that knows the atom's real name.
+const titlePlaceholder = "New Atom"
+
+// syncTitle rewrites the body's first H1 so it matches the atom's human_name.
+//
+// It deliberately does NOT clobber a hand-written title that diverges from
+// human_name on an existing atom: the H1 is rewritten only when the file is
+// newly created, when it still holds the "New Atom" placeholder, or when this
+// update changes human_name and the current H1 still matched the old one.
+func syncTitle(body []string, opts syncTitleOptions) []string {
+	idx := -1
+	for i, line := range body {
+		if strings.HasPrefix(line, "# ") {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return body
+	}
+	current := strings.TrimSpace(strings.TrimPrefix(body[idx], "# "))
+
+	title := opts.newHumanName
+	if title == "" {
+		title = opts.oldHumanName
+	}
+	if title == "" {
+		title = humanizeID(opts.fallbackID)
+	}
+	if title == "" {
+		return body
+	}
+
+	renameTracksHumanName := opts.newHumanName != "" && opts.oldHumanName != "" &&
+		current == opts.oldHumanName
+	if !opts.isNewFile && current != titlePlaceholder && !renameTracksHumanName {
+		return body
+	}
+
+	body[idx] = "# " + title
+	return body
+}
+
+// humanizeID turns an atom id into a readable title ("mechanic_atd_weave" ->
+// "Mechanic Atd Weave"). Used only when no human_name is available at all.
+func humanizeID(id string) string {
+	fields := strings.FieldsFunc(id, func(r rune) bool { return r == '_' || r == '-' })
+	for i, f := range fields {
+		r := []rune(f)
+		r[0] = unicode.ToUpper(r[0])
+		fields[i] = string(r)
+	}
+	return strings.Join(fields, " ")
+}
+
+// unquoteYAML strips the surrounding quotes YAML scalar values may carry
+// (human_name is commonly written as `human_name: "MCP Tool: atd_trace"`).
+func unquoteYAML(v string) string {
+	v = strings.TrimSpace(v)
+	if len(v) >= 2 {
+		if (v[0] == '"' && v[len(v)-1] == '"') || (v[0] == '\'' && v[len(v)-1] == '\'') {
+			return v[1 : len(v)-1]
+		}
+	}
+	return v
+}
+
+// finalAtomID resolves the id a write actually produces, independent of
+// whether the caller passed --set id=...: it prefers the new id, falls back to
+// the id already on disk, and finally to the file's basename — never the
+// "temp" placeholder from the blank template.
+func finalAtomID(newID string, frontmatterLines []string, filePath string) string {
+	id := newID
+	if id == "" {
+		id = frontmatterValue(frontmatterLines, "id")
+	}
+	if id == "" || id == "temp" {
+		id = strings.TrimSuffix(filepath.Base(filePath), ".atom.md")
+	}
+	return id
 }

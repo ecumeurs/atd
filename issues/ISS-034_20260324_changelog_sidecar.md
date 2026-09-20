@@ -52,5 +52,5 @@ The `atd update` command modifies atom files in-place via surgical edits. It cur
 
 ## References
 
-- [ATD.md §3.2.2](file:///home/bastien/work/skill/ATD.md)
+- [ATD.md §3.2.2](file:///home/bastien/work/atd/ATD.md)
 - [ISS-009](ISS-009_20260304_atd_version_management.md)

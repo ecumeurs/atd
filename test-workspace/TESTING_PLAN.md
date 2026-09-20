@@ -557,12 +557,12 @@ A workspace feature is considered complete when:
 
 ```bash
 # Unit tests
-cd /home/bastien/work/skill/atd/config
+cd /home/bastien/work/atd/atd/config
 go test -v -run TestLoadWorkspace
 go test -v -run TestSetProject
 
 # Integration tests (to be created)
-cd /home/bastien/work/skill
+cd /home/bastien/work/atd
 go test -v -run TestWorkspace
 
 # Manual E2E tests

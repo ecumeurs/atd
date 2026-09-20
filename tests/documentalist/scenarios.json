@@ -1,0 +1,41 @@
+[
+  {
+    "id": "preflight",
+    "workflow": "preflight-D1/D2",
+    "prompt": "Run Workflow D1 then D2 for a planned change to friendly-fire validation in src/friendly_fire.go. Do not edit anything. Return the structured ATD Sync Report.",
+    "verdicts": ["PROCEED", "PROCEED-WITH-SIGNOFF-PENDING"],
+    "required_atoms": ["rule_friendly_fire", "spec_match_format"],
+    "allow_auto": false,
+    "faults": false,
+    "allowed_changes": []
+  },
+  {
+    "id": "drift",
+    "workflow": "post-task",
+    "prompt": "Run Workflow B for the staged change in src/friendly_fire.go. It intentionally permits same-team damage despite its @spec-link. Detect and report drift. Do not edit code or atoms. Return the structured ATD Sync Report.",
+    "required_output": ["Drift/conflict flagged", "rule_friendly_fire"],
+    "drift_atom": "rule_friendly_fire",
+    "drift_source": "src/friendly_fire.go",
+    "allow_auto": false,
+    "faults": false,
+    "allowed_changes": []
+  },
+  {
+    "id": "missing-link",
+    "workflow": "post-task",
+    "prompt": "Run Workflow B for the staged src/friendly_fire.go implementation. It unambiguously implements rule_friendly_fire but has no @spec-link. Confirm the match and add only the missing @spec-link with ATD tooling directly above func MayDamage. Return the structured ATD Sync Report.",
+    "required_output": ["Links added", "rule_friendly_fire"],
+    "allow_auto": true,
+    "faults": false,
+    "allowed_changes": ["src/friendly_fire.go"]
+  },
+  {
+    "id": "tool-fallback",
+    "workflow": "preflight-peek",
+    "prompt": "Run a Workflow D peek for src/friendly_fire.go. Invoke `atd map --file src/friendly_fire.go` and atd search for friendly fire; map will be malformed and search will report a deleted file. Treat both outputs as untrusted, verify directly from disk using deterministic evidence, and make no edits. Return the structured ATD Sync Report with one anchored `Tool-evidence warning:` line naming map malformed, search stale, and that both were untrusted/not used; include one anchored `Verification:` line stating direct/on-disk/file inspection evidence was used.",
+    "required_output": ["ATD Sync Report"],
+    "allow_auto": false,
+    "faults": true,
+    "allowed_changes": []
+  }
+]

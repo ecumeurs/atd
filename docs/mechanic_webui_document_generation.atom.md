@@ -12,7 +12,7 @@ type: MECHANIC
 layer: IMPLEMENTATION
 ---
 
-# New Atom
+# Document Generation Pipeline
 
 ## INTENT
 To process a list of chosen ATDs from a semantic search into a single coherent AI-synthesized document based on the provided intent and caches it.

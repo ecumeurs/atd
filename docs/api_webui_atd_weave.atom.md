@@ -12,7 +12,7 @@ parents:
   - [[ui_webui_details_weave_button]]
 ---
 
-# New Atom
+# WebUI Weave API
 
 ## INTENT
 Expose a REST-like endpoint for the WebUI to trigger the ATD weaving operation.

@@ -84,5 +84,5 @@ The `atd.showFullGraph` command opens a Webview that renders a node-link diagram
 
 ## References
 
-- [extension/extension.js](file:///home/bastien/work/skill/extension/extension.js)
+- [extension/extension.js](file:///home/bastien/work/atd/extension/extension.js)
 - [vis-network documentation](https://visjs.github.io/vis-network/docs/network/)

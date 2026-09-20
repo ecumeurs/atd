@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -16,20 +17,112 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// congruenceFinding is one structured contradiction entry from a
+// congruent-false LLM verdict -- see pkg/prompt.CongruenceFormat.
+type congruenceFinding struct {
+	AtomID        string `json:"atom_id"`
+	Section       string `json:"section"`
+	Contradiction string `json:"contradiction"`
+}
+
+// congruenceResult is the parsed shape of resp.Response, matching
+// pkg/prompt.CongruenceFormat's schema.
+type congruenceResult struct {
+	IsCongruent bool                `json:"is_congruent"`
+	AuditReport string              `json:"audit_report"`
+	Findings    []congruenceFinding `json:"findings"`
+}
+
+// resolveCongruenceTarget determines which docs directory to load atoms
+// from and the bare (unqualified) atom id to look up within it, given the
+// raw --target value, the --docs override, and the --workspace flag.
+//
+// A workspace-qualified target ("project:atom_id") is resolved against that
+// project's own docs directory via config.ActiveConfig.Workspace (already
+// populated by config.LoadFromDir's automatic upward .atd.workspace scan --
+// see config.go's LoadFromDirLegacy), following the same
+// project-path/docs-path resolution pkg/exploration/crawl.go's
+// CrawlWorkspaceDocsWithConfig already uses, rather than a fresh
+// workspace.LoadWorkspace(".") call: that literal "." is relative to the
+// process's actual working directory, not config's loaded project root, and
+// so does not survive testutil.Sandbox-style tests that load config from a
+// directory without also os.Chdir-ing the process there.
+func resolveCongruenceTarget(targetAtom, docsDirFlag string, workspaceFlag bool) (docsDir string, bareID string, err error) {
+	bareID = targetAtom
+	project := ""
+	if idx := strings.Index(targetAtom, ":"); idx > 0 {
+		project = targetAtom[:idx]
+		bareID = targetAtom[idx+1:]
+	}
+
+	if project == "" && !workspaceFlag {
+		if docsDirFlag == "" {
+			docsDirFlag = config.DocsDir()
+		}
+		return docsDirFlag, bareID, nil
+	}
+
+	ws := config.ActiveConfig.Workspace
+	if ws == nil {
+		return "", "", fmt.Errorf("no workspace found but --workspace flag used")
+	}
+
+	if project == "" {
+		// --workspace was set but the target isn't qualified; fall back to
+		// the active project's own docs dir (same as the non-workspace path).
+		if docsDirFlag == "" {
+			docsDirFlag = config.DocsDir()
+		}
+		return docsDirFlag, bareID, nil
+	}
+
+	for _, p := range ws.Projects {
+		if p.Name != project {
+			continue
+		}
+		absProjPath := p.Path
+		if !filepath.IsAbs(absProjPath) {
+			absProjPath = filepath.Join(ws.LoadedFrom, p.Path)
+		}
+		pDocs := p.DocsPath
+		if pDocs == "" {
+			pDocs = "docs/"
+		}
+		if !filepath.IsAbs(pDocs) {
+			pDocs = filepath.Join(absProjPath, pDocs)
+		}
+		return pDocs, bareID, nil
+	}
+
+	return "", "", fmt.Errorf("workspace project %q not found (target %q)", project, targetAtom)
+}
+
 var congruenceCmd = &cobra.Command{
 	Use:   "congruence",
 	Short: "Audit logical consistency between a target atom and its related atoms",
 	Long: `Audit logical consistency between a target atom and its related atoms.
-Checks parents, dependents, and tag-siblings for contradictions in their INTENT and LOGIC sections.`,
+Checks parents, dependents, and tag-siblings for contradictions in their INTENT and LOGIC sections.
+
+A verdict of is_congruent:false requires a non-empty structured findings list
+(atom id, section, contradiction) -- a bare title-only response is rejected
+with a non-zero exit instead of being printed as a complete result.
+
+--target may be workspace-qualified ("project:atom_id"); with --workspace set
+(or a "project:" prefix on --target) the atom is resolved against that
+project's own docs directory instead of the current project's --docs/default
+docs path.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		targetAtom, _ := cmd.Flags().GetString("target")
 		if targetAtom == "" {
 			return fmt.Errorf("--target is required")
 		}
 
-		docsDir, _ := cmd.Flags().GetString("docs")
-		if docsDir == "" {
-			docsDir = config.DocsDir()
+		docsDirFlag, _ := cmd.Flags().GetString("docs")
+		workspaceFlag, _ := cmd.Flags().GetBool("workspace")
+
+		docsDir, bareTarget, err := resolveCongruenceTarget(targetAtom, docsDirFlag, workspaceFlag)
+		if err != nil {
+			return err
 		}
 
 		// 1. Load all ATDs
@@ -50,14 +143,14 @@ Checks parents, dependents, and tag-siblings for contradictions in their INTENT 
 			}
 		}
 
-		targetContent, ok := atomMap[targetAtom]
+		targetContent, ok := atomMap[bareTarget]
 		if !ok {
 			return fmt.Errorf("target atom '%s' not found in %s", targetAtom, docsDir)
 		}
 
 		// 2. Crawl relationships
 		relatedAtoms := make(map[string]bool)
-		relatedAtoms[targetAtom] = true
+		relatedAtoms[bareTarget] = true
 
 		linkRegex := regexp.MustCompile(`\[\[(.*?)\]\]`)
 		tagRegex := regexp.MustCompile(`tags:\s*\[(.*?)\]`)
@@ -82,14 +175,14 @@ Checks parents, dependents, and tag-siblings for contradictions in their INTENT 
 
 		// Find siblings sharing tags or linking to target
 		for id, content := range atomMap {
-			if id == targetAtom {
+			if id == bareTarget {
 				continue
 			}
 
 			// If this file links to the target
 			remoteLinks := linkRegex.FindAllStringSubmatch(content, -1)
 			for _, match := range remoteLinks {
-				if len(match) > 1 && match[1] == targetAtom {
+				if len(match) > 1 && match[1] == bareTarget {
 					relatedAtoms[id] = true
 				}
 			}
@@ -120,7 +213,7 @@ Checks parents, dependents, and tag-siblings for contradictions in their INTENT 
 			}
 		}
 
-		requestPrompt := prompt.CongruenceBuild(targetAtom, specContents.String())
+		requestPrompt := prompt.CongruenceBuild(bareTarget, specContents.String())
 
 		// 4. Resolve and Query
 		resp, err := ollama.Query("code_analysis", requestPrompt, prompt.CongruenceFormat())
@@ -145,6 +238,20 @@ Checks parents, dependents, and tag-siblings for contradictions in their INTENT 
 			return fmt.Errorf("ollama query failed: %v", err)
 		}
 
+		// 5. Validate: an is_congruent:false verdict with no structured
+		// findings is a bare title, not an actionable result -- reject it
+		// loudly instead of printing it and returning nil (see
+		// failures/20260917_atd_congruence_empty_verdict_and_no_workspace_resolution.md
+		// and cmd/atd/cmd/congruence_findings_test.go /
+		// congruence_known_defects_test.go).
+		var result congruenceResult
+		if jsonErr := json.Unmarshal([]byte(resp.Response), &result); jsonErr != nil {
+			return fmt.Errorf("congruence: could not parse LLM response as JSON: %v\nraw response: %s", jsonErr, resp.Response)
+		}
+		if !result.IsCongruent && len(result.Findings) == 0 {
+			return fmt.Errorf("congruence: target atom '%s' reported as incongruent (is_congruent: false) but the response carried no structured findings -- nothing to act on\naudit_report: %s", targetAtom, result.AuditReport)
+		}
+
 		fmt.Println(resp.Response)
 		return nil
 	},
@@ -154,4 +261,5 @@ func init() {
 	rootCmd.AddCommand(congruenceCmd)
 	congruenceCmd.Flags().String("target", "", "The specific Atom ID to cross-audit")
 	congruenceCmd.Flags().String("docs", "", "Path to docs directory")
+	congruenceCmd.Flags().Bool("workspace", false, "Resolve a workspace-qualified target (project:atom_id) against that project's docs")
 }

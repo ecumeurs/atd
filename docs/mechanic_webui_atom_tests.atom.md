@@ -12,7 +12,7 @@ parents:
 tags: webui,mechanic,tests
 ---
 
-# New Atom
+# WebUI Atom Tests Mechanic
 
 ## INTENT
 Implement the /atd/:id/tests endpoint.

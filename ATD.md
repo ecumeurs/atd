@@ -162,7 +162,7 @@ Atoms are grouped into **13 consolidated types** across three functional familie
 
 ### 1.4 Project Governance: CONTRACT & VISION
 
-`CONTRACT` and `VISION` are specialized, unique atoms that govern the evolution of the entire project. Both are **read for governance, never linked as structural ancestry**: no atom may list `contract_atd`/`vision_atd` (or a project's equivalently-named pair) in its own `parents:`. They gate change from the side; they are not where any feature's lineage begins, and they are never "Root of Business layer" in the ancestry-chain sense — every ordinary atom still traces its `parents:` to a normal BUSINESS/ARCHITECTURE ancestor.
+`CONTRACT` and `VISION` are specialized, unique atoms that govern the evolution of the entire project. Both are **read for governance, never linked as structural ancestry**: they sit outside the ancestry graph entirely. No atom may list `contract_atd`/`vision_atd` (or a project's equivalently-named pair) in its own `parents:` or `dependents:`, and a governance atom declares neither of its own — its `parents:` and `dependents:` are always empty. They gate change from the side; they are not where any feature's lineage begins, and they are never "Root of Business layer" in the ancestry-chain sense — every ordinary atom still traces its `parents:` to a normal BUSINESS/ARCHITECTURE ancestor.
 
 1. **Uniqueness**: There must be exactly ONE `CONTRACT` atom and ONE `VISION` atom per project.
 2. **Roles**:

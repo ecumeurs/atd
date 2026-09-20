@@ -3,6 +3,28 @@
     "audit_report": {
       "type": "string"
     },
+    "findings": {
+      "items": {
+        "properties": {
+          "atom_id": {
+            "type": "string"
+          },
+          "contradiction": {
+            "type": "string"
+          },
+          "section": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "atom_id",
+          "section",
+          "contradiction"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
     "is_congruent": {
       "type": "boolean"
     }

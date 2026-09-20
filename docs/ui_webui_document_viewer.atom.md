@@ -13,7 +13,7 @@ tags: [webui, modal, ui, documentation]
 version: 1.0
 ---
 
-# New Atom
+# Document Generation UI
 
 ## INTENT
 To allow users to rapidly synthesize broad documentation narratives on the fly via a contextual overlay picker and viewer modal.

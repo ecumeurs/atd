@@ -31,18 +31,48 @@ FAIL=0
 
 echo "🔍 Running ATD Structural Integrity Check..."
 
+# Does HEAD exist yet? (false on a brand-new repo's very first commit)
+HEAD_EXISTS=1
+if ! git rev-parse --verify HEAD >/dev/null 2>&1; then
+  HEAD_EXISTS=0
+fi
+
 for file in $STAGED_ATOMS; do
   LAYER=$(grep -E "^layer:" "$file" | awk '{print $2}' | tr -d '\r')
   PARENTS_COUNT=$(awk '/^parents:/ {flag=1; next} /^[^ -]/ {flag=0} flag && /-[[:space:]]+\[\[.*\]\]/ {print}' "$file" | wc -l)
 
   if [[ "$LAYER" == "IMPLEMENTATION" || "$LAYER" == "ARCHITECTURE" ]]; then
     if [ "$PARENTS_COUNT" -eq 0 ]; then
-      echo "❌ ERROR: Orphaned Atom Detected -> $file"
-      echo "   Reason: This is an $LAYER atom but has no parents defined."
-      echo "   Fix 1 : Add a parent business/design requirement -> parents: [[req_your_parent]]"
-      echo "   Fix 2 : Use the escape hatch -> parents: [[req_tech_debt_backlog]]"
-      echo ""
-      FAIL=1
+      # Only block the commit if THIS commit introduces or worsens the orphan
+      # condition. A pre-existing orphan (already zero parents at HEAD, and
+      # not newly added by this commit) is not this commit's problem -- warn
+      # but don't fail, so debt stays visible without ambushing whoever next
+      # happens to touch the file for an unrelated reason.
+      IS_NEW=1
+      if [ "$HEAD_EXISTS" -eq 1 ] && git cat-file -e "HEAD:$file" 2>/dev/null; then
+        IS_NEW=0
+      fi
+
+      if [ "$IS_NEW" -eq 1 ]; then
+        echo "❌ ERROR: Orphaned Atom Detected -> $file"
+        echo "   Reason: This is a newly added $LAYER atom but has no parents defined."
+        echo "   Fix 1 : Add a parent business/design requirement -> parents: [[req_your_parent]]"
+        echo "   Fix 2 : Use the escape hatch -> parents: [[req_tech_debt_backlog]]"
+        echo ""
+        FAIL=1
+      else
+        HEAD_PARENTS_COUNT=$(git show "HEAD:$file" 2>/dev/null | awk '/^parents:/ {flag=1; next} /^[^ -]/ {flag=0} flag && /-[[:space:]]+\[\[.*\]\]/ {print}' | wc -l)
+        if [ "$HEAD_PARENTS_COUNT" -eq 0 ]; then
+          echo "⚠️  pre-existing orphan, not blocking: $file"
+        else
+          echo "❌ ERROR: Orphaned Atom Detected -> $file"
+          echo "   Reason: This is an $LAYER atom whose last parent was just removed."
+          echo "   Fix 1 : Add a parent business/design requirement -> parents: [[req_your_parent]]"
+          echo "   Fix 2 : Use the escape hatch -> parents: [[req_tech_debt_backlog]]"
+          echo ""
+          FAIL=1
+        fi
+      fi
     fi
   fi
 done
@@ -174,10 +204,27 @@ func runInit(dir, docsPath, model string, force, upgrade bool) (string, error) {
 
 	if upgrade {
 		// In upgrade mode, read existing .atd to discover the real docs path.
-		if err := config.LoadFromDir(absDir); err == nil && config.ActiveConfig.DocsPath != "" {
+		loadErr := config.LoadFromDir(absDir)
+		if loadErr == nil && config.ActiveConfig.DocsPath != "" {
 			docsPath = config.ActiveConfig.DocsPath
 		}
-		msgs = append(msgs, fmt.Sprintf("Mode:    upgrade (config unchanged)"))
+
+		switch {
+		case loadErr != nil || config.LoadedFromFallback():
+			// No real .atd found anywhere above absDir — nothing to backfill.
+			msgs = append(msgs, "Mode:    upgrade (no .atd found — config unchanged)")
+		default:
+			atdPath := filepath.Join(config.ProjectRoot(), ".atd")
+			changed, backfillErr := backfillGenerateTimeoutMs(atdPath)
+			switch {
+			case backfillErr != nil:
+				msgs = append(msgs, fmt.Sprintf("Config:  SKIPPED backfilling llm.generate_timeout_ms (%s)", backfillErr))
+			case changed:
+				msgs = append(msgs, fmt.Sprintf("Config:  added default llm.generate_timeout_ms=%d to %s", config.DefaultGenerateTimeoutMs, atdPath))
+			default:
+				msgs = append(msgs, "Mode:    upgrade (config unchanged)")
+			}
+		}
 	} else {
 		atdPath := filepath.Join(absDir, ".atd")
 
@@ -216,7 +263,8 @@ func runInit(dir, docsPath, model string, force, upgrade bool) (string, error) {
 					"llama3.2":          {Tasks: []string{"*"}, Priority: 10},
 					"nomic-embed-text":  {Tasks: []string{"embed"}, Priority: 100},
 				},
-				FallbackModel: model,
+				FallbackModel:     model,
+				GenerateTimeoutMs: config.DefaultGenerateTimeoutMs,
 			},
 		}
 
@@ -292,6 +340,59 @@ func ensureTechDebtAtom(docsDir string) (string, bool, error) {
 		return "", false, fmt.Errorf("failed to write atom: %w", err)
 	}
 	return atomPath, true, nil
+}
+
+// backfillGenerateTimeoutMs adds llm.generate_timeout_ms to an existing .atd
+// file at its default value, if (and only if) the file already has an "llm"
+// block that is missing the key. It never fabricates an "llm" block for a
+// project that has none, and no-ops when the key is already present — the
+// new field must be visible in .atd at its default value (not just an
+// invisible Go-side default) for `atd init --upgrade` on pre-existing
+// projects, mirroring the fresh-init path which writes it explicitly.
+//
+// Rewriting via a generic map necessarily alphabetizes .atd's top-level
+// keys on this one-time backfill; deemed an acceptable, clearly-messaged
+// tradeoff over depending on a JSON-patch library.
+func backfillGenerateTimeoutMs(atdPath string) (bool, error) {
+	data, err := os.ReadFile(atdPath)
+	if err != nil {
+		return false, fmt.Errorf("failed to read %s: %w", atdPath, err)
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return false, fmt.Errorf("failed to parse %s: %w", atdPath, err)
+	}
+
+	llmRaw, ok := raw["llm"]
+	if !ok {
+		return false, nil
+	}
+
+	var llm map[string]json.RawMessage
+	if err := json.Unmarshal(llmRaw, &llm); err != nil {
+		return false, fmt.Errorf("failed to parse llm block in %s: %w", atdPath, err)
+	}
+
+	if _, exists := llm["generate_timeout_ms"]; exists {
+		return false, nil
+	}
+
+	llm["generate_timeout_ms"] = json.RawMessage(fmt.Sprintf("%d", config.DefaultGenerateTimeoutMs))
+	newLLMRaw, err := json.Marshal(llm)
+	if err != nil {
+		return false, fmt.Errorf("failed to re-marshal llm block: %w", err)
+	}
+	raw["llm"] = newLLMRaw
+
+	out, err := json.MarshalIndent(raw, "", "  ")
+	if err != nil {
+		return false, fmt.Errorf("failed to re-marshal %s: %w", atdPath, err)
+	}
+	if err := os.WriteFile(atdPath, out, 0644); err != nil {
+		return false, fmt.Errorf("failed to write %s: %w", atdPath, err)
+	}
+	return true, nil
 }
 
 func init() {

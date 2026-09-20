@@ -9,8 +9,20 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
+
+// mu guards every read and write of ActiveConfig below. ActiveConfig is a
+// package-level global that tests reload/restore concurrently under
+// t.Parallel() (see pkg/testutil's configMu, which serializes the
+// load-then-invoke critical section for its own Sandbox/Run helpers) and
+// that production code paths (webui, MCP tools, CLI commands) can also
+// touch from more than one goroutine. Every exported function that reads or
+// writes ActiveConfig takes this lock for the duration of that access; nothing
+// below calls another locking function while already holding mu, to avoid
+// self-deadlock on the non-reentrant RWMutex.
+var mu sync.RWMutex
 
 var ActiveConfig Config
 
@@ -23,19 +35,19 @@ const (
 )
 
 type Config struct {
-	DocsDir          string
-	CodePaths        []string
-	SupportedExtensions map[string]bool
-	DiscoveryMethod   DiscoveryMethod
-	OrphanExcludedTypes map[string]bool
-	HierarchicalOrphanCheck bool
-	BusinessLayerException bool
-	GitignorePatterns []string
-	MaxDepth         int
+	DocsDir                 string          `json:"docs_dir,omitempty"`
+	CodePaths               []string        `json:"code_paths,omitempty"`
+	SupportedExtensions     map[string]bool `json:"supported_extensions,omitempty"`
+	DiscoveryMethod         DiscoveryMethod `json:"discovery_method,omitempty"`
+	OrphanExcludedTypes     map[string]bool `json:"orphan_excluded_types,omitempty"`
+	HierarchicalOrphanCheck bool            `json:"hierarchical_orphan_check,omitempty"`
+	BusinessLayerException  bool            `json:"business_layer_exception,omitempty"`
+	GitignorePatterns       []string        `json:"gitignore_patterns,omitempty"`
+	MaxDepth                int             `json:"max_depth,omitempty"`
 
 	// Legacy fields for backward compatibility
 	DocsPath                string               `json:"docs_path,omitempty"`
-	DiffSimilarityThreshold  float64              `json:"diff_similarity_threshold"`
+	DiffSimilarityThreshold float64              `json:"diff_similarity_threshold"`
 	BloatingFactor          BloatingFactorConfig `json:"bloating_factor"`
 	Model                   string               `json:"model"` // kept for backward compat
 	Logging                 LoggingConfig        `json:"logging"`
@@ -53,9 +65,66 @@ type Config struct {
 	// "cwd" for a `go test` binary is the package source directory — see
 	// test_atd_07_26.md §2.1 (incident I-1) and §3.6 (P-1).
 	loadedFromFallback bool
-	DocsDirOverride string
-	Workspace     *WorkspaceConfig `json:"-"`
-	ActiveProject string           `json:"-"`
+	DocsDirOverride    string           `json:"docs_dir_override,omitempty"`
+	Workspace          *WorkspaceConfig `json:"-"`
+	ActiveProject      string           `json:"-"`
+}
+
+// configAlias has the same fields as Config (including the json tags above)
+// but none of Config's methods, so it can be used as an UnmarshalJSON target
+// without recursing back into Config.UnmarshalJSON.
+type configAlias Config
+
+// legacyPascalCaseAliases maps the historical, untagged Go field names this
+// struct used to expose to the snake_case tag each now carries. Older .atd
+// files — including every one `atd config model set-task-model`'s
+// write-back path (runConfigUpdate) has ever produced, since it round-trips
+// json.MarshalIndent(ActiveConfig, ...) verbatim — used these PascalCase
+// keys because the fields had no json tag at all, so encoding/json fell
+// back to matching the literal Go field name. That silently dropped any
+// snake_case key a human wrote by hand for the same field (see
+// atd_known_defects_backlog memory). UnmarshalJSON below accepts both
+// casings so existing PascalCase files keep loading and hand-written
+// snake_case files stop being silently ignored.
+var legacyPascalCaseAliases = map[string]string{
+	"DocsDir":                 "docs_dir",
+	"CodePaths":               "code_paths",
+	"SupportedExtensions":     "supported_extensions",
+	"DiscoveryMethod":         "discovery_method",
+	"OrphanExcludedTypes":     "orphan_excluded_types",
+	"HierarchicalOrphanCheck": "hierarchical_orphan_check",
+	"BusinessLayerException":  "business_layer_exception",
+	"GitignorePatterns":       "gitignore_patterns",
+	"MaxDepth":                "max_depth",
+	"DocsDirOverride":         "docs_dir_override",
+}
+
+// UnmarshalJSON accepts both the legacy PascalCase keys and the canonical
+// snake_case keys for the fields in legacyPascalCaseAliases. If both are
+// present for a given field, the snake_case key wins.
+func (c *Config) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	for pascal, snake := range legacyPascalCaseAliases {
+		v, ok := raw[pascal]
+		if !ok {
+			continue
+		}
+		if _, hasSnake := raw[snake]; !hasSnake {
+			raw[snake] = v
+		}
+		delete(raw, pascal)
+	}
+
+	normalized, err := json.Marshal(raw)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(normalized, (*configAlias)(c))
 }
 
 type ProjectConfig struct {
@@ -67,20 +136,20 @@ type ProjectConfig struct {
 }
 
 type WorkspaceConfig struct {
-	WorkspaceName string                   `json:"workspace_name"`
-	WorkspaceRoot string                   `json:"workspace_root"`
-	Projects      []ProjectConfig          `json:"projects"`
-	SharedLibs    map[string]string        `json:"shared_libraries,omitempty"`
+	WorkspaceName  string                 `json:"workspace_name"`
+	WorkspaceRoot  string                 `json:"workspace_root"`
+	Projects       []ProjectConfig        `json:"projects"`
+	SharedLibs     map[string]string      `json:"shared_libraries,omitempty"`
 	CommonSettings map[string]interface{} `json:"common_settings,omitempty"`
-	
+
 	// Internal tracking
 	LoadedFrom string `json:"-"`
 }
 
 // Legacy types for backward compatibility
 type BloatingFactorConfig struct {
-	Default        float64            `json:"default"`
-	TypeOverrides   map[string]float64 `json:"type_overrides"`
+	Default       float64            `json:"default"`
+	TypeOverrides map[string]float64 `json:"type_overrides"`
 }
 
 type LoggingConfig struct {
@@ -100,11 +169,30 @@ type ModelConfig struct {
 }
 
 type LLMConfig struct {
-	Providers     []LLMProvider          `json:"providers"`
-	Models        map[string]ModelConfig `json:"models"`
-	FallbackModel string                 `json:"fallback_model"`
-	HealthTTLs   int                    `json:"health_ttl_ms,omitempty"`
-	ModelTTLs    int                    `json:"model_ttl_ms,omitempty"`
+	Providers         []LLMProvider          `json:"providers"`
+	Models            map[string]ModelConfig `json:"models"`
+	FallbackModel     string                 `json:"fallback_model"`
+	HealthTTLs        int                    `json:"health_ttl_ms,omitempty"`
+	ModelTTLs         int                    `json:"model_ttl_ms,omitempty"`
+	GenerateTimeoutMs int                    `json:"generate_timeout_ms,omitempty"`
+}
+
+// DefaultGenerateTimeoutMs bounds a single ollama.Generate/ollama.Embed HTTP
+// call when llm.generate_timeout_ms is unset. Distinct from each provider's
+// health-check TimeoutMs (used only for the fast /api/tags probe) -- a real
+// generate/embed call needs much more headroom than a health check.
+const DefaultGenerateTimeoutMs = 120000
+
+// GetGenerateTimeoutMs returns the configured bound for a single
+// ollama.Generate/ollama.Embed HTTP call, falling back to
+// DefaultGenerateTimeoutMs when unset or invalid.
+func GetGenerateTimeoutMs() int {
+	mu.RLock()
+	defer mu.RUnlock()
+	if ActiveConfig.LLM.GenerateTimeoutMs <= 0 {
+		return DefaultGenerateTimeoutMs
+	}
+	return ActiveConfig.LLM.GenerateTimeoutMs
 }
 
 type VerifyConfig struct {
@@ -164,6 +252,8 @@ func findATDConfigFile() string {
 }
 
 func GetCodePaths() []string {
+	mu.RLock()
+	defer mu.RUnlock()
 	if len(ActiveConfig.CodePaths) == 0 {
 		// Default to current directory
 		cwd, _ := os.Getwd()
@@ -177,6 +267,8 @@ func DocsDir() string {
 }
 
 func GetDiscoveryMethod() DiscoveryMethod {
+	mu.RLock()
+	defer mu.RUnlock()
 	if ActiveConfig.DiscoveryMethod == "" {
 		return DiscoveryMethodWalk
 	}
@@ -184,6 +276,8 @@ func GetDiscoveryMethod() DiscoveryMethod {
 }
 
 func GetOrphanExcludedTypes() map[string]bool {
+	mu.RLock()
+	defer mu.RUnlock()
 	if ActiveConfig.OrphanExcludedTypes == nil {
 		return map[string]bool{
 			"MODULE":      true,
@@ -198,14 +292,20 @@ func GetOrphanExcludedTypes() map[string]bool {
 }
 
 func SetHierarchicalOrphanCheck(enabled bool) {
+	mu.Lock()
+	defer mu.Unlock()
 	ActiveConfig.HierarchicalOrphanCheck = enabled
 }
 
 func SetBusinessLayerException(enabled bool) {
+	mu.Lock()
+	defer mu.Unlock()
 	ActiveConfig.BusinessLayerException = enabled
 }
 
 func GetGitignorePatterns() []string {
+	mu.RLock()
+	defer mu.RUnlock()
 	return ActiveConfig.GitignorePatterns
 }
 
@@ -213,6 +313,8 @@ func SetMaxDepth(depth int) error {
 	if depth < 1 || depth > 50 {
 		return fmt.Errorf("max_depth must be between 1 and 50")
 	}
+	mu.Lock()
+	defer mu.Unlock()
 	ActiveConfig.MaxDepth = depth
 	return nil
 }
@@ -230,6 +332,9 @@ func LoadLegacy() error {
 
 // LoadFromDirLegacy looks for .atd starting from dir and up to root.
 func LoadFromDirLegacy(dir string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
 	// Defaults
 	ActiveConfig = Config{
 		DiffSimilarityThreshold: 0.85,
@@ -238,24 +343,25 @@ func LoadFromDirLegacy(dir string) error {
 			TypeOverrides: make(map[string]float64),
 		},
 		SupportedExtensions: map[string]bool{
-			".go":  true, ".py": true, ".ts": true, ".js": true,
-			".rs":  true, ".java": true, ".c": true, ".cpp": true,
-			".h":   true, ".hpp": true, ".cs": true, ".php": true,
-			".rb":  true, ".swift": true, ".kt": true, ".scala": true, ".vue": true,
+			".go": true, ".py": true, ".ts": true, ".js": true,
+			".rs": true, ".java": true, ".c": true, ".cpp": true,
+			".h": true, ".hpp": true, ".cs": true, ".php": true,
+			".rb": true, ".swift": true, ".kt": true, ".scala": true, ".vue": true,
 		},
 		LLM: LLMConfig{
-			HealthTTLs: 300000, // 5 minutes
-			ModelTTLs:  300000, // 5 minutes
+			HealthTTLs:        300000, // 5 minutes
+			ModelTTLs:         300000, // 5 minutes
+			GenerateTimeoutMs: DefaultGenerateTimeoutMs,
 		},
 		DiscoveryMethod: DiscoveryMethodWalk,
 		OrphanExcludedTypes: map[string]bool{
 			"MODULE":        true,
 			"SPECIFICATION": true,
 			"USECASE":       true,
-			"USER_STORY":   true,
+			"USER_STORY":    true,
 		},
 		HierarchicalOrphanCheck: true,
-		BusinessLayerException: true,
+		BusinessLayerException:  true,
 		GitignorePatterns: []string{
 			"node_modules/",
 			".git/",
@@ -349,6 +455,9 @@ func LoadFromDirLegacy(dir string) error {
 
 // SetProject overrides the active project and reloads its config if needed.
 func SetProject(name string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
 	if ActiveConfig.Workspace == nil {
 		return fmt.Errorf("no workspace active")
 	}
@@ -414,14 +523,18 @@ func LoadWorkspaceConfig(startDir string) (*WorkspaceConfig, error) {
 
 // Log writes a concise trace to the configured log_path.
 func Log(toolName string, message string) {
-	if ActiveConfig.Logging.LogPath == "" {
+	mu.RLock()
+	logPath := ActiveConfig.Logging.LogPath
+	loadedFromDir := ActiveConfig.loadedFromDir
+	mu.RUnlock()
+
+	if logPath == "" {
 		return
 	}
 
 	// Resolve actual log path relative to where .atd was found, if not absolute
-	logPath := ActiveConfig.Logging.LogPath
-	if !filepath.IsAbs(logPath) && ActiveConfig.loadedFromDir != "" {
-		logPath = filepath.Join(ActiveConfig.loadedFromDir, logPath)
+	if !filepath.IsAbs(logPath) && loadedFromDir != "" {
+		logPath = filepath.Join(loadedFromDir, logPath)
 	} else if !filepath.IsAbs(logPath) {
 		cwd, _ := os.Getwd()
 		logPath = filepath.Join(cwd, logPath)
@@ -454,6 +567,8 @@ func Log(toolName string, message string) {
 
 // GetBloatingStrictness returns either the type override or default
 func GetBloatingStrictness(atomType string) float64 {
+	mu.RLock()
+	defer mu.RUnlock()
 	if val, ok := ActiveConfig.BloatingFactor.TypeOverrides[atomType]; ok {
 		return val
 	}
@@ -480,6 +595,8 @@ func GetVerifyDefaults(ext string) (string, string) {
 }
 
 func ProjectRoot() string {
+	mu.RLock()
+	defer mu.RUnlock()
 	return ActiveConfig.loadedFromDir
 }
 
@@ -489,6 +606,8 @@ func ProjectRoot() string {
 // fix, bulk edits) should refuse or loudly warn when this is true — see
 // test_atd_07_26.md §3.6 (P-1).
 func LoadedFromFallback() bool {
+	mu.RLock()
+	defer mu.RUnlock()
 	return ActiveConfig.loadedFromFallback
 }
 
@@ -503,11 +622,15 @@ func LoadedFromFallback() bool {
 //	saved := config.Snapshot()
 //	t.Cleanup(func() { config.Restore(saved) })
 func Snapshot() Config {
+	mu.RLock()
+	defer mu.RUnlock()
 	return ActiveConfig
 }
 
 // Restore sets ActiveConfig back to a value previously captured by Snapshot.
 func Restore(snap Config) {
+	mu.Lock()
+	defer mu.Unlock()
 	ActiveConfig = snap
 }
 
@@ -538,6 +661,8 @@ func IndexDBPath(docsDir string) string {
 }
 
 func DocsDirLegacy() string {
+	mu.RLock()
+	defer mu.RUnlock()
 	p := ActiveConfig.DocsDir
 	if p == "" {
 		p = ActiveConfig.DocsPath // Fall back to legacy field
@@ -559,6 +684,8 @@ func SrcDir() string {
 	if len(paths) > 0 {
 		return paths[0]
 	}
+	mu.RLock()
+	defer mu.RUnlock()
 	return ActiveConfig.loadedFromDir
 }
 
@@ -571,6 +698,9 @@ func ModelForTask(taskType string) []string {
 		priority int
 	}
 	var candidates []candidate
+
+	mu.RLock()
+	defer mu.RUnlock()
 
 	for modelName, mc := range ActiveConfig.LLM.Models {
 		for _, t := range mc.Tasks {

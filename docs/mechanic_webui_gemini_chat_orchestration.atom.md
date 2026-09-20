@@ -12,7 +12,7 @@ human_name: WebUI Gemini Chat Orchestration
 dependents: []
 ---
 
-# New Atom
+# WebUI Gemini Chat Orchestration
 
 ## INTENT
 Orchestrate multi-turn conversational chat with Gemini for ATD spec creation, injecting system instructions and ATD context.

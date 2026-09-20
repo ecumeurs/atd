@@ -39,7 +39,7 @@ Every layer validates the one below it:
 ### Project Configuration
 - **Docs Path**: `docs/`
 - **Code Paths**: `upsilonapi/`, `upsilonbattle/`, `battleui/`, `upsiloncli/`
-- **ATD Tools**: Located at `/home/bastien/work/skill/` (accessed via MCP)
+- **ATD Tools**: Located at `/home/bastien/work/atd/` (accessed via MCP)
 
 ### Type System
 
@@ -556,6 +556,14 @@ The ATD toolkit's Go code lives in **two separate Go modules**: `atd/` (module
 module** — the nested CLI module is invisible to them, `go.work` or not. This
 already shipped a five-error compile break in `cmd/atd` behind a "verified
 green" build.
+
+**Trap:** a shallow module search from the repo root misses the nested one.
+`atd/cmd/atd/go.mod` is 4 path components below the repo root, so
+`find . -maxdepth 3 -name go.mod` (or any similarly shallow `find`/`ls`)
+returns only the root module and looks like confirmation that "there's only
+one `go.mod`." It isn't — an agent drew exactly that false conclusion during
+the 2026-09-18 congruence fix. Use `find . -name go.mod` (no depth cap) or
+`cat go.work` to check module count, never a depth-limited search.
 
 > [!IMPORTANT]
 > **"Green" means `make -C atd verify`, nothing less.** That target builds,

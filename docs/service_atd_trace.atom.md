@@ -12,7 +12,7 @@ dependents:
 human_name: Trace Service
 ---
 
-# New Atom
+# Trace Service
 
 ## INTENT
 Orchestrate the cross-referencing of an atom's graph position with its real-world implementation and test coverage to produce a machine-readable health snapshot.

@@ -68,6 +68,6 @@ This is a new navigation state in `webui/static/js/explorer.js`.
 
 ## References
 
-- [explorer.js](file:///home/bastien/work/skill/scripts/pkg/webui/static/js/explorer.js)
-- [details.js](file:///home/bastien/work/skill/scripts/pkg/webui/static/js/details.js)
-- [README.md](file:///home/bastien/work/skill/scripts/pkg/webui/README.md)
+- [explorer.js](file:///home/bastien/work/atd/scripts/pkg/webui/static/js/explorer.js)
+- [details.js](file:///home/bastien/work/atd/scripts/pkg/webui/static/js/details.js)
+- [README.md](file:///home/bastien/work/atd/scripts/pkg/webui/README.md)

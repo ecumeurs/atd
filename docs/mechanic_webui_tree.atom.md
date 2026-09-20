@@ -12,7 +12,7 @@ tags: webui,mechanic,tree
 dependents: []
 ---
 
-# New Atom
+# WebUI Tree Mechanic
 
 ## INTENT
 Implement the /tree endpoint by transforming the Atoms map to a slice.

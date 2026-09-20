@@ -12,7 +12,7 @@ type: MECHANIC
 layer: IMPLEMENTATION
 ---
 
-# New Atom
+# WebUI Atom Detail Mechanic
 
 ## INTENT
 Implement the /atd/:id endpoint by looking up the ID in the Atoms map.

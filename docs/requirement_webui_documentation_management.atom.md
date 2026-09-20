@@ -13,7 +13,7 @@ parents: []
 type: REQUIREMENT
 ---
 
-# New Atom
+# WebUI Documentation Management
 
 ## INTENT
 We need to be able to review atoms, search them, and create documents about them.

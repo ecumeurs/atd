@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"time"
 )
@@ -48,6 +49,18 @@ type TagsResponse struct {
 	} `json:"models"`
 }
 
+// wrapOllamaHTTPError distinguishes a bounded-timeout expiry from every other
+// transport failure (connection refused, DNS failure, etc.) so a caller --
+// and the [ERROR] logging in pkg/audit -- can tell "the backend never
+// answered within the configured budget" apart from "the backend is not
+// there at all", instead of a bare, generically-worded error either way.
+func wrapOllamaHTTPError(baseURL string, timeoutMs int, err error) error {
+	if ne, ok := err.(net.Error); ok && ne.Timeout() {
+		return fmt.Errorf("ollama request to %s timed out after %dms waiting for a response (backend unreachable, overloaded, or model too slow -- see llm.generate_timeout_ms in .atd): %w", baseURL, timeoutMs, err)
+	}
+	return fmt.Errorf("ollama request to %s failed: %w", baseURL, err)
+}
+
 // Generate sends a generation request to an Ollama endpoint. Package var
 // (mirrors the ListModels seam below) so tests can swap in a deterministic
 // fake responder with no network — see pkg/testutil/fakeprovider, built for
@@ -55,7 +68,7 @@ type TagsResponse struct {
 // tests without a live model.
 var Generate = generateHTTP
 
-func generateHTTP(baseURL, model, prompt string, format interface{}, opts *Options) (*GenerateResponse, error) {
+func generateHTTP(baseURL, model, prompt string, format interface{}, opts *Options, timeoutMs int) (*GenerateResponse, error) {
 	req := GenerateRequest{
 		Model:   model,
 		Prompt:  prompt,
@@ -68,9 +81,10 @@ func generateHTTP(baseURL, model, prompt string, format interface{}, opts *Optio
 		return nil, err
 	}
 
-	resp, err := http.Post(fmt.Sprintf("%s/api/generate", baseURL), "application/json", bytes.NewBuffer(body))
+	client := &http.Client{Timeout: time.Duration(timeoutMs) * time.Millisecond}
+	resp, err := client.Post(fmt.Sprintf("%s/api/generate", baseURL), "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		return nil, err
+		return nil, wrapOllamaHTTPError(baseURL, timeoutMs, err)
 	}
 	defer resp.Body.Close()
 
@@ -95,7 +109,7 @@ func generateHTTP(baseURL, model, prompt string, format interface{}, opts *Optio
 // the same reason as Generate above (see pkg/testutil/fakeprovider).
 var Embed = embedHTTP
 
-func embedHTTP(baseURL, model, text string) ([]float32, error) {
+func embedHTTP(baseURL, model, text string, timeoutMs int) ([]float32, error) {
 	req := EmbeddingRequest{
 		Model:  model,
 		Prompt: text,
@@ -105,9 +119,10 @@ func embedHTTP(baseURL, model, text string) ([]float32, error) {
 		return nil, err
 	}
 
-	resp, err := http.Post(fmt.Sprintf("%s/api/embeddings", baseURL), "application/json", bytes.NewBuffer(body))
+	client := &http.Client{Timeout: time.Duration(timeoutMs) * time.Millisecond}
+	resp, err := client.Post(fmt.Sprintf("%s/api/embeddings", baseURL), "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		return nil, err
+		return nil, wrapOllamaHTTPError(baseURL, timeoutMs, err)
 	}
 	defer resp.Body.Close()
 

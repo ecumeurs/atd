@@ -233,6 +233,7 @@ func runMapDiscover(filePath, fileContent, docsDir string) (string, error) {
 
 	// Semantic search — workspace-wide if a workspace is active, local otherwise.
 	var registryBuilder strings.Builder
+	var searchHits []string
 
 	if codeIntent != "IDE_FALLBACK_PENDING" {
 		fmt.Println("Embedding code intent for semantic search...")
@@ -252,6 +253,7 @@ func runMapDiscover(filePath, fileContent, docsDir string) (string, error) {
 			if r.Project != "" {
 				atomID = r.Project + ":" + atomID
 			}
+			searchHits = append(searchHits, atomID)
 			registryBuilder.WriteString(fmt.Sprintf("- [[%s]]: %s\n", atomID, r.ChunkText))
 		}
 	}
@@ -308,23 +310,31 @@ func runMapDiscover(filePath, fileContent, docsDir string) (string, error) {
 		Recommendations []string `json:"recommendations"`
 		Rationale       string   `json:"rationale"`
 	}
+	truncated := false
 	if err := json.Unmarshal([]byte(respRec.Response), &rec); err != nil {
+		// The response didn't parse — in the field this is always a payload
+		// cut short by the provider's token budget (three reports, two
+		// different models; see map_link_validation.go). Now that the schema
+		// puts `recommendations` first, the useful part usually survives the
+		// truncation, so salvage it rather than throwing the whole call away.
+		//
 		// Surgical fix (WP-6/S12, test_atd_07_26.md §3.5): a discarded
 		// Unmarshal error here used to render "### Recommended Atom
 		// Links\n\n### Rationale\n" — a well-formed-looking but entirely
-		// empty report — instead of surfacing that the model's response
-		// didn't parse.
-		return "", fmt.Errorf("link recommendation returned malformed JSON: %v (raw response: %.200s)", err, respRec.Response)
+		// empty report. When nothing is salvageable we still fail loudly.
+		salvaged := salvageRecommendations(respRec.Response)
+		if len(salvaged) == 0 {
+			return "", fmt.Errorf("link recommendation returned malformed JSON: %v (raw response: %.200s)", err, respRec.Response)
+		}
+		rec.Recommendations = salvaged
+		rec.Rationale = salvageRationale(respRec.Response)
+		truncated = true
 	}
 
-	var b strings.Builder
-	b.WriteString("### Recommended Atom Links\n")
-	for _, r := range rec.Recommendations {
-		b.WriteString(fmt.Sprintf("- [[%s]]\n", r))
-	}
-	b.WriteString("\n### Rationale\n")
-	b.WriteString(rec.Rationale)
-	return b.String(), nil
+	// Drop anything that isn't a real atom ID before it is ever rendered as a
+	// "Recommended Atom Link".
+	valid, dropped := filterRecommendedAtomIDs(rec.Recommendations, newLinkRegistry(docsDir, searchHits))
+	return renderLinkRecommendations(valid, dropped, rec.Rationale, truncated), nil
 }
 
 // resolveAtomPath resolves an atom ID to its file path, workspace-aware.

@@ -22,7 +22,7 @@ dependents:
   - [[api_webui_tree]]
 ---
 
-# New Atom
+# WebUI ATD Router
 
 ## INTENT
 Encapsulate all ATD related API endpoints served by the WebUI.

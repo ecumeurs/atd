@@ -32,6 +32,12 @@ Every layer validates the one below it:
 - **Architecture**: "Is this the right technical approach?"  
 - **Implementation**: "Did we build it correctly?"
 
+### Operational Lineage Exception
+
+Valid trace origins are a BUSINESS atom or an explicitly human-approved operational-root. The sole non-governance parentless exception is an ARCHITECTURE `MODULE` created as `DRAFT` with `tags: [operational-root]`, used only for a named external technical consumer/system's stable interface or compatibility obligation. Its normal sections must state the consumer/system, owned interface, acceptance criteria, verification/owner; descendants follow normal parent rules and ultimately trace to it. `CONTRACT` and `VISION` remain graph-isolated and are never lineage roots.
+
+Do not use operational-root for generic quality preferences, individual log statements, CI steps, dashboards, implementation notes, or tool choices without an external compatibility contract. For OpenTelemetry, use `module_telemetry_export` -> `spec_otel_signal_contract` -> `rule_otel_context_propagation` / `service_otel_exporter`, documenting endpoint/protocol/auth ownership, resource attributes, signal names/units/cardinality, context propagation, sampling/redaction, and contract/integration/schema/config verification. E2E tests are not required.
+
 ---
 
 ## ATD Structure for UpsilonBattle
@@ -170,7 +176,7 @@ The `project:` prefix tells ATD to look in a different project's docs folder.
 **Decision Point**: Create new DRAFT atoms or proceed with existing architecture?
 
 > [!IMPORTANT]
-> **The "No Parent, No Code" Rule**: If the user asks to implement a feature or mechanic, you MUST first execute `atd_search`. If no parent BUSINESS or ARCHITECTURE atom exists for this feature, **STOP**. Do not write code. Do not write the IMPLEMENTATION atom. You must first propose the missing BUSINESS/ARCHITECTURE atoms to the user and ask for their approval to create them.
+> **The "No Parent, No Code" Rule**: If the user asks to implement a feature or mechanic, you MUST first execute `atd_search`. If it cannot trace to a BUSINESS atom or approved operational-root MODULE, **STOP**. Do not write code or the IMPLEMENTATION atom; propose the missing BUSINESS/ARCHITECTURE parent, or a strictly-qualified operational root, and obtain approval before creation.
 
 ### Phase 2: Specification 📝
 **Question**: "How should this work?"

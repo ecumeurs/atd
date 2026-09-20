@@ -45,11 +45,27 @@ func (e *Explorer) weaveSingleProject() (string, error) {
 		return "", err
 	}
 
+	// Governance atoms (CONTRACT/VISION) sit outside the ancestry graph
+	// (ATD.md §1.4). Weave is the repair pass for that rule: a parents: entry
+	// naming one is dropped, and a governance atom's own parents: are emptied.
+	governanceIDs := make(map[string]bool)
+	for id, a := range e.Graph.Atoms {
+		if atom.IsGovernanceType(a.Type) {
+			governanceIDs[id] = true
+		}
+	}
+
+	var stripped []string
 	parentToDependents := make(map[string][]string)
 
 	for id, a := range e.Graph.Atoms {
 		for _, p := range a.Parents {
 			ref := strings.Trim(p, "[]")
+			if governanceIDs[id] || governanceIDs[atom.BareAtomID(ref)] {
+				// Not an edge: excluded here so the target never regains a
+				// dependents: entry for it either.
+				continue
+			}
 			parentToDependents[ref] = append(parentToDependents[ref], id)
 		}
 	}
@@ -63,12 +79,22 @@ func (e *Explorer) weaveSingleProject() (string, error) {
 		// in single-project mode.
 		deps := parentToDependents[id]
 		sort.Strings(deps)
-		changed, err := rewriteAtomLinks(a.FilePath, nil, deps, "" /* no project ctx */)
+
+		// Pass nil (leave parents untouched) unless this atom actually holds a
+		// forbidden link — otherwise every atom's parents: would be re-sorted
+		// and re-rendered on every weave.
+		newParents, removed := stripGovernanceParents(a, governanceIDs)
+		stripped = append(stripped, removed...)
+
+		changed, err := rewriteAtomLinks(a.FilePath, newParents, deps, "" /* no project ctx */)
 		if err != nil {
 			return "", err
 		}
 		if changed {
 			edited++
+		}
+		if newParents != nil {
+			a.Parents = newParents
 		}
 	}
 
@@ -78,8 +104,51 @@ func (e *Explorer) weaveSingleProject() (string, error) {
 	}
 
 	result := fmt.Sprintf("Link Weaving Complete. Updated %d files.", edited)
+	result += formatStrippedGovernanceLinks(stripped)
 	config.Log("atd-weave", result)
 	return result, nil
+}
+
+// stripGovernanceParents returns the atom's parents: with every forbidden
+// governance link removed (all of them, if the atom is itself a governance
+// atom), plus a human-readable note per removal. It returns a nil slice when
+// nothing is forbidden, which callers pass through to rewriteAtomLinks to mean
+// "leave the parents block exactly as authored".
+// @spec-link [[rule_atd_governance_graph_isolation]]
+func stripGovernanceParents(a *atom.AtomData, governanceIDs map[string]bool) (parents []string, removed []string) {
+	self := atom.IsGovernanceType(a.Type)
+	kept := make([]string, 0, len(a.Parents))
+	for _, p := range a.Parents {
+		ref := strings.Trim(strings.TrimSpace(p), "[]")
+		switch {
+		case self:
+			removed = append(removed, fmt.Sprintf("%s (%s) parents: [[%s]] -- a governance atom declares no parents", a.ID, strings.ToUpper(strings.TrimSpace(a.Type)), ref))
+		case governanceIDs[atom.BareAtomID(ref)]:
+			removed = append(removed, fmt.Sprintf("%s parents: [[%s]] -- governance atoms are never structural ancestry", a.ID, ref))
+		default:
+			kept = append(kept, p)
+		}
+	}
+	if len(removed) == 0 {
+		return nil, nil
+	}
+	return kept, removed
+}
+
+// formatStrippedGovernanceLinks renders the removal notes appended to weave's
+// result text. Weave rewrites files in place, so every dropped link is named
+// rather than silently discarded.
+func formatStrippedGovernanceLinks(stripped []string) string {
+	if len(stripped) == 0 {
+		return ""
+	}
+	sort.Strings(stripped)
+	var b strings.Builder
+	fmt.Fprintf(&b, "\nRemoved %d forbidden governance link(s) (ATD.md §1.4):", len(stripped))
+	for _, s := range stripped {
+		fmt.Fprintf(&b, "\n  - %s", s)
+	}
+	return b.String()
 }
 
 // weaveWorkspace runs a workspace-aware weave: parents and dependents are
@@ -101,6 +170,10 @@ func (e *Explorer) weaveWorkspace() (string, error) {
 		Parsed  *atom.AtomData
 	}
 	atomsByCanonical := make(map[string]atomCtx)
+	// Canonical refs of governance atoms across the whole workspace: a
+	// CONTRACT/VISION in any project is graph-isolated, including from
+	// cross-project parents: entries (ATD.md §1.4).
+	governanceCanonical := make(map[string]bool)
 
 	for atomID, loc := range idx.ByID {
 		a, err := atom.Parse(loc.Path)
@@ -109,19 +182,33 @@ func (e *Explorer) weaveWorkspace() (string, error) {
 		}
 		canonical := fmt.Sprintf("[[%s:%s]]", loc.Project, atomID)
 		atomsByCanonical[canonical] = atomCtx{Loc: loc, AtomID: atomID, Parsed: &a}
+		if atom.IsGovernanceType(a.Type) {
+			governanceCanonical[canonical] = true
+		}
+	}
 
-		for _, pRef := range a.Parents {
+	// Second pass: the parent→dependents map must skip forbidden governance
+	// edges, which requires the full governance set from the pass above.
+	for canonical, ctx := range atomsByCanonical {
+		if governanceCanonical[canonical] {
+			continue // its parents: are stripped below; it contributes no edges
+		}
+		for _, pRef := range ctx.Parsed.Parents {
 			resolved, err := resolver.Resolve(pRef)
 			if err != nil || resolved == nil {
 				continue
 			}
 			parentCanonical := fmt.Sprintf("[[%s:%s]]", resolved.Project, resolved.AtomID)
+			if governanceCanonical[parentCanonical] {
+				continue
+			}
 			parentToDependents[parentCanonical] = append(parentToDependents[parentCanonical], canonical)
 		}
 	}
 
 	// 2. Rewrite each atom file: canonicalize parents, refresh dependents.
 	edited := 0
+	var stripped []string
 	for canonical, ctx := range atomsByCanonical {
 		a := ctx.Parsed
 		loc := ctx.Loc
@@ -129,8 +216,22 @@ func (e *Explorer) weaveWorkspace() (string, error) {
 		// Per-atom resolver so bare same-project parents stay canonical.
 		projResolver := workspace.NewResolver(ws, idx, loc.Project)
 
+		selfGovernance := governanceCanonical[canonical]
 		newParents := make([]string, 0, len(a.Parents))
 		for _, pRef := range a.Parents {
+			// Governance graph isolation (ATD.md §1.4): drop the link rather
+			// than canonicalize it. A governance atom loses all of its parents;
+			// any atom loses the ones pointing at a governance atom.
+			if selfGovernance {
+				stripped = append(stripped, fmt.Sprintf("%s:%s (%s) parents: [[%s]] -- a governance atom declares no parents", loc.Project, ctx.AtomID, strings.ToUpper(strings.TrimSpace(a.Type)), strings.Trim(strings.TrimSpace(pRef), "[]")))
+				continue
+			}
+			if resolved, err := resolver.Resolve(pRef); err == nil && resolved != nil {
+				if governanceCanonical[fmt.Sprintf("[[%s:%s]]", resolved.Project, resolved.AtomID)] {
+					stripped = append(stripped, fmt.Sprintf("%s:%s parents: [[%s]] -- governance atoms are never structural ancestry", loc.Project, ctx.AtomID, strings.Trim(strings.TrimSpace(pRef), "[]")))
+					continue
+				}
+			}
 			shouldUpdate, replacement := projResolver.ShouldUpdate(pRef)
 			if shouldUpdate {
 				newParents = append(newParents, replacement)
@@ -163,6 +264,7 @@ func (e *Explorer) weaveWorkspace() (string, error) {
 	}
 
 	result := fmt.Sprintf("Workspace Link Weaving Complete. Updated %d files.", edited)
+	result += formatStrippedGovernanceLinks(stripped)
 	config.Log("atd-weave", result)
 	return result, nil
 }

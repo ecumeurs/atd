@@ -12,7 +12,7 @@ dependents: []
 version: 1.0
 ---
 
-# New Atom
+# WebUI Health Stats Mechanic
 
 ## INTENT
 Compute and assemble project documentation health metrics.

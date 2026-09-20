@@ -13,7 +13,7 @@ type: API
 priority: 3
 ---
 
-# New Atom
+# WebUI Atom Tests API
 
 ## INTENT
 Provide test coverage metrics for a specific atom.
