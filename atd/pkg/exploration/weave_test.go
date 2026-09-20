@@ -434,3 +434,76 @@ func TestWeaveWorkspace_CanonicalizesCrossProjectRefs(t *testing.T) {
 		t.Errorf("parent's dependents did not gain the cross-project child entry:\n%s", parent)
 	}
 }
+
+// TestWeaveWorkspace_PreservesUnresolvableDependentsInstance pins weave
+// against rebuilding every atom's dependents: block from scratch each run
+// using only edges it can freshly re-resolve: doing so would silently drop
+// anything it can't verify (e.g. because the declaring project isn't
+// registered in this run's workspace). Here parent_zzunresolved's dependents:
+// names a project ("zzghost") that isn't part of the workspace at all --
+// weave must leave that entry in place and name it in the result text,
+// not delete it.
+// @test-link [[mechanic_atd_weave]]
+func TestWeaveWorkspace_PreservesUnresolvableDependentsInstance(t *testing.T) {
+	testutil.SnapshotConfigLocked(t)
+	root := t.TempDir()
+
+	mkAtom := func(rel, id, body string) {
+		p := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
+			t.Fatal(err)
+		}
+		content := fmt.Sprintf("---\nid: %s\nhuman_name: %q\n%s---\n\n# %s\n", id, id, body, id)
+		if err := os.WriteFile(p, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// parent_zzunresolved has a live, resolvable child (child_zzunresolved)
+	// AND a pre-existing dependents: entry pointing at a project
+	// ("zzghost") that this workspace doesn't know about -- the shape of the
+	// original bug report.
+	mkAtom("zzunresolved_a/docs/parent_zzunresolved.atom.md", "parent_zzunresolved",
+		"parents: []\ndependents:\n  - [[zzunresolved_b:child_zzunresolved]]\n  - [[zzghost:phantom_dependent]]\n")
+	mkAtom("zzunresolved_b/docs/child_zzunresolved.atom.md", "child_zzunresolved",
+		"parents:\n  - [[zzunresolved_a:parent_zzunresolved]]\ndependents: []\n")
+
+	wsJSON := `{
+		"workspace_name": "zzunresolved-ws",
+		"projects": [
+			{"name": "zzunresolved_a", "path": "./zzunresolved_a"},
+			{"name": "zzunresolved_b", "path": "./zzunresolved_b"}
+		]
+	}`
+	if err := os.WriteFile(filepath.Join(root, ".atd.workspace"), []byte(wsJSON), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	ws, err := workspace.LoadWorkspace(root)
+	if err != nil {
+		t.Fatalf("LoadWorkspace: %v", err)
+	}
+	idx, err := ws.BuildIndex()
+	if err != nil {
+		t.Fatalf("BuildIndex: %v", err)
+	}
+
+	e := &Explorer{ProjectRoot: root, Workspace: ws, Index: idx}
+	out, err := e.Weave()
+	if err != nil {
+		t.Fatalf("Weave: %v", err)
+	}
+
+	parent, err := os.ReadFile(filepath.Join(root, "zzunresolved_a/docs/parent_zzunresolved.atom.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(parent), "  - [[zzunresolved_b:child_zzunresolved]]") {
+		t.Errorf("legitimate, resolvable dependent was lost:\n%s", parent)
+	}
+	if !strings.Contains(string(parent), "  - [[zzghost:phantom_dependent]]") {
+		t.Errorf("unresolvable dependents entry was silently pruned instead of preserved:\n%s", parent)
+	}
+	if !strings.Contains(out, "zzghost:phantom_dependent") {
+		t.Errorf("weave output did not name the preserved-but-unverified entry, got:\n%s", out)
+	}
+}
