@@ -84,7 +84,7 @@ n/a
 		`{"is_bloated": false, "reason": "single rule"}`,  // clean: logic
 	)
 
-	report, err := RunFullAudit(dir, 0.85, false)
+	report, err := RunFullAudit(dir, 0.85, false, 1)
 	if err != nil {
 		t.Fatalf("RunFullAudit: %v", err)
 	}
@@ -156,7 +156,7 @@ n/a
 		atomB: {1, 0, 0.001}, // near-identical, unrelated, same type -> collision
 	})
 
-	report, err := RunFullAudit(dir, 0.85, false)
+	report, err := RunFullAudit(dir, 0.85, false, 1)
 	if err != nil {
 		t.Fatalf("RunFullAudit: %v", err)
 	}
@@ -210,7 +210,7 @@ n/a
 			// response; either is enough to trip the parser.
 			fake.SetJSON(c.resp)
 
-			report, err := RunFullAudit(dir, 0.85, false)
+			report, err := RunFullAudit(dir, 0.85, false, 1)
 			if err != nil {
 				t.Fatalf("RunFullAudit: %v", err)
 			}
@@ -267,7 +267,7 @@ n/a
 	// Valid JSON, but missing the "is_bloated" key the parser depends on.
 	fake.SetJSON(`{"reason": "the model forgot the required field"}`)
 
-	report, err := RunFullAudit(dir, 0.85, false)
+	report, err := RunFullAudit(dir, 0.85, false, 1)
 	if err != nil {
 		t.Fatalf("RunFullAudit: %v", err)
 	}
@@ -317,7 +317,7 @@ n/a
 		t.Fatalf("failed to create dangling symlink: %v", err)
 	}
 
-	report, err := RunFullAudit(dir, 0.85, false)
+	report, err := RunFullAudit(dir, 0.85, false, 1)
 	if err != nil {
 		t.Fatalf("RunFullAudit panicked or errored instead of skipping the vanished file: %v", err)
 	}
@@ -361,7 +361,7 @@ Some logic.
 n/a
 `)
 
-	report, err := RunFullAudit(dir, 0.85, false)
+	report, err := RunFullAudit(dir, 0.85, false, 1)
 	if err != nil {
 		t.Fatalf("RunFullAudit: %v", err)
 	}
@@ -411,7 +411,7 @@ Clean logic one.
 n/a
 `)
 
-	report, err := RunFullAudit(dir, 0.85, false)
+	report, err := RunFullAudit(dir, 0.85, false, 1)
 	if err != nil {
 		t.Fatalf("RunFullAudit: %v", err)
 	}
@@ -449,12 +449,78 @@ Some logic.
 n/a
 `)
 
-	report, err := RunFullAudit(dir, 0.85, false)
+	report, err := RunFullAudit(dir, 0.85, false, 1)
 	if err != nil {
 		t.Fatalf("RunFullAudit: %v", err)
 	}
 
 	if !strings.Contains(report.Text, "Summary: 1 atom(s) scanned, 0 bloated, 0 collision(s), 2 LLM error(s) (1 bloat-check, 1 embedding)") {
 		t.Errorf("expected the summary line to count both the bloat-check and embedding errors, got:\n%s", report.Text)
+	}
+}
+
+// TestRunFullAudit_ConcurrencyDeterminism pins the bounded-worker-pool
+// scheduling change to Phase 1: running the same fixed set of atom files
+// through RunFullAudit with concurrency=1 (effectively sequential) versus
+// concurrency=4 (several files in flight at once) must produce
+// byte-for-byte identical report text. Report lines are written into a
+// per-file result slot indexed by each file's position in the glob's sorted
+// file list and only merged into the shared report after every worker
+// finishes, so output ordering must never depend on which goroutine happens
+// to finish first.
+//
+// Each atom is audited in its own TempDir (a fresh, empty audit cache) so
+// the two runs can't observe each other's cached results and diverge on
+// that basis alone -- the comparison isolates the effect of concurrency.
+func TestRunFullAudit_ConcurrencyDeterminism(t *testing.T) {
+	buildFixtureDir := func(t *testing.T) string {
+		t.Helper()
+		dir := t.TempDir()
+		for _, id := range []string{"zzfix_conc_a", "zzfix_conc_b", "zzfix_conc_c", "zzfix_conc_d", "zzfix_conc_e", "zzfix_conc_f"} {
+			writeFile(t, dir, id+".atom.md", fmt.Sprintf(`---
+id: %s
+type: RULE
+status: DRAFT
+parents: []
+dependents: []
+layer: BUSINESS
+---
+
+## INTENT
+Intent for %s.
+
+## THE RULE / LOGIC
+Logic for %s.
+
+## EXPECTATION
+n/a
+`, id, id, id))
+		}
+		return dir
+	}
+
+	runWithConcurrency := func(t *testing.T, concurrency int) string {
+		t.Helper()
+		fake := fakeprovider.InstallOllama(t)
+		// A fixed, content-independent response for every bloat-check call
+		// and a fixed embedding vector for every file -- neither depends on
+		// call order, so any nondeterminism in the report text can only come
+		// from the worker-pool scheduling itself, not from the fake.
+		fake.SetJSON(`{"is_bloated": false}`)
+		fake.SetEmbedVector([]float32{0.1, 0.2, 0.3})
+
+		dir := buildFixtureDir(t)
+		report, err := RunFullAudit(dir, 0.85, false, concurrency)
+		if err != nil {
+			t.Fatalf("RunFullAudit(concurrency=%d): %v", concurrency, err)
+		}
+		return report.Text
+	}
+
+	sequential := runWithConcurrency(t, 1)
+	parallel := runWithConcurrency(t, 4)
+
+	if sequential != parallel {
+		t.Errorf("report text differs between concurrency=1 and concurrency=4 runs:\n--- concurrency=1 ---\n%s\n--- concurrency=4 ---\n%s", sequential, parallel)
 	}
 }

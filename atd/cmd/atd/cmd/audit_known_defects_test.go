@@ -60,6 +60,7 @@ package cmd
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"atd-tools/pkg/testutil/fakeprovider"
@@ -77,11 +78,11 @@ func writeAuditKnownDefectFixture(t *testing.T, dir, filename, id string) {
 }
 
 // TestAuditCmd_AtomFlagScopesAudit_Fixed pins the fix for the dead-flag
-// defect described above: with --atom pointed at exactly one atom and
-// --code at an unrelated path (a single-atom, single-file compliance check
-// per the flags' own descriptions), the CLI must make exactly 2 Generate
-// calls (intent + logic judge for that one atom) — not 4, the full 2-atom
-// docsDir sweep it used to make while --atom/--code were silently ignored.
+// defect described above: with --atom pointed at exactly one atom and --code
+// left unset (a single-atom scope, per the --atom flag's own description),
+// the CLI must make exactly 2 Generate calls (intent + logic judge for that
+// one atom) — not 4, the full 2-atom docsDir sweep it used to make while
+// --atom was silently ignored.
 func TestAuditCmd_AtomFlagScopesAudit_Fixed(t *testing.T) {
 	fake := fakeprovider.InstallOllama(t)
 	fake.SetJSON(`{"is_bloated": false}`)
@@ -89,6 +90,47 @@ func TestAuditCmd_AtomFlagScopesAudit_Fixed(t *testing.T) {
 	dir := t.TempDir()
 	writeAuditKnownDefectFixture(t, dir, "zzfix_defect_a.atom.md", "zzfix_defect_a")
 	writeAuditKnownDefectFixture(t, dir, "zzfix_defect_b.atom.md", "zzfix_defect_b")
+
+	origDocs, _ := auditCmd.Flags().GetString("docs")
+	origAtom, _ := auditCmd.Flags().GetString("atom")
+	t.Cleanup(func() {
+		auditCmd.Flags().Set("docs", origDocs)
+		auditCmd.Flags().Set("atom", origAtom)
+	})
+
+	if err := auditCmd.Flags().Set("docs", dir); err != nil {
+		t.Fatal(err)
+	}
+	// A caller asking for a narrow single-atom scope, per the CLI's own
+	// --atom flag description — deliberately naming only ONE of the two
+	// fixture atoms.
+	if err := auditCmd.Flags().Set("atom", filepath.Join(dir, "zzfix_defect_a.atom.md")); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := auditCmd.RunE(auditCmd, []string{}); err != nil {
+		t.Fatalf("auditCmd.RunE: %v", err)
+	}
+
+	calls := fake.Calls()
+	if len(calls) != 2 {
+		t.Errorf("got %d Generate call(s) with --atom set to a single atom, want 2 (intent + logic judge for that one atom only) — --atom must scope the audit to exactly that file, not sweep the whole --docs directory", len(calls))
+	}
+}
+
+// TestAuditCmd_AtomAndCodeReturnsError pins the current, intentional
+// --atom+--code behavior: audit has no atom-vs-code compliance comparison
+// capability (no prompt or scoring path in pkg/audit takes a code snippet as
+// input), so setting both flags together must fail loudly with a returned
+// error naming the actual command for that job ("atd map --atom ... --file
+// ..."), instead of silently falling back to a single-atom scope and
+// printing an easy-to-miss note.
+func TestAuditCmd_AtomAndCodeReturnsError(t *testing.T) {
+	fake := fakeprovider.InstallOllama(t)
+	fake.SetJSON(`{"is_bloated": false}`)
+
+	dir := t.TempDir()
+	writeAuditKnownDefectFixture(t, dir, "zzfix_defect_a.atom.md", "zzfix_defect_a")
 
 	origDocs, _ := auditCmd.Flags().GetString("docs")
 	origAtom, _ := auditCmd.Flags().GetString("atom")
@@ -102,10 +144,6 @@ func TestAuditCmd_AtomFlagScopesAudit_Fixed(t *testing.T) {
 	if err := auditCmd.Flags().Set("docs", dir); err != nil {
 		t.Fatal(err)
 	}
-	// A caller asking for a narrow single-atom/single-file compliance check,
-	// per the CLI's own --atom/--code flag descriptions ("Atom path for
-	// compliance check", "Snippet path for compliance check") — deliberately
-	// naming only ONE of the two fixture atoms.
 	if err := auditCmd.Flags().Set("atom", filepath.Join(dir, "zzfix_defect_a.atom.md")); err != nil {
 		t.Fatal(err)
 	}
@@ -113,12 +151,15 @@ func TestAuditCmd_AtomFlagScopesAudit_Fixed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := auditCmd.RunE(auditCmd, []string{}); err != nil {
-		t.Fatalf("auditCmd.RunE: %v", err)
+	err := auditCmd.RunE(auditCmd, []string{})
+	if err == nil {
+		t.Fatal("expected auditCmd.RunE to return an error when both --atom and --code are set, got nil")
+	}
+	if !strings.Contains(err.Error(), "atd map --atom") {
+		t.Errorf("expected the error to name \"atd map --atom ... --file ...\" as the correct command, got: %v", err)
 	}
 
-	calls := fake.Calls()
-	if len(calls) != 2 {
-		t.Errorf("got %d Generate call(s) with --atom set to a single atom, want 2 (intent + logic judge for that one atom only) — --atom must scope the audit to exactly that file, not sweep the whole --docs directory", len(calls))
+	if calls := fake.Calls(); len(calls) != 0 {
+		t.Errorf("expected no Generate calls when --atom+--code is rejected before any audit runs, got %d", len(calls))
 	}
 }

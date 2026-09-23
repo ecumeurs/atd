@@ -13,7 +13,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
+
+// DefaultAuditConcurrency bounds how many files Phase 1 audits at once when
+// no explicit concurrency is requested (concurrency <= 0). Phase 1's per-file
+// work is dominated by up to 3 sequential Ollama HTTP round-trips (2 bloat
+// judges + 1 embed), each with up to a 120s timeout -- this bounds
+// simultaneous outbound HTTP calls to the LLM backend, not CPU-bound work, so
+// a small fixed pool is enough to get most of the wall-clock win without
+// hammering a local Ollama instance with dozens of concurrent requests.
+const DefaultAuditConcurrency = 4
 
 type AuditReport struct {
 	Text string
@@ -44,7 +54,7 @@ type atomAuditMeta struct {
 	LastModified int64
 }
 
-func RunFullAudit(docsDir string, threshold float64, workspace bool) (*AuditReport, error) {
+func RunFullAudit(docsDir string, threshold float64, workspace bool, concurrency int) (*AuditReport, error) {
 	var files []string
 	if workspace && config.ActiveConfig.Workspace != nil {
 		for _, p := range config.ActiveConfig.Workspace.Projects {
@@ -67,7 +77,7 @@ func RunFullAudit(docsDir string, threshold float64, workspace bool) (*AuditRepo
 		files, _ = filepath.Glob(filepath.Join(docsDir, "*.atom.md"))
 	}
 
-	return runAudit(files, docsDir, threshold)
+	return runAudit(files, docsDir, threshold, concurrency)
 }
 
 // RunScopedAudit runs the same bloat-detection and collision-detection
@@ -81,17 +91,218 @@ func RunFullAudit(docsDir string, threshold float64, workspace bool) (*AuditRepo
 // prompt or scoring path takes a code snippet as input), so a `--code`
 // argument for a true single-atom-vs-single-file comparison is intentionally
 // not accepted here yet -- only atom-level scoping is provided.
-func RunScopedAudit(atomPath string, threshold float64) (*AuditReport, error) {
+func RunScopedAudit(atomPath string, threshold float64, concurrency int) (*AuditReport, error) {
 	if _, err := os.Stat(atomPath); err != nil {
 		return nil, fmt.Errorf("atom path not found: %v", err)
 	}
-	return runAudit([]string{atomPath}, filepath.Dir(atomPath), threshold)
+	return runAudit([]string{atomPath}, filepath.Dir(atomPath), threshold, concurrency)
+}
+
+// fileAuditResult is one worker's Phase-1 output for a single file: report
+// text to merge into the shared output (in original file order), and the
+// state (meta/counters) runAudit needs to fold into auditMetas/ids/the
+// summary counters after the worker pool drains. meta is nil whenever the
+// file was skipped (stat/parse failure, malformed bloat-check response,
+// etc.) -- mirroring the original sequential loop's `continue` points, which
+// left such files out of auditMetas/ids entirely.
+type fileAuditResult struct {
+	filename   string
+	text       string
+	meta       *atomAuditMeta
+	bloated    bool
+	queryError bool
+	embedError bool
+}
+
+// auditOneFile runs Phase 1's bloat-check/embedding pipeline for a single
+// file. It is the unit of work scheduled by runAudit's worker pool, and its
+// control flow is an exact copy of the original sequential loop body -- only
+// the scheduling around it changed -- so every existing report line, error
+// message, and cache-hit/miss behavior is preserved verbatim per file.
+func auditOneFile(f string, store *atdstore.Store) fileAuditResult {
+	var out strings.Builder
+	filename := filepath.Base(f)
+	res := fileAuditResult{filename: filename}
+
+	info, statErr := os.Stat(f)
+	if statErr != nil {
+		out.WriteString(fmt.Sprintf("Auditing: %s ... [ERROR: %v]\n", filename, statErr))
+		res.text = out.String()
+		return res
+	}
+	mtime := info.ModTime().Unix()
+
+	cached, err := store.GetAuditCache(filename)
+	if err == nil && cached != nil && mtime <= cached.Mtime {
+		data, err := atom.Parse(f)
+		if err != nil {
+			out.WriteString(fmt.Sprintf("Auditing: %s ... [ERROR: %v]\n", filename, err))
+			res.text = out.String()
+			return res
+		}
+		atomType := data.Type
+		if atomType == "" {
+			atomType = "UNKNOWN"
+		}
+		meta := atomAuditMeta{
+			ID:           data.ID,
+			FilePath:     f,
+			AtomType:     atomType,
+			Parents:      data.Parents,
+			Embedding:    cached.Embedding,
+			BloatResult:  fmt.Sprintf("CACHED: intent=%s logic=%s", cached.Intent, cached.Logic),
+			LastModified: cached.Mtime,
+		}
+		res.meta = &meta
+		out.WriteString(fmt.Sprintf("Auditing: %s ... [CACHED]\n", filename))
+		res.text = out.String()
+		return res
+	}
+
+	data, err := atom.Parse(f)
+	if err != nil {
+		out.WriteString(fmt.Sprintf("Auditing: %s ... [ERROR: %v]\n", filename, err))
+		res.text = out.String()
+		return res
+	}
+
+	atomType := data.Type
+	if atomType == "" {
+		atomType = "UNKNOWN"
+	}
+
+	strictness := config.GetBloatingStrictness(atomType)
+	bloatResult := "PASS"
+	if data.Bloating == "off" {
+		bloatResult = "SKIP"
+	} else if strictness > 0 {
+		intentPrompt := prompt.AuditBloatBuild("Architectural Linter", data.Intent, strictness)
+		logicPrompt := prompt.AuditBloatBuild("Architectural Linter", data.Logic, strictness)
+
+		resI, errI := ollama.Query("text_analysis", intentPrompt, prompt.AuditBloatFormat())
+		resL, errL := ollama.Query("text_analysis", logicPrompt, prompt.AuditBloatFormat())
+
+		if errI == ollama.ErrIDEFallback || errL == ollama.ErrIDEFallback {
+			promptName := "audit_bloat_" + data.ID
+			pipeline.WritePromptFile(promptName, intentPrompt+"\n\n"+logicPrompt)
+			bloatResult = "PENDING_IDE"
+		} else if errI == nil && errL == nil {
+			var bI, bL struct {
+				IsBloated bool `json:"is_bloated"`
+			}
+			if err := json.Unmarshal([]byte(resI.Response), &bI); err != nil {
+				out.WriteString(fmt.Sprintf("  [ERROR] Failed to parse intent response: %v\n", err))
+				res.text = out.String()
+				return res
+			}
+			if !hasKey(resI.Response, "is_bloated") {
+				// Syntactically valid JSON that simply omits "is_bloated"
+				// unmarshals with no error at all -- bI.IsBloated would
+				// silently stay its zero value (false), classifying the
+				// atom PASS even though the model's response was
+				// unusable. Treat a missing required key the same as
+				// malformed JSON: a loud [ERROR] line, never a silent
+				// PASS.
+				out.WriteString(fmt.Sprintf("  [ERROR] Intent response missing required \"is_bloated\" key: %.200s\n", resI.Response))
+				res.text = out.String()
+				return res
+			}
+			if err := json.Unmarshal([]byte(resL.Response), &bL); err != nil {
+				out.WriteString(fmt.Sprintf("  [ERROR] Failed to parse logic response: %v\n", err))
+				res.text = out.String()
+				return res
+			}
+			if !hasKey(resL.Response, "is_bloated") {
+				out.WriteString(fmt.Sprintf("  [ERROR] Logic response missing required \"is_bloated\" key: %.200s\n", resL.Response))
+				res.text = out.String()
+				return res
+			}
+
+			if bI.IsBloated || bL.IsBloated {
+				bloatResult = "BLOATED"
+			}
+		} else {
+			// A generic (non-IDE-fallback) error from either query --
+			// timeout, connection refused, malformed backend response,
+			// etc. Falling through here would leave bloatResult at its
+			// pre-set "PASS" default with zero trace in the report,
+			// making a broken run indistinguishable from a genuinely
+			// clean one (failures/20260917_atd_audit_docs_exits_zero_with_no_report.md).
+			bloatResult = "ERROR"
+			res.queryError = true
+			var errMsg strings.Builder
+			if errI != nil {
+				errMsg.WriteString(fmt.Sprintf("intent query: %v", errI))
+			}
+			if errL != nil {
+				if errMsg.Len() > 0 {
+					errMsg.WriteString("; ")
+				}
+				errMsg.WriteString(fmt.Sprintf("logic query: %v", errL))
+			}
+			out.WriteString(fmt.Sprintf("  [ERROR] LLM bloat check failed for %s: %s\n", data.ID, errMsg.String()))
+		}
+	}
+	if bloatResult == "BLOATED" {
+		res.bloated = true
+	}
+
+	pEmbed, embResolveErr := ollama.ResolveProvider("embed")
+	var emb []float32
+	if embResolveErr == nil && !pEmbed.IsIDE {
+		content, readErr := os.ReadFile(f)
+		if readErr != nil {
+			out.WriteString(fmt.Sprintf("  [ERROR] Failed to read %s for embedding: %v\n", filename, readErr))
+			res.embedError = true
+		} else {
+			var embErr error
+			emb, embErr = ollama.QueryEmbed(string(content))
+			if embErr != nil {
+				// Silently discarding this (as `_`) meant an atom could
+				// drop out of collision detection with zero visibility
+				// into why -- surface it loudly instead.
+				out.WriteString(fmt.Sprintf("  [ERROR] Embedding failed for %s: %v (excluded from collision detection)\n", data.ID, embErr))
+				res.embedError = true
+			}
+		}
+	} else if embResolveErr != nil {
+		out.WriteString(fmt.Sprintf("  [ERROR] Failed to resolve embed provider for %s: %v (excluded from collision detection)\n", data.ID, embResolveErr))
+		res.embedError = true
+	}
+
+	meta := atomAuditMeta{
+		ID:           data.ID,
+		FilePath:     f,
+		AtomType:     atomType,
+		Parents:      data.Parents,
+		Embedding:    emb,
+		BloatResult:  bloatResult,
+		LastModified: mtime,
+	}
+	res.meta = &meta
+
+	intentStr := ""
+	logicStr := ""
+	if bloatResult == "BLOATED" {
+		intentStr = data.Intent
+		logicStr = data.Logic
+	}
+	store.PutAuditCache(filename, emb, intentStr, logicStr, mtime)
+
+	out.WriteString(fmt.Sprintf("Auditing: %s ... [%s]\n", filename, bloatResult))
+	res.text = out.String()
+	return res
 }
 
 // runAudit performs the shared bloat-detection (Phase 1) and
 // collision-detection (Phase 2) analysis over an explicit file list. dbDir
-// selects where the audit cache (.atd_audit.db) is stored.
-func runAudit(files []string, dbDir string, threshold float64) (*AuditReport, error) {
+// selects where the audit cache (.atd_audit.db) is stored. concurrency bounds
+// how many files Phase 1 processes in parallel; concurrency <= 0 falls back
+// to DefaultAuditConcurrency.
+func runAudit(files []string, dbDir string, threshold float64, concurrency int) (*AuditReport, error) {
+	if concurrency <= 0 {
+		concurrency = DefaultAuditConcurrency
+	}
 	var output strings.Builder
 	dbPath := filepath.Join(dbDir, ".atd_audit.db")
 	store, err := atdstore.NewStore(dbPath)
@@ -111,168 +322,47 @@ func runAudit(files []string, dbDir string, threshold float64) (*AuditReport, er
 	var ids []string
 	var bloatedCount, collisionCount, queryErrorCount, embedErrorCount int
 
-	for _, f := range files {
-		filename := filepath.Base(f)
-		info, statErr := os.Stat(f)
-		if statErr != nil {
-			output.WriteString(fmt.Sprintf("Auditing: %s ... [ERROR: %v]\n", filename, statErr))
-			continue
+	// Phase 1 runs across a bounded worker pool (semaphore + WaitGroup) so up
+	// to `concurrency` files are in flight at once against Ollama. Each
+	// worker writes its report text into results[i] -- its own slot, keyed
+	// by the file's original index in `files` -- rather than the shared
+	// `output` builder (strings.Builder is not safe for concurrent writes,
+	// and even if it were, completion order across goroutines is
+	// nondeterministic). Results are appended to `output` in original file
+	// order after every worker has finished, so report text stays
+	// byte-for-byte identical regardless of concurrency or scheduling.
+	results := make([]fileAuditResult, len(files))
+	sem := make(chan struct{}, concurrency)
+	var wg sync.WaitGroup
+	for i, f := range files {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(i int, f string) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			results[i] = auditOneFile(f, store)
+		}(i, f)
+	}
+	wg.Wait()
+
+	// Merge step: single-threaded, so auditMetas/ids/counters need no lock of
+	// their own even though the work that produced each result ran
+	// concurrently.
+	for _, r := range results {
+		output.WriteString(r.text)
+		if r.meta != nil {
+			auditMetas[r.filename] = *r.meta
+			ids = append(ids, r.filename)
 		}
-		mtime := info.ModTime().Unix()
-
-		cached, err := store.GetAuditCache(filename)
-		if err == nil && cached != nil && mtime <= cached.Mtime {
-			data, err := atom.Parse(f)
-			if err != nil {
-				output.WriteString(fmt.Sprintf("Auditing: %s ... [ERROR: %v]\n", filename, err))
-				continue
-			}
-			atomType := data.Type
-			if atomType == "" {
-				atomType = "UNKNOWN"
-			}
-			meta := atomAuditMeta{
-				ID:           data.ID,
-				FilePath:     f,
-				AtomType:     atomType,
-				Parents:      data.Parents,
-				Embedding:    cached.Embedding,
-				BloatResult:  fmt.Sprintf("CACHED: intent=%s logic=%s", cached.Intent, cached.Logic),
-				LastModified: cached.Mtime,
-			}
-			auditMetas[filename] = meta
-			ids = append(ids, filename)
-			output.WriteString(fmt.Sprintf("Auditing: %s ... [CACHED]\n", filename))
-			continue
-		}
-
-		data, err := atom.Parse(f)
-		if err != nil {
-			output.WriteString(fmt.Sprintf("Auditing: %s ... [ERROR: %v]\n", filename, err))
-			continue
-		}
-
-		atomType := data.Type
-		if atomType == "" {
-			atomType = "UNKNOWN"
-		}
-
-		strictness := config.GetBloatingStrictness(atomType)
-		bloatResult := "PASS"
-		if data.Bloating == "off" {
-			bloatResult = "SKIP"
-		} else if strictness > 0 {
-			intentPrompt := prompt.AuditBloatBuild("Architectural Linter", data.Intent, strictness)
-			logicPrompt := prompt.AuditBloatBuild("Architectural Linter", data.Logic, strictness)
-
-			resI, errI := ollama.Query("text_analysis", intentPrompt, prompt.AuditBloatFormat())
-			resL, errL := ollama.Query("text_analysis", logicPrompt, prompt.AuditBloatFormat())
-
-			if errI == ollama.ErrIDEFallback || errL == ollama.ErrIDEFallback {
-				promptName := "audit_bloat_" + data.ID
-				pipeline.WritePromptFile(promptName, intentPrompt+"\n\n"+logicPrompt)
-				bloatResult = "PENDING_IDE"
-			} else if errI == nil && errL == nil {
-				var bI, bL struct {
-					IsBloated bool `json:"is_bloated"`
-				}
-				if err := json.Unmarshal([]byte(resI.Response), &bI); err != nil {
-					output.WriteString(fmt.Sprintf("  [ERROR] Failed to parse intent response: %v\n", err))
-					continue
-				}
-				if !hasKey(resI.Response, "is_bloated") {
-					// Syntactically valid JSON that simply omits "is_bloated"
-					// unmarshals with no error at all -- bI.IsBloated would
-					// silently stay its zero value (false), classifying the
-					// atom PASS even though the model's response was
-					// unusable. Treat a missing required key the same as
-					// malformed JSON: a loud [ERROR] line, never a silent
-					// PASS.
-					output.WriteString(fmt.Sprintf("  [ERROR] Intent response missing required \"is_bloated\" key: %.200s\n", resI.Response))
-					continue
-				}
-				if err := json.Unmarshal([]byte(resL.Response), &bL); err != nil {
-					output.WriteString(fmt.Sprintf("  [ERROR] Failed to parse logic response: %v\n", err))
-					continue
-				}
-				if !hasKey(resL.Response, "is_bloated") {
-					output.WriteString(fmt.Sprintf("  [ERROR] Logic response missing required \"is_bloated\" key: %.200s\n", resL.Response))
-					continue
-				}
-
-				if bI.IsBloated || bL.IsBloated {
-					bloatResult = "BLOATED"
-				}
-			} else {
-				// A generic (non-IDE-fallback) error from either query --
-				// timeout, connection refused, malformed backend response,
-				// etc. Falling through here would leave bloatResult at its
-				// pre-set "PASS" default with zero trace in the report,
-				// making a broken run indistinguishable from a genuinely
-				// clean one (failures/20260917_atd_audit_docs_exits_zero_with_no_report.md).
-				bloatResult = "ERROR"
-				queryErrorCount++
-				var errMsg strings.Builder
-				if errI != nil {
-					errMsg.WriteString(fmt.Sprintf("intent query: %v", errI))
-				}
-				if errL != nil {
-					if errMsg.Len() > 0 {
-						errMsg.WriteString("; ")
-					}
-					errMsg.WriteString(fmt.Sprintf("logic query: %v", errL))
-				}
-				output.WriteString(fmt.Sprintf("  [ERROR] LLM bloat check failed for %s: %s\n", data.ID, errMsg.String()))
-			}
-		}
-		if bloatResult == "BLOATED" {
+		if r.bloated {
 			bloatedCount++
 		}
-
-		pEmbed, embResolveErr := ollama.ResolveProvider("embed")
-		var emb []float32
-		if embResolveErr == nil && !pEmbed.IsIDE {
-			content, readErr := os.ReadFile(f)
-			if readErr != nil {
-				output.WriteString(fmt.Sprintf("  [ERROR] Failed to read %s for embedding: %v\n", filename, readErr))
-				embedErrorCount++
-			} else {
-				var embErr error
-				emb, embErr = ollama.QueryEmbed(string(content))
-				if embErr != nil {
-					// Silently discarding this (as `_`) meant an atom could
-					// drop out of collision detection with zero visibility
-					// into why -- surface it loudly instead.
-					output.WriteString(fmt.Sprintf("  [ERROR] Embedding failed for %s: %v (excluded from collision detection)\n", data.ID, embErr))
-					embedErrorCount++
-				}
-			}
-		} else if embResolveErr != nil {
-			output.WriteString(fmt.Sprintf("  [ERROR] Failed to resolve embed provider for %s: %v (excluded from collision detection)\n", data.ID, embResolveErr))
+		if r.queryError {
+			queryErrorCount++
+		}
+		if r.embedError {
 			embedErrorCount++
 		}
-
-		meta := atomAuditMeta{
-			ID:           data.ID,
-			FilePath:     f,
-			AtomType:     atomType,
-			Parents:      data.Parents,
-			Embedding:    emb,
-			BloatResult:  bloatResult,
-			LastModified: mtime,
-		}
-		auditMetas[filename] = meta
-		ids = append(ids, filename)
-
-		intentStr := ""
-		logicStr := ""
-		if bloatResult == "BLOATED" {
-			intentStr = data.Intent
-			logicStr = data.Logic
-		}
-		store.PutAuditCache(filename, emb, intentStr, logicStr, mtime)
-
-		output.WriteString(fmt.Sprintf("Auditing: %s ... [%s]\n", filename, bloatResult))
 	}
 
 	output.WriteString("\nPhase 2: The Collision Map (Semantic Overlap Detection)\n")

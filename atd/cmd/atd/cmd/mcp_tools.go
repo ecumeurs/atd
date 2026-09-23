@@ -491,12 +491,17 @@ Use during PLAN stage to find related code or atoms by meaning, or to locate imp
 		Name: "atd_audit",
 		Description: `Audit ATD atoms for documentation quality issues.
 Default mode: detect bloated atoms and semantic collisions (duplicate/overlapping atoms) across the entire docs directory.
+Set "atom" to scope the audit to a single atom file instead of sweeping the whole docs directory.
+Does not compare an atom against code -- use atd_recon (or "atd map --atom <atom> --file <code>") for that; setting both "atom" and "code" here is an error.
 Use during PLAN stage after creating new atoms to check for overlap.`,
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"docs":      map[string]any{"type": "string", "description": "Override docs directory path."},
-				"threshold": map[string]any{"type": "number", "description": "Cosine similarity threshold for collision detection (0.0-1.0). Defaults to the configured diff_similarity_threshold (or 0.85)."},
+				"docs":        map[string]any{"type": "string", "description": "Override docs directory path."},
+				"threshold":   map[string]any{"type": "number", "description": "Cosine similarity threshold for collision detection (0.0-1.0). Defaults to the configured diff_similarity_threshold (or 0.85)."},
+				"atom":        map[string]any{"type": "string", "description": "Path to a single atom file to scope the audit to, instead of sweeping the whole docs directory."},
+				"code":        map[string]any{"type": "string", "description": "Not supported here. Combining with \"atom\" is an error -- use atd_recon (or \"atd map --atom <atom> --file <code>\") for atom-vs-code compliance checks instead."},
+				"concurrency": map[string]any{"type": "integer", "description": "Max files audited in parallel during bloat detection. Defaults to the same value the CLI uses when --concurrency is unset."},
 			},
 		},
 	}, func(args map[string]any) (string, error) {
@@ -507,10 +512,13 @@ Use during PLAN stage after creating new atoms to check for overlap.`,
 		}
 		docs := a.String("docs", config.DocsDir())
 		threshold := a.Float64("threshold", defaultThreshold)
+		atomPath := a.String("atom", "")
+		codePath := a.String("code", "")
+		concurrency := a.Int("concurrency", 0)
 		if err := a.Err(); err != nil {
 			return "", err
 		}
-		return runFullAudit(docs, threshold, false)
+		return runFullAudit(docs, threshold, false, atomPath, codePath, concurrency)
 	})
 
 	// @spec-link [[api_atd_serve_recon]]

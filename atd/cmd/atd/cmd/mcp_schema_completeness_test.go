@@ -37,7 +37,7 @@ var registeredParamsByTool = map[string][]string{
 	"atd_test_links":      {"atom", "docs"},
 	"atd_index":           {"dir", "db", "mode"},
 	"atd_search":          {"query", "grep", "scope", "limit", "paths_only"},
-	"atd_audit":           {"docs", "threshold"},
+	"atd_audit":           {"docs", "threshold", "atom", "code", "concurrency"},
 	"atd_recon":           {"atom", "candidate"},
 	"atd_map":             {"file", "atom", "new"},
 	"atd_env":             {},
