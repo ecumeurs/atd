@@ -628,7 +628,8 @@ Use 'task'+'model' to reassign which LLM model handles a specific task type (e.g
 	r.Register(mcp.Tool{
 		Name: "atd_lint",
 		Description: `Perform fast, deterministic structural validation on all ATD atoms (no LLM, no tokens).
-Catches: missing mandatory fields, malformed [[id]] references, broken parent/dependent links, empty H2 sections.
+Catches: missing mandatory fields, malformed [[id]] references, broken parent/dependent links, empty H2 sections,
+and outside-document references (markdown links, URLs, prose [[id]] links to atoms outside parents/dependents, doc path or § citations).
 Use during VERIFY stage as a cheap first-pass before running the heavier atd_audit.`,
 		InputSchema: map[string]any{
 			"type":       "object",

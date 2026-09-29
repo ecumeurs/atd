@@ -20,7 +20,7 @@ To propagate bidirectional parent↔dependent links across all ATD atoms, ensuri
 ## THE RULE / LOGIC
 Reads all `.atom.md` files, builds a map of parent→dependent relationships from the `parents:` frontmatter field, then rewrites each atom's `dependents:` field to include all atoms that declare it as a parent. Only modifies files where the dependents list actually changes.
 
-Weave is also the repair pass for governance graph isolation ([[rule_atd_governance_graph_isolation]]): a `parents:` entry naming a `CONTRACT`/`VISION` atom is dropped rather than propagated, a governance atom's own `parents:` are emptied, and the dropped edges are excluded from the parent→dependent map so neither end regains a `dependents:` entry. Removals are named in the command's output. An atom holding no forbidden link has its `parents:` block left untouched.
+Weave is also the repair pass for governance graph isolation — the rule that `CONTRACT`/`VISION` atoms are read for governance from the side and never sit in any atom's ancestry: a `parents:` entry naming a `CONTRACT`/`VISION` atom is dropped rather than propagated, a governance atom's own `parents:` are emptied, and the dropped edges are excluded from the parent→dependent map so neither end regains a `dependents:` entry. Removals are named in the command's output. An atom holding no forbidden link has its `parents:` block left untouched.
 
 ## TECHNICAL INTERFACE (The Bridge)
 @spec-link [[mechanic_atd_weave]]

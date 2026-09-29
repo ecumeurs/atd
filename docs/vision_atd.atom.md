@@ -33,7 +33,7 @@ Out of scope (scope-creep guard):
 - Any feature that makes an LLM the source of truth for what the system *should* do — the atom graph is that source of truth.
 
 ## TECHNICAL INTERFACE (The Bridge)
-- **Governance role:** Per ATD.md §1.4, this VISION atom MUST be read whenever a BUSINESS-layer atom is added or updated, to confirm the change stays within the project's intended purview — read for governance, never referenced as an atom's `parents:` ancestor. VISION governs scope (is this still within purview?); CONTRACT (see `contract_atd`) governs the currently-guaranteed surface (does this break what's already promised?) — the two are separate axes and a change can trip either independently.
+- **Governance role:** This VISION atom MUST be read whenever a BUSINESS-layer atom is added or updated, to confirm the change stays within the project's intended purview — read for governance, never referenced as an atom's `parents:` ancestor. VISION governs scope (is this still within purview?); CONTRACT governs the currently-guaranteed surface (does this break what's already promised?) — the two are separate axes and a change can trip either independently.
 - **Uniqueness:** Exactly one VISION atom per project (enforced by `atd lint`).
 - **Override:** Widening scope REQUIRES updating this atom in the same change.
 

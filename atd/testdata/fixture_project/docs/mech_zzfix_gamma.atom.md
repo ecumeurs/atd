@@ -15,7 +15,7 @@ layer: IMPLEMENTATION
 # zzfix Gamma Mechanic
 
 ## INTENT
-To be the IMPLEMENTATION leaf of this fixture's cross-layer chain ([[req_zzfix_alpha]] -> [[api_zzfix_beta]] -> mech_zzfix_gamma), and the atom whose docs use `###` subheadings inside an H2 section — the exact shape that once made `atom.Parse` silently swallow content past the first subheading (test_atd_07_26.md E4).
+To be the IMPLEMENTATION leaf of this fixture's cross-layer chain (BUSINESS requirement -> [[api_zzfix_beta]] -> mech_zzfix_gamma), and the atom whose docs use `###` subheadings inside an H2 section — the exact shape that once made `atom.Parse` silently swallow content past the first subheading.
 
 ## THE RULE / LOGIC
 Implements the procedural detail [[api_zzfix_beta]] delegates to it.

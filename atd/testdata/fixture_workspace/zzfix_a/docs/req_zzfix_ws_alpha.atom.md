@@ -7,8 +7,7 @@ status: STABLE
 priority: 3
 tags: [zzfix, workspace]
 parents: []
-dependents:
-  - [[zzfix_b:api_zzfix_ws_beta]]
+dependents: []
 layer: BUSINESS
 ---
 

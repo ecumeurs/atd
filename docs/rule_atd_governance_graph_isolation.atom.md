@@ -19,7 +19,7 @@ dependents: []
 To keep `CONTRACT` and `VISION` atoms out of the ancestry graph entirely, so that governance is read from the side rather than inherited through a `parents:` chain.
 
 ## THE RULE / LOGIC
-Governance atoms (`CONTRACT`, `VISION` — ATD.md §1.4) are read for governance, never linked as structural ancestry. Four link shapes are therefore forbidden:
+Governance atoms (`CONTRACT`, `VISION`) are read for governance, never linked as structural ancestry. Four link shapes are therefore forbidden:
 
 1. An ordinary atom naming a governance atom in its `parents:`.
 2. An ordinary atom naming a governance atom in its `dependents:`.

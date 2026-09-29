@@ -396,3 +396,43 @@ expectation
 		}
 	}
 }
+
+// @test-link [[rule_atd_atom_self_sufficiency]]
+func TestLintOutsideDocumentReferences(t *testing.T) {
+	withLogic := func(id, parents, logic string) string {
+		return strings.Replace(ordinaryAtomSource(id, parents, "[]"), "\nlogic\n", "\n"+logic+"\n", 1)
+	}
+	dir := writeAtoms(t, map[string]string{
+		"rule_parent.atom.md": ordinaryAtomSource("rule_parent", "[]", "[]"),
+		"rule_other.atom.md":  ordinaryAtomSource("rule_other", "[]", "[]"),
+		"rule_leaky.atom.md": withLogic("rule_leaky", "[[rule_parent]]",
+			"Builds on [[rule_parent]] but defers to [[rule_other]]; see [notes](https://example.com/n), "+
+				"https://example.com/raw, `reports/why.md`, and GUIDE.md §2."),
+		"rule_clean.atom.md": withLogic("rule_clean", "[[rule_parent]]",
+			"Builds on [[rule_parent]]; tag `@spec-link [[rule_other]]`; endpoint `http://localhost:1/x`; writes `task_list.md`."),
+	})
+
+	out, err := runLint(dir)
+	if err == nil {
+		t.Fatalf("Expected lint failure, got none: %s", out)
+	}
+	for _, expected := range []string{
+		"Wiki-link to an atom outside parents:/dependents: [[rule_other]]",
+		"Markdown link to outside document: https://example.com/n",
+		"URL to outside document: https://example.com/raw",
+		"Citation of outside document: reports/why.md",
+		"Citation of outside document: GUIDE.md §2",
+	} {
+		if !strings.Contains(out, expected) {
+			t.Errorf("Expected output to contain %q, got: %s", expected, out)
+		}
+	}
+	if strings.Contains(out, "outside parents:/dependents: [[rule_parent]]") {
+		t.Errorf("A prose link to the atom's own parent must not be flagged, got: %s", out)
+	}
+	// Only rule_leaky's five references may be reported; rule_clean's parent
+	// link, tag, code-span URL and artifact filename are all allowed.
+	if n := strings.Count(out, "an atom must stand on its own"); n != 5 {
+		t.Errorf("Expected exactly 5 self-sufficiency findings, got %d: %s", n, out)
+	}
+}

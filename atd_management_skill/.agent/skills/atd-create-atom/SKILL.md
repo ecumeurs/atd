@@ -209,6 +209,24 @@ type Player struct {
 ```
 ```
 
+### Self-Sufficiency (mandatory)
+
+An atom must stand entirely on its own: a reader who has never opened any other file must understand it from its own content. When something seems to need a pointer elsewhere ("see the failure report", "per ATD guide section X", "handled by [[some_other_atom]]"), write that reasoning into the atom itself instead.
+
+The ONLY links an atom may carry are its structural edges:
+- `parents:` / `dependents:` in the frontmatter
+- `@spec-link [[id]]` / `@test-link [[id]]` tags
+- a prose `[[id]]` naming the atom itself or one of its own declared parents/dependents
+
+Forbidden anywhere in the atom (including the frontmatter `description:`):
+- markdown links `[text](target)` and reference-style link definitions
+- URLs in prose (a URL inside a code span or fenced block is a literal value, e.g. an endpoint, and is fine)
+- prose `[[id]]` links to atoms outside the atom's own parents/dependents
+- document citations — a doc path with a directory (`failures/…`, `docs/…` markdown/PDF files), or a doc cited by section (`SOMEDOC` + `§` marker) — even inside backticks
+- references to issues, tickets, incident write-ups, failure reports, or other design docs
+
+`atd_lint` enforces this deterministically; an atom that fails it is not done.
+
 ---
 
 ## Step 7 — Create the Atom via `atd_update`
@@ -253,6 +271,9 @@ mcp__atd__atd_audit()
 
 # 3. Verify structural integrity on any files the atom might reference
 mcp__atd__atd_check(file="path/to/related/code/file.go")
+
+# 4. Structural lint, including self-sufficiency (no outside-document links)
+mcp__atd__atd_lint()
 ```
 
 **Address any issues:**
@@ -284,12 +305,14 @@ Example:
 [ ] Chose canonical type and layer
 [ ] Checked bloating factor config
 [ ] Verified "no and" in INTENT rule
+[ ] Atom is self-sufficient: no links/citations beyond parents, dependents, @spec-link/@test-link
 [ ] Authored four H2 sections (INTENT, LOGIC, TECHNICAL INTERFACE, EXPECTATION)
 [ ] Created via atd_update (never hand-wrote file)
 [ ] Set status=DRAFT and parent(s), or obtained approval for the sole operational-root exception
 [ ] Ran atd_weave to build graph
 [ ] Ran atd_audit for collisions
 [ ] Ran atd_check on touched files
+[ ] Ran atd_lint (fields, links, self-sufficiency) with no findings on the new atom
 [ ] Notified user with ID, path, intent, and next steps
 ```
 
@@ -318,6 +341,7 @@ Example:
 ❌ **DON'T:**
 - Skip parent verification ("I'll add it later")
 - Use "and" in the INTENT section (violates atomicity)
+- Point to failure reports, issues, design docs, URLs, or unrelated atoms instead of writing the reasoning into the atom (violates self-sufficiency)
 - Hand-write `.atom.md` files (breaks traceability)
 - Create IMPLEMENTATION atoms without ARCHITECTURE parents
 - Set status to REVIEW or STABLE immediately (always start DRAFT)

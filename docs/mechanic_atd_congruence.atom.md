@@ -57,9 +57,3 @@ Response contract (`pkg/prompt.CongruenceFormat`):
 - **Command:** `atd congruence --target <atom_id> [--docs <dir>] [--workspace]`
 - **LLM Task:** `congruence`
 - **Code Tag:** `@spec-link [[mechanic_atd_congruence]]`
-- **Related known-defect record (now fixed):** see
-  `failures/20260918_release_notes.md`'s "Third batch" entry — the prior
-  behavior (bare `is_congruent: false` verdict accepted as complete, no
-  `--workspace` resolution) previously lived in
-  `failures/20260917_atd_congruence_empty_verdict_and_no_workspace_resolution.md`,
-  now removed as fully processed.

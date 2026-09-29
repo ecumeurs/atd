@@ -4,8 +4,7 @@ human_name: "Atom A"
 type: RULE
 layer: ARCHITECTURE
 status: STABLE
-dependents:
-  - [[project-b:atom-b]]
+dependents: []
 ---
 
 # Atom A

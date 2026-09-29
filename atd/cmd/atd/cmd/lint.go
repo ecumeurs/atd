@@ -41,7 +41,8 @@ var lintCmd = &cobra.Command{
 	Use:   "lint [dir]",
 	Short: "Structurally validate ATD atoms",
 	Long: `lint performs a fast, deterministic check across all ATD atoms in the documentation directory.
-It verifies mandatory fields, enums (Layer, Priority), section non-emptiness, and broken reference resolution.`,
+It verifies mandatory fields, enums (Layer, Priority), section non-emptiness, broken reference resolution,
+and atom self-sufficiency (no links to outside documents beyond parents/dependents and @spec-link/@test-link tags).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dir := config.DocsDir()
 		if len(args) > 0 {
@@ -61,6 +62,23 @@ It verifies mandatory fields, enums (Layer, Priority), section non-emptiness, an
 
 func init() {
 	rootCmd.AddCommand(lintCmd)
+}
+
+// selfSufficiencyAllowed is the set of atom references an atom may name in
+// its own prose: itself and its declared parents:/dependents:.
+//
+// @spec-link [[rule_atd_atom_self_sufficiency]]
+func selfSufficiencyAllowed(a atom.AtomData) map[string]bool {
+	allowed := map[string]bool{}
+	if a.ID != "" {
+		allowed[a.ID] = true
+	}
+	for _, refs := range [][]string{a.Parents, a.Dependents} {
+		for _, r := range refs {
+			allowed[strings.TrimSpace(r)] = true
+		}
+	}
+	return allowed
 }
 
 func runLint(dir string) (string, error) {
@@ -188,6 +206,15 @@ func runLint(dir string) (string, error) {
 			}
 			if governanceAtomIDs[atom.BareAtomID(cleanP)] {
 				atomErrors = append(atomErrors, fmt.Sprintf("CONTRACT/VISION referenced as dependent: [[%s]] -- governance atoms are read for governance, never linked as structural ancestry (ATD.md §1.4)", p))
+			}
+		}
+
+		// Self-sufficiency: the only links an atom may carry are its
+		// structural edges (parents:, dependents:, @spec-link/@test-link).
+		// Any other pointer to a document outside the atom is flagged.
+		if raw, err := os.ReadFile(a.FilePath); err == nil {
+			for _, f := range atom.FindOutsideReferences(string(raw), selfSufficiencyAllowed(a)) {
+				atomErrors = append(atomErrors, f+" -- an atom must stand on its own; write the reasoning into the atom instead of pointing elsewhere")
 			}
 		}
 

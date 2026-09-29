@@ -24,7 +24,7 @@ Implements the capability required by [[req_zzfix_alpha]] and delegates its proc
 ## TECHNICAL INTERFACE
 - **Code Tag:** `@spec-link [[api_zzfix_beta]]`
 - **Test Tag:** `@test-link [[api_zzfix_beta]]`
-- Deliberately tagged twice in the same file (`src/beta.go`) so `atd check --file src/beta.go` has a real dedup case to prove (test_atd_07_26.md §4, S2).
+- Deliberately tagged twice in the same file (`src/beta.go`) so `atd check --file src/beta.go` has a real dedup case to prove (scenario S2).
 
 ## EXPECTATION
 `atd check --atom api_zzfix_beta` reports 2 impl links and 1 test link. `atd check --file src/beta.go` lists api_zzfix_beta exactly once, not twice.

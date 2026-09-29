@@ -57,5 +57,5 @@ The extension implements standard VS Code language features:
 
 ## Code Mapping
 
-- **Implementation:** [extension.js](file:///home/bastien/work/atd/extension/extension.js)
+- **Implementation:** `extension/extension.js`
 - **Code Tag:** `@spec-link [[specification_vscode_atd_linker]]`

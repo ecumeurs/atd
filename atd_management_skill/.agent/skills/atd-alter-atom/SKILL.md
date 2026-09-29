@@ -120,6 +120,24 @@ mcp__atd__atd_update(
 - Never use both `set` and content parameters for the same field
 - Make the smallest change that achieves the goal
 
+### Self-Sufficiency (mandatory for every edit)
+
+Every edit must leave the atom self-sufficient — including text you did not write: if the section you touch already cites a report, issue, or other doc, inline the reasoning while you are there. An atom must stand entirely on its own: a reader who has never opened any other file must understand it from its own content. When something seems to need a pointer elsewhere ("see the failure report", "per ATD guide section X", "handled by [[some_other_atom]]"), write that reasoning into the atom itself instead.
+
+The ONLY links an atom may carry are its structural edges:
+- `parents:` / `dependents:` in the frontmatter
+- `@spec-link [[id]]` / `@test-link [[id]]` tags
+- a prose `[[id]]` naming the atom itself or one of its own declared parents/dependents
+
+Forbidden anywhere in the atom (including the frontmatter `description:`):
+- markdown links `[text](target)` and reference-style link definitions
+- URLs in prose (a URL inside a code span or fenced block is a literal value, e.g. an endpoint, and is fine)
+- prose `[[id]]` links to atoms outside the atom's own parents/dependents
+- document citations — a doc path with a directory (`failures/…`, `docs/…` markdown/PDF files), or a doc cited by section (`SOMEDOC` + `§` marker) — even inside backticks
+- references to issues, tickets, incident write-ups, failure reports, or other design docs
+
+`atd_lint` enforces this deterministically; an atom that fails it is not done.
+
 ---
 
 ## Step 4 — Verify Reference Propagation (If ID/Type Changed)
@@ -157,7 +175,7 @@ mcp__atd__atd_weave()
 # 2. Structural check on affected files
 mcp__atd__atd_check(file="path/to/touched/code/file.go")
 
-# 3. Lint for taxonomy and reference issues
+# 3. Lint for taxonomy, reference and self-sufficiency issues
 mcp__atd__atd_lint()
 ```
 
@@ -237,7 +255,8 @@ Example:
 [ ] Verified reference propagation if id/type changed
 [ ] Re-ran atd_weave to rebuild graph
 [ ] Ran atd_check on affected files
-[ ] Ran atd_lint for taxonomy/issues
+[ ] Ran atd_lint for taxonomy/issues/self-sufficiency
+[ ] Edited atom is self-sufficient: no links/citations beyond parents, dependents, @spec-link/@test-link
 [ ] Flagged downstream @spec-link/@test-link sites if intent changed
 [ ] Updated status appropriately
 [ ] Notified user with change summary, blast radius, flagged sites, and next steps

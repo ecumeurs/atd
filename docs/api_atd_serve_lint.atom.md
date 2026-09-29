@@ -25,7 +25,7 @@ Expose the structural linting capability of the ATD toolkit via the Model Contex
     - `docs` (optional): Path to the documentation directory to validate. Defaults to the configured docs path.
 - **Outputs**:
     - Returns a success message if all atoms pass.
-    - Returns a detailed list of linting errors (missing fields, invalid enums, broken links) if any atom fails validation.
+    - Returns a detailed list of linting errors (missing fields, invalid enums, broken links, references to outside documents) if any atom fails validation.
 
 ## TECHNICAL INTERFACE (The Bridge)
 - **Implementation:** `scripts/cmd/atd/cmd/mcp_tools.go`

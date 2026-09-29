@@ -14,7 +14,7 @@ layer: BUSINESS
 # zzfix Draft Requirement
 
 ## INTENT
-To give scenario S4 a BUSINESS-layer atom that is NOT STABLE, so `atd update` on it can be shown to proceed with no friction — in direct contrast to [[req_zzfix_alpha]] (STABLE), which the same guard must refuse without `--force`.
+To give scenario S4 a BUSINESS-layer atom that is NOT STABLE, so `atd update` on it can be shown to proceed with no friction — in direct contrast to this fixture's STABLE BUSINESS requirement, which the same guard must refuse without `--force`.
 
 ## THE RULE / LOGIC
 This requirement is still under discussion and carries no enforceable rule yet.

@@ -14,7 +14,7 @@ parents:
 # Link and Definition Resolver
 
 ## INTENT
-Implement DocumentLinkProvider and DefinitionProvider to resolve [[ID]] tokens to atom files.
+Implement DocumentLinkProvider and DefinitionProvider to resolve `[[ID]]` tokens to atom files.
 
 ## THE RULE / LOGIC
 1. Use regex `/\[\[([^\]]+)\]\]/g` to find tokens.
@@ -24,4 +24,4 @@ Implement DocumentLinkProvider and DefinitionProvider to resolve [[ID]] tokens t
 ## TECHNICAL INTERFACE
 
 ## EXPECTATION
-Clicking on [[ID]] correctly navigates to the corresponding .atom.md file.
+Clicking on `[[ID]]` correctly navigates to the corresponding .atom.md file.
